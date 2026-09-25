@@ -1,15 +1,15 @@
-# Phone Zone — Complete Product Requirements & Behavioral Specification
+# StoreOS — Complete Product Requirements & Behavioral Specification
 
 **Document type:** Product / Functional Requirements Specification  
 **Purpose:** Handover / independent reimplementation  
-**Baseline:** Current Phone Zone codebase and database model reviewed in September 2026  
-**Target:** A functionally equivalent application with freedom to use a different UI, visual language, framework, or technology stack.
+**Platform identity:** StoreOS (internal multi-tenant architecture name)  
+**Target:** A modern, multi-tenant cloud retail operating system with strict tenant white-labeling.
 
 ---
 
 ## 1. Executive Summary
 
-Phone Zone is an **offline-first desktop Point-of-Sale (POS), inventory, customer ledger, supplier/payables, repair-management, expense, reporting, and business-audit application** designed for a mobile-phone retail shop.
+StoreOS is a **multi-tenant Point-of-Sale (POS), inventory, customer ledger, supplier/payables, repair-management, expense, reporting, and business-audit operating system** designed for mobile-phone and electronics retail shops and chains.
 
 The product's core value is not its visual design. The essential product behavior is:
 
@@ -28,11 +28,10 @@ The product's core value is not its visual design. The essential product behavio
 13. Record operational expenses.
 14. Provide dashboards, sales audit reports, inventory valuation, and exports.
 15. Provide backup/restore and data portability.
-16. Operate locally without requiring a cloud backend.
-17. Protect the application using application-level security/licensing controls.
+16. Support server-authoritative multi-branch operations with local PWA resilience.
+17. Protect the application using granular RBAC and tenant activation controls.
 18. Preserve transactional history rather than silently overwriting financial records.
-
-A replacement implementation may look completely different, but if it satisfies this document, its **backend/domain behavior should be substantially equivalent** to Phone Zone.
+19. **Strict White-Labeling & Stealth Identity:** The platform name `StoreOS` is purely internal. The application prompts for the shop's business name during onboarding, and thereafter calls itself by that shop name across all user-facing interfaces, browser titles, invoices, and customer communications.
 
 ---
 
@@ -88,26 +87,13 @@ If the repair module is enabled:
 
 # 3. Core Product Principles
 
-## 3.1 Offline-first
+## 3.1 Cloud-first with PWA resilience
 
-The application must function without an internet connection for its normal business operations.
+The application operates as a cloud-hosted, server-authoritative system with offline cart resilience via PWA and local IndexedDB caching so network interruptions do not disrupt active checkout preparation.
 
-Internet connectivity must not be a prerequisite for:
+## 3.2 Server source of truth & multi-branch consistency
 
-- POS billing.
-- Inventory.
-- Customers.
-- Expenses.
-- Repairs.
-- Reports.
-- Local printing.
-- Local backup.
-
-Optional remote/multi-device functionality may require a network connection.
-
-## 3.2 Local source of truth
-
-The local database is the authoritative business datastore in standalone mode.
+The central database is the authoritative datastore. Physical inventory and transactions are stamped per branch, while customers and product masters are tenant-wide.
 
 ## 3.3 Financial history must be auditable
 
@@ -128,12 +114,19 @@ A phone/accessory is physical stock.
 A repair service is a sellable service definition and must **not** behave like a physical inventory unit.
 
 Therefore repair services must not inflate:
-
 - Stock quantity.
 - Stock cost.
 - Retail inventory valuation.
 - Low-stock counts.
 - Out-of-stock counts.
+
+## 3.5 Strict White-Labeling (Stealth Platform Identity)
+
+The platform must maintain zero vendor-facing branding in the user interface or customer-facing outputs:
+- **First-Run Onboarding:** Upon initial tenant setup, the application immediately prompts: *"What is your Shop / Business Name?"* (along with optional logo, GSTIN, address, phone numbers).
+- **Dynamic Identity:** From that moment onward, the entire interface presents itself under that shop's identity.
+- **Browser & UI Surfaces:** Browser tab titles, navigation headers, login screens, PWA desktop icons, receipts, tax invoices, and customer notifications display strictly the shop's name.
+- **Platform Secrecy:** The platform name `StoreOS` is strictly an internal engineering and architectural designation, completely invisible to store staff, cashiers, and retail shoppers.
 
 ---
 

@@ -1,7 +1,7 @@
-# Phone Zone Cloud — Complete Implementation Plan
+# StoreOS Cloud — Complete Implementation Plan
 
 **Document type:** Engineering Implementation Plan (from-scratch build)
-**Functional source of truth:** `PhoneZone_Complete_Product_Requirements.md`
+**Functional source of truth:** `StoreOS-Complete-Product-Requirements.md`
 **Stack:** Angular + TypeScript · ASP.NET Core Web API · EF Core · PostgreSQL · Docker · GitHub Actions
 **Deployment model:** Cloud-hosted, multi-user, multi-tenant, multi-branch web application
 
@@ -35,7 +35,7 @@
 
 ## 1. Purpose & Scope
 
-This document specifies the complete implementation of Phone Zone as a cloud-based web application: the migration of an offline-first Electron + SQLite desktop POS/inventory/ledger/repairs product into a server-authoritative, multi-user, multi-tenant, multi-branch system.
+This document specifies the complete implementation of StoreOS as a cloud-based web application: the migration and expansion of an offline-first Electron + SQLite desktop POS/inventory/ledger/repairs system into a server-authoritative, multi-user, multi-tenant, multi-branch retail operating system.
 
 **Tenancy model:**
 
@@ -69,6 +69,7 @@ Everything else — GST engine, margin scheme, EMI, ledgers, IMEI rules, repair 
 | 11 | **Vendor-neutral cloud:** managed PostgreSQL, S3-compatible object storage, container hosting (Azure Container Apps / AWS ECS / Cloud Run all work). | Avoids lock-in. |
 | 12 | **India-localized:** INR, `en-IN`, GST engine per spec, GSTR-1 export. | Product requirement. |
 | 13 | **Void/refund authority is permission-based**, assignable per-branch or tenant-wide — no hard rule in code. | Each chain decides its own control model. |
+| 14 | **Strict White-Labeling & Stealth Identity:** The platform name (`StoreOS`) is strictly internal. The app prompts the user for their shop's name during onboarding, and immediately calls itself by the shop's name everywhere (browser title, top bar, login, PWA, receipts, invoices, WhatsApp/SMS). Zero public vendor branding. | Retailers demand their own customer-facing identity; cashiers and customers should see only their local shop brand. |
 
 ---
 
@@ -126,23 +127,23 @@ Everything else — GST engine, margin scheme, EMI, ledgers, IMEI rules, repair 
 Monorepo:
 
 ```text
-phone-zone-cloud/
+store-os-cloud/
 ├── backend/
 │   ├── src/
-│   │   ├── PhoneZone.Api/               # composition root, middleware, endpoints
-│   │   ├── PhoneZone.Domain/            # pure domain: per-module folders
-│   │   ├── PhoneZone.Application/       # commands/queries, validation, behaviors
-│   │   ├── PhoneZone.Infrastructure/    # EF Core, Npgsql, storage, jobs, PDF
-│   │   └── PhoneZone.Modules/           # module registration (per-module DI)
+│   │   ├── StoreOS.Api/               # composition root, middleware, endpoints
+│   │   ├── StoreOS.Domain/            # pure domain: per-module folders
+│   │   ├── StoreOS.Application/       # commands/queries, validation, behaviors
+│   │   ├── StoreOS.Infrastructure/    # EF Core, Npgsql, storage, jobs, PDF
+│   │   └── StoreOS.Modules/           # module registration (per-module DI)
 │   └── tests/
-│       ├── PhoneZone.Domain.Tests/      # tax, EMI, valuation — no DB
-│       ├── PhoneZone.IntegrationTests/  # Testcontainers PostgreSQL (RLS enabled)
-│       └── PhoneZone.ConcurrencyTests/  # parallel checkout, numbering, IMEI
-├── frontend/                            # Angular workspace (see §12)
+│       ├── StoreOS.Domain.Tests/      # tax, EMI, valuation — no DB
+│       ├── StoreOS.IntegrationTests/  # Testcontainers PostgreSQL (RLS enabled)
+│       └── StoreOS.ConcurrencyTests/  # parallel checkout, numbering, IMEI
+├── frontend/                          # Angular workspace (see §12)
 ├── deploy/
-│   ├── docker-compose.yml               # dev: api, postgres, minio, otel-collector
+│   ├── docker-compose.yml             # dev: api, postgres, minio, otel-collector
 │   ├── Dockerfile.api / Dockerfile.web
-│   └── infra/                           # Terraform/Bicep
+│   └── infra/                         # Terraform/Bicep
 └── docs/
 ```
 
@@ -1127,7 +1128,24 @@ Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Request context he
 
 ## 12. Frontend (Angular)
 
-### 12.1 Structure
+### 12.1 First-Run Shop Onboarding & Dynamic White-Labeling
+
+The application operates as a **strict white-label solution**. The platform name `StoreOS` is strictly an internal architectural identifier and is completely invisible to cashiers, store managers, and retail customers.
+
+1. **First-Run Onboarding Modal / Wizard:**
+   - When an owner provisions a tenant or logs in for the first time, the onboarding flow immediately prompts:
+     * **"What is your Shop / Business Name?"** (e.g., *"Apex Mobiles"*).
+     * Optional brand details: logo upload, GSTIN, store address, phone numbers, email, and thermal receipt footer message.
+   - Once submitted, the system saves `tenants.name` and initializes the branch settings.
+2. **Dynamic Shop Identity Across the Entire Application:**
+   - **Browser Tab `<title>`:** Driven dynamically by Angular's `Title` service: `{{ activeBranch.name }} | {{ currentTenant.name }}` (e.g., `Main Branch | Apex Mobiles`).
+   - **Top Navigation Bar:** Displays the shop's custom brand name and logo front-and-center, accompanied by the active branch switcher.
+   - **PWA & Desktop App Name:** Configured using the shop's name so cashiers install "Apex Mobiles POS" onto their tablets or desktops.
+   - **Login & Lock Screen:** Dynamically renders the tenant's brand name and logo (resolved via subdomain or user account context), never vendor branding.
+   - **Customer Invoices, Receipts, & PDFs:** QuestPDF templates format the header strictly using the shop's trade name, logo, address, and GSTIN.
+   - **SMS / WhatsApp Notifications:** Messages originate exclusively under the shop's identity.
+
+### 12.2 Structure
 
 ```text
 src/app/
@@ -1147,14 +1165,14 @@ src/app/
 - **Interceptors:** `correlation-id.interceptor.ts` automatically attaches `X-Correlation-ID` to outgoing requests and captures response correlation IDs to attach to error toasts and problem-details modals.
 - **PWA:** service worker caches the app shell; the cart persists in IndexedDB so a network blip mid-billing doesn't lose it; checkout requires connectivity.
 
-### 12.2 Branch UX
+### 12.3 Branch UX
 
 - **Branch switcher** in the top bar — visible only when the user has multiple branches or all-branch access. Switching sets `X-Branch-Id` via the interceptor; no re-login (the JWT already carries the branch set).
 - Branch badge on sales history, repairs, and invoices for cross-branch users.
 - Owner dashboard: branch selector, per-branch comparison table (revenue, invoice count, profit, active repairs), consolidated totals.
 - Reports: multi-select branch filter; single-branch users see none of this UI.
 
-### 12.3 POS screen — keyboard-first
+### 12.4 POS screen — keyboard-first
 
 - Global search auto-focused; barcode-scanner wedge handling: buffer rapid keystrokes, fire lookup on Enter when input arrives < 50 ms/key and ends with Enter (distinguishes scanner from typing); camera scanning (`@zxing/browser`) on mobile.
 - Hotkeys: `F2` focus search · `+`/`–` qty · `Del` remove line · `F4` payment · `F8` park cart.
