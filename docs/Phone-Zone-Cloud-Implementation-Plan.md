@@ -165,7 +165,35 @@ Reporting             dashboards, daily audit, comparison, exports, GSTR-1
 Platform              backup/export/import, idempotency, audit, jobs, health
 ```
 
-Cross-module communication: in-process commands/integration events only.
+### 5.1 Architectural patterns & boundaries
+
+- **Clean Architecture:** Core layers `Domain` → `Application` → `Infrastructure` → `Api`. Pure domain logic (`PhoneZone.Domain.Tax`, `.Finance`) remains 100% dependency-free with zero DB or framework references.
+- **CQRS-lite:** CQRS is applied pragmatically using MediatR commands and queries against a single relational database. No event sourcing, no separate read-model database, no unnecessary eventual consistency.
+- **Tactical DDD:** Aggregate roots protect invariants (e.g., `Sale` aggregate root encapsulates `SaleItem`s and line-item tax calculations; `RepairJob` aggregate root controls parts reservation and status state machine). Skip "strategic DDD" ceremony (context map workshops, ubiquitous-language documents) — focus strictly on invariant protection in entities.
+- **Vertical Slice within Application layer:** Rather than horizontal technical-role folders (`Commands/`, `Queries/`, `Handlers/`) that force multi-folder navigation for a single feature, organize `PhoneZone.Application/<Module>/` by **use case**:
+  ```text
+  PhoneZone.Application/
+  └── Sales/
+      ├── Checkout/
+      │   ├── CheckoutCommand.cs
+      │   ├── CheckoutHandler.cs
+      │   └── CheckoutValidator.cs
+      ├── VoidSale/
+      │   ├── VoidSaleCommand.cs
+      │   ├── VoidSaleHandler.cs
+      │   └── VoidSaleValidator.cs
+      └── GetSaleById/
+          ├── GetSaleByIdQuery.cs
+          └── GetSaleByIdHandler.cs
+  ```
+  This delivers the cohesion and discoverability of Vertical Slice Architecture without violating Clean Architecture layer boundaries.
+- **Cross-module interaction via internal application services:** Cross-module writes must NOT directly mutate foreign tables. When a use-case in one module requires effects in another (e.g. Sales checkout decrementing inventory, recording customer ledger debits, or linking repair tickets), the coordinating module invokes **typed internal application-service interfaces** exposed by the respective modules:
+  - `IInventoryStockService.ReserveAndDecrementStockAsync(...)`
+  - `IInventoryStockService.SellImeisAsync(...)`
+  - `ICustomerLedgerService.RecordInvoiceDebitAsync(...)`
+  - `IRepairBillingService.LinkSaleAsync(...)`
+  All module services share the same DbContext / ambient EF Core transaction unit-of-work, preserving single-transaction atomicity while strictly respecting module boundaries and preventing Sales from becoming an unchecked "God module".
+- **Feature flag management:** Do not scatter raw `tenant.Features["repairs"]` dictionary checks throughout handlers. Wrap tenant feature checks behind an `IFeatureManager` service (leveraging `Microsoft.FeatureManagement`). Maintain a strict conceptual separation between **Business Feature Flags** (tenant-controlled module entitlements stored in `tenants.features jsonb`) and **Release Toggles** (developer/deployment-controlled rollout switches configured via appsettings/environment variables).
 
 ---
 
@@ -219,11 +247,11 @@ CREATE TABLE idempotency_keys (
   response_status int,
   response_body  jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
-  PRIMARY KEY (tenant_id, user_id, key)
+  PRIMARY KEY (tenant_id, user_id, endpoint, key)
 );
 ```
 
-Middleware on `POST /sales/checkout` and payment endpoints: client sends an `Idempotency-Key` header (UUID). Same key + same payload hash → replay stored response. Same key + different payload → `409`.
+Middleware on `POST /sales/checkout` and payment endpoints: client sends an `Idempotency-Key` header (UUID). The primary key explicitly scopes `key` by `endpoint`. If a client or buggy retry reuses the same UUID against different endpoints, scoping to `endpoint` prevents the second call from colliding with the first call's cached record before the payload hash check can evaluate. Same key + same endpoint + same payload hash → replay stored response. Same key + same endpoint + different payload → `409 Conflict`.
 
 ### 6.5 Audit trail
 
@@ -236,6 +264,18 @@ Append-only `audit_log` (see §8.10). The application's DB role has **no UPDATE/
 - **Money: `numeric(18,2)`, `decimal` in C#, never double.** Round half-up (`MidpointRounding.AwayFromZero`), 2 dp.
 - Timestamps: `timestamptz` in UTC; business date computed in the tenant's timezone (`Asia/Kolkata` default) — critical for "today's revenue" and daily sequences.
 - `en-IN` / INR formatting only at the presentation layer.
+
+### 6.7 Request Correlation-ID & Observability Context
+
+Every HTTP request must carry a unique correlation identifier for end-to-end tracing, auditing, and support:
+
+1. **Ingestion & generation:** An early ASP.NET Core `CorrelationIdMiddleware` inspects incoming headers for `X-Correlation-ID`. If present and valid, it is adopted; otherwise, the server generates a new `Guid.NewGuid().ToString("D")`.
+2. **Response header:** The server always echoes `X-Correlation-ID: <id>` in HTTP response headers.
+3. **Structured logging:** Middleware enriches Serilog's `LogContext` (`LogContext.PushProperty("CorrelationId", correlationId)`). Every log statement emitted during the request lifecycle automatically contains the correlation ID.
+4. **Diagnostic context & tracing:** The ID is set on `HttpContext.Items["CorrelationId"]`, exposed via a scoped `ICorrelationContext` accessor, and attached to OpenTelemetry `Activity.Current` baggage/tags.
+5. **Background job propagation:** When asynchronous tasks or Hangfire jobs are scheduled from a request, the correlation ID is passed into job arguments and rehydrated into the background execution context.
+6. **Audit trail linkage:** The correlation ID is recorded in `audit_log.correlation_id` (§8.10), connecting business audit records directly to technical log streams.
+7. **Support-ready error responses:** In accordance with RFC 7807 `ProblemDetails`, all error responses (4xx, 5xx) include `extensions["correlationId"] = correlationId`. Cashiers encountering an error can quote this ID to support for instant root-cause lookup.
 
 ---
 
@@ -270,6 +310,11 @@ public static LineTax MarginSchemeGst(decimal sell, decimal cost, decimal gstRat
 }
 ```
 
+**Margin-scheme cost source rule:** Margin scheme is a per-sale-line toggle, but `products.purchase_price` is merely a tenant-wide catalog default. For used phones, acquisition cost varies unit by unit:
+- **When an IMEI is present on the line:** `cost = inventory_imeis.purchase_price` (the actual acquisition cost recorded when that specific physical unit was purchased/stocked-in).
+- **When no IMEI is present:** `cost = branch_inventory.cost_price` (falling back to `products.purchase_price` if unseeded).
+This ensures each used phone accurately reflects its individual gross margin and GST liability, rather than reporting an identical, incorrect margin across units of the same model.
+
 ### 7.3 Invoice discount (proportional)
 
 ```csharp
@@ -279,15 +324,28 @@ taxableAfter = Round2(taxableBefore * f);
 cgstAfter    = Round2(cgstBefore * f);
 ```
 
-### 7.4 EMI
+### 7.4 EMI (pure decimal calculation)
 
 ```csharp
 decimal principal = grandTotal - downPayment;  // validated: principal > 0, downPayment <= grandTotal
-if (annualRate == 0) return principal / months;
+if (annualRate == 0) return Money.Round2(principal / months);
 decimal r = annualRate / 12m / 100m;
-decimal pow = (decimal)Math.Pow(1 + (double)r, months);
-emi = principal * r * pow / (pow - 1);
+
+// Pure decimal exponentiation for integer tenure months (never cast to double):
+decimal pow = DecimalPow(1m + r, months);
+emi = Money.Round2(principal * r * pow / (pow - 1m));
+
+private static decimal DecimalPow(decimal baseVal, int exp)
+{
+    decimal result = 1m;
+    for (int i = 0; i < exp; i++)
+    {
+        result *= baseVal;
+    }
+    return result;
+}
 ```
+*Note: Avoiding `Math.Pow` eliminates floating-point IEEE 754 precision loss and ensures strict adherence to the codebase's 'never double, decimal only' financial calculation invariant.*
 
 ---
 
@@ -426,9 +484,11 @@ CREATE TABLE branch_inventory (
   product_id uuid NOT NULL REFERENCES products(id),
   stock_qty int NOT NULL DEFAULT 0 CHECK (stock_qty >= 0),
   cost_price numeric(18,2) NOT NULL DEFAULT 0,         -- branch cost basis
+  sell_price_override numeric(18,2) NULL,              -- optional branch-specific retail price override
   low_stock_threshold int NOT NULL DEFAULT 3,
   UNIQUE (tenant_id, branch_id, product_id)
 );
+-- Rule: pricing engine resolves branch_inventory.sell_price_override ?? products.sell_price.
 -- Rule (app-enforced + nightly reconciliation): no branch_inventory rows for RepairService.
 ```
 
@@ -455,13 +515,24 @@ CREATE TABLE sales (
   finance_provider text, financer_name text,
   down_payment numeric(18,2), emi_details jsonb,
   gift_details jsonb, description text,
-  repair_job_id uuid NULL,                             -- repair billing link
+  repair_job_id uuid NULL,                             -- repair billing link (see §8.8 for two-step FK resolution)
+  irn text NULL,                                       -- E-invoicing IRN (64-char hash via IRP)
+  irn_ack_no text NULL,                                -- IRP Acknowledgment Number
+  irn_qr_data text NULL,                               -- Signed QR payload from IRP
   created_by uuid NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, invoice_number)                   -- global backstop
 );
 CREATE INDEX ix_sales_tenant_branch_date ON sales (tenant_id, branch_id, sale_date DESC);
 CREATE INDEX ix_sales_tenant_status ON sales (tenant_id, status);
+CREATE INDEX ix_sales_tenant_irn ON sales (tenant_id, irn) WHERE irn IS NOT NULL;
+
+-- E-invoicing Readiness & PAN Threshold Rule:
+-- GST e-invoicing (IRN generation via IRP) is mandatory once aggregate business turnover under one PAN crosses
+-- ₹5 crore in any financial year since 2017-18, and this threshold is permanent. Turnover aggregates across ALL branches
+-- under the tenant's PAN (e.g. 4 branches doing ₹1.5cr each cross the ₹5cr threshold as an entity). Nullable columns
+-- irn, irn_ack_no, and irn_qr_data are included on day one, and invoice PDF templates reserve space for the IRN and
+-- B2B signed QR code, enabling Phase 8 e-invoicing activation without altering historical tables.
 
 CREATE TABLE sale_items (
   id uuid PRIMARY KEY,
@@ -497,29 +568,38 @@ CREATE TABLE customer_payments (
 CREATE INDEX ix_custpay_sale ON customer_payments (tenant_id, sale_id);
 ```
 
-**Invoice numbering under concurrency — per-branch sequence:**
+**Invoice numbering under concurrency — GST Rule 46(b) & sequences:**
+
+Rule 46(b) of the CGST Rules mandates a *consecutive serial number, not exceeding sixteen characters, in one or multiple series, unique for a financial year*.
+- **Daily-reset format (`<BRANCH>-YYYYMMDD-HHMMSS-NNN`):** Resets daily; consecutive within a day, but not across the entire financial year. While common in retail POS, it poses an audit risk if an auditor strictly enforces Rule 46(b).
+- **Financial Year Consecutive Series (`<BRANCH>/<FY>/<NNNNNN>`):** e.g., `B01/26-27/000124` (<= 16 characters, consecutive across the FY per branch series). Fully compliant with Rule 46(b).
+- **CA Confirmation Item:** The sequence engine is parameterized via branch settings (`invoice_series_format`). Tenants must explicitly confirm their invoice series format with their Chartered Accountant (CA) before launch.
 
 ```sql
 CREATE TABLE invoice_sequences (
   tenant_id uuid NOT NULL,
   branch_id uuid NOT NULL,
-  business_date date NOT NULL,
+  series_key text NOT NULL,                 -- e.g. 'FY26-27' or '20260923'
   last_seq int NOT NULL DEFAULT 0,
-  PRIMARY KEY (tenant_id, branch_id, business_date)
+  PRIMARY KEY (tenant_id, branch_id, series_key)
 );
 ```
 
 Inside the checkout transaction (atomic in PostgreSQL):
 
 ```sql
-INSERT INTO invoice_sequences (tenant_id, branch_id, business_date, last_seq)
-VALUES (@t, @b, @d, 1)
-ON CONFLICT (tenant_id, branch_id, business_date)
+INSERT INTO invoice_sequences (tenant_id, branch_id, series_key, last_seq)
+VALUES (@t, @b, @seriesKey, 1)
+ON CONFLICT (tenant_id, branch_id, series_key)
 DO UPDATE SET last_seq = invoice_sequences.last_seq + 1
 RETURNING last_seq;
 ```
 
-Format: `<BRANCH>-YYYYMMDD-HHMMSS-NNN` (e.g. `B01-20260923-143005-007`). Per-branch series guarantee no collisions across branches and satisfy per-GSTIN series requirements. The global unique index plus a retry loop is the backstop. Repair job numbers follow the same pattern: `REP-<BRANCH>-YYYYMMDD-XXXX`.
+Formats supported:
+1. Standard FY Series (Default/Recommended): `<BRANCH>/<FY>/<NNNNNN>` (e.g. `B01/26-27/000042`).
+2. Daily Timestamp Series (Legacy POS): `<BRANCH>-YYYYMMDD-HHMMSS-NNN` (e.g. `B01-20260923-143005-007`).
+
+The global unique index `UNIQUE (tenant_id, invoice_number)` plus a retry loop is the backstop. Repair job numbers follow the same pattern: `REP-<BRANCH>-YYYYMMDD-XXXX` or `REP-<BRANCH>/<FY>/<NNNNNN>`.
 
 ### 8.6 Purchases, IMEIs, movements
 
@@ -590,10 +670,18 @@ CREATE TABLE customers (                        -- tenant-wide
   name text NOT NULL,
   phone text,
   gstin text,
+  credit_limit numeric(18,2) NULL,             -- tenant-wide credit limit (NULL = unlimited)
   total_purchases numeric(18,2) NOT NULL DEFAULT 0,    -- projection
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_customers_tenant_phone ON customers (tenant_id, phone);
+
+-- Customer Credit Limits & Cross-Branch Visibility:
+-- Customer credit is tenant-global and consolidated across all branches. To prevent customers accumulating
+-- unbounded debt across different shops before single cashiers realize the full exposure, the POS checkout interface
+-- surfaces the live consolidated credit balance across all branches (derived_balance = Σ(unpaid_invoices)).
+-- When credit_limit is set and derived_balance + new_credit > credit_limit, the checkout flow triggers a warning
+-- or block (configurable per tenant), with an override requiring sales:credit:override permission.
 
 CREATE TABLE customer_ledger_entries (          -- append-only
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -747,6 +835,12 @@ CREATE TABLE repair_jobs (
 CREATE INDEX ix_repair_jobs_tenant_branch_status ON repair_jobs (tenant_id, branch_id, status);
 CREATE INDEX ix_repair_jobs_tenant_branch_customer ON repair_jobs (tenant_id, branch_id, customer_id);
 
+-- Chicken-and-Egg FK Resolution (sales.repair_job_id ↔ repair_jobs.sale_id):
+-- Neither row can exist with a non-null pointer to the other if inserted simultaneously.
+-- The repair-billing transaction resolves this cleanly in a deterministic two-step sequence:
+-- 1. Insert the repair-billing sales row first with repair_job_id set to the existing repair job's ID.
+-- 2. Update repair_jobs in the same transaction: SET sale_id = @saleId, invoice_number = @invoiceNumber WHERE id = @repairJobId.
+
 CREATE TABLE repair_job_parts (
   id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL,
@@ -771,9 +865,17 @@ CREATE TABLE repair_job_status_history (
 
 Repair services are products with category `RepairService` (§8.4); defaults: SAC `998713`, GST 18%, duration 60 min, warranty 30 days.
 
-### 8.9 Ledger pattern summary
+### 8.9 Comprehensive Ledger Pattern & Nightly Reconciliation Sweep
 
-Balances are **derived from append-only ledgers**; convenience columns (`branch_inventory.stock_qty`, `sales.amount_paid`, `customers.total_purchases`) are projections written in the same transaction. A nightly reconciliation job asserts consistency and alerts on drift.
+Balances are **derived from append-only ledgers**; convenience columns are projections written in the same transaction. A nightly reconciliation job sweeps all transactional projections (not just stock) to assert mathematical consistency and alert on drift:
+
+1. **Stock consistency:** `branch_inventory.stock_qty == SUM(inventory_movements.qty_delta)` per product per branch.
+2. **Sale payment consistency:** `sales.amount_paid == SUM(customer_payments.amount)` per sale.
+3. **Customer revenue consistency:** `customers.total_purchases == SUM(sales.grand_total WHERE status = 'Active')` per customer.
+4. **Customer ledger balance:** Derived credit balance == `SUM(customer_ledger_entries.debit - customer_ledger_entries.credit)` per customer.
+5. **Supplier payables balance:** Derived supplier payable == `SUM(supplier_ledger_entries.credit - supplier_ledger_entries.debit)` per supplier.
+
+Any discrepancy triggers an alert to engineering via OpenTelemetry and logs a diagnostic problem report without interrupting ongoing transactions.
 
 ### 8.10 Platform tables
 
@@ -782,6 +884,7 @@ CREATE TABLE audit_log (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   tenant_id uuid NOT NULL,
   branch_id uuid NULL,
+  correlation_id text NULL,        -- correlation-id propagated from HTTP request / job context
   occurred_at timestamptz NOT NULL DEFAULT now(),
   user_id uuid,
   action text NOT NULL,            -- 'sale.voided', 'repair.status.changed', …
@@ -789,19 +892,29 @@ CREATE TABLE audit_log (
   entity_id text NOT NULL,
   changes jsonb
 );
+CREATE INDEX ix_audit_log_tenant_correlation ON audit_log (tenant_id, correlation_id) WHERE correlation_id IS NOT NULL;
 
 CREATE TABLE import_batches (
   id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL,
   branch_id uuid NULL,
   source_type text NOT NULL,       -- SupplierInvoice|Excel|JsonBackup
-  source_ref text NOT NULL,        -- file hash / reference
+  source_ref text NOT NULL,        -- file reference / batch tag
   status text NOT NULL,            -- Pending|Imported|Failed
   record_counts jsonb,
   created_by uuid NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (tenant_id, source_type, source_ref)   -- re-import of the same file is a no-op
+  created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Record-Level Deduplication for Incremental Imports:
+-- Deduplication on whole-file hash (source_ref) prevents incremental re-imports when the desktop app
+-- remains active as a pilot fallback (§17). A backup taken days later hashes differently and would duplicate records.
+-- The import engine enforces record-level deduplication using natural business keys:
+--   Sales: (tenant_id, original_invoice_number)
+--   IMEIs: (tenant_id, imei)
+--   Customers: (tenant_id, phone)
+--   Purchases: (tenant_id, supplier_invoice_no, supplier_id, purchase_date)
+-- Re-running migration on newer desktop backups imports newly created records and safely skips existing records.
 ```
 
 Migrations: **EF Core migration bundles**, applied as an explicit deployment step (never `Migrate()` at startup in staging/production). A migration ledger satisfies the upgrade-without-data-loss requirement.
@@ -822,7 +935,7 @@ modelBuilder.Entity<Sale>().HasQueryFilter(s =>
 
 Every branch-scoped entity gets the same two-condition filter. Tenant-only entities (customers, products, suppliers) keep just the tenant condition.
 
-### 9.2 PostgreSQL RLS — defense in depth
+### 9.2 PostgreSQL RLS & Connection Pooling — Critical Production Architecture
 
 ```sql
 ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
@@ -835,7 +948,23 @@ CREATE POLICY tenant_branch_isolation ON sales USING (
 );
 ```
 
-Apply the same policy shape to every branch-scoped table. Connection middleware sets `app.tenant_id`, `app.branch_ids`, `app.all_branches` from the JWT claims.
+Apply the same policy shape to every branch-scoped table.
+
+#### Connection Pooling vs. RLS Session State (Production Safety Mandate)
+
+`current_setting('app.tenant_id')` set via session-level `SET` survives for the life of a PostgreSQL connection session, NOT an individual HTTP request. Under connection pooling:
+- **Catastrophic Failure Mode (Transaction-Mode Pooling):** If an external connection pooler like PgBouncer is deployed in **transaction pooling mode** (`pool_mode = transaction`), physical connections are recycled across arbitrary clients between transactions without resetting GUC session variables (`app.tenant_id`). Tenant A's connection will serve Tenant B's next query, causing silent cross-tenant data leakage under concurrent load.
+- **Architectural Decision & Configuration:**
+  1. **Primary Strategy (Npgsql Native Pooling):** ASP.NET Core relies on Npgsql's built-in connection pool directly against PostgreSQL. External poolers are omitted in standard deployments.
+  2. **Transaction-Scoped Context via `SET LOCAL`:** For all transactional operations, EF Core interceptors (`DbTransactionInterceptor` / `SaveChangesInterceptor`) issue `SET LOCAL` commands:
+     ```sql
+     SET LOCAL app.tenant_id = @tenantId;
+     SET LOCAL app.branch_ids = @branchIds;
+     SET LOCAL app.all_branches = @allBranches;
+     ```
+     Because `SET LOCAL` is strictly scoped to the active transaction, settings automatically evaporate on `COMMIT` or `ROLLBACK`, guaranteeing zero context leakage across pooled physical connections.
+  3. **External Pooler Constraint (PgBouncer):** If PgBouncer is required in high-scale infrastructure, it **MUST be configured exclusively in session pooling mode (`pool_mode = session`)**, NEVER `transaction` or `statement` mode.
+  4. **Primary Line of Defense:** EF Core query filters (§9.1) execute inside application memory and enforce tenant/branch scoping on every generated SQL query as the first line of defense; PostgreSQL RLS functions as defense-in-depth.
 
 ### 9.3 Branch context on mutations
 
@@ -860,47 +989,64 @@ Two terminals (same or different branches) selling the last unit(s) are serializ
 
 ### 10.1 Checkout
 
-One handler, one transaction (`Serializable`/`RepeatableRead`):
+One application handler (`CheckoutHandler`), orchestrated across module boundaries via typed internal application services, executed within a single transaction (`Serializable` or `RepeatableRead`):
 
 ```text
 BEGIN
-  1. Validate command (FluentValidation): cart non-empty, qty > 0, payments sane,
-     branch context ∈ user's accessible branches
-  2. Server-side pricing: load products by id (tenant-filtered), recompute prices
-     (honoring authorized overrides only), tax via TaxEngine; reject margin scheme
-     on non-UsedPhone; GST rate from product, default from tenant settings
-  3. Reserve invoice number: per-(tenant, branch, date) sequence upsert (§8.5)
-  4. For each physical line: conditional stock decrement at the sale's branch (§9.4)
-  5. For each IMEI line: verify IMEI status = 'InStock' FOR UPDATE, then set
-     status = 'Sold', link sale/sale_item
-  6. Estimate → invoice_type = 'Estimate'; skip stock/IMEI effects and customer
-     ledger debit (estimates never inflate revenue, GST, or debt)
-  7. INSERT sales, sale_items (with all snapshots)
-  8. INSERT inventory_movements (Sale, negative qty, cost snapshot) per line
-  9. INSERT customer_payments rows; amount_paid = Σ payments; balance = max(0, total − paid)
- 10. INSERT customer_ledger_entries (Invoice debit, branch attribution) if TaxInvoice
-     and customer ≠ walk-in
- 11. UPDATE customers.total_purchases (projection)
- 12. INSERT audit_log
+  1. Validate command (FluentValidation): cart non-empty, qty > 0, payments valid,
+     branch context ∈ user's accessible branches.
+  2. Server-side pricing & pricing resolution:
+     - Base retail price = branch_inventory.sell_price_override ?? products.sell_price.
+     - Authorized overrides applied only with permission; otherwise client price is ignored.
+     - Margin scheme: allowed only for UsedPhone items.
+       * Cost basis = inventory_imeis.purchase_price (when IMEI selected),
+                      else branch_inventory.cost_price / products.purchase_price.
+     - Compute tax via TaxEngine; GST rate from product (or tenant default setting).
+  3. Credit validation (if payment_mode = 'Credit' or partial payment with balance > 0):
+     - Compute live cross-branch outstanding debt across all branches.
+     - If customer.credit_limit IS NOT NULL and live_debt + new_balance > credit_limit:
+       block checkout unless user holds 'sales:credit:override' permission.
+  4. Reserve invoice sequence number: upsert into invoice_sequences (§8.5) using
+     configured series format (CA-confirmed FY consecutive or daily format).
+  5. Stock & IMEI reservation via IInventoryStockService:
+     - For each physical line: conditional stock decrement at sale's branch (§9.4).
+     - For each IMEI line: verify IMEI status = 'InStock' FOR UPDATE, set status = 'Sold',
+       stamp sale_id and sale_item_id.
+     - (If invoice_type = 'Estimate', stock/IMEI decrements are completely bypassed).
+  6. INSERT sales, sale_items (with complete historical price/tax/HSN snapshots).
+     - Include nullable irn, irn_ack_no, irn_qr_data (ready for Phase 8).
+     - If billing a repair: set sales.repair_job_id = @repairJobId.
+  7. INSERT inventory_movements via IInventoryStockService:
+     - Record Sale movement (negative qty, acquisition cost snapshot) per physical item.
+  8. Payments & ledger via ICustomerLedgerService:
+     - INSERT customer_payments rows; amount_paid = Σ payments; balance = max(0, total − paid).
+     - If TaxInvoice and customer ≠ walk-in: INSERT customer_ledger_entries (Invoice debit,
+       branch attribution).
+     - UPDATE customers.total_purchases (projection).
+  9. Repair billing link via IRepairBillingService (if repair_job_id present):
+     - Complete step 2 of two-step FK resolution:
+       UPDATE repair_jobs SET sale_id = @saleId, invoice_number = @invoiceNumber
+       WHERE id = @repairJobId.
+ 10. INSERT audit_log (stamped with request correlation_id).
 COMMIT
 ```
 
 ### 10.2 Void / refund
 
-- **Void** (permission `sales:void`): one transaction — set `status='Voided'`, insert reversing `inventory_movements`, restore `stock_qty`, IMEIs `Sold → InStock`, insert reversing customer-ledger credit. Original rows are never deleted or mutated beyond status.
-- **Refund**: mark refunded state (whole or line-level per business rules), return eligible stock, IMEI `Sold → InStock`, record the refund as its own payment/ledger transaction. Original sale preserved.
+- **Void** (permission `sales:void`): one transaction — set `status='Voided'`, invoke `IInventoryStockService` to insert reversing `inventory_movements`, restore `stock_qty`, transition IMEIs `Sold → InStock`, and invoke `ICustomerLedgerService` to insert reversing customer-ledger credit. Original rows are never deleted or mutated beyond status.
+- **Refund**: mark refunded state (whole or line-level per business rules), return eligible stock via `IInventoryStockService`, transition IMEI `Sold → InStock`, and record the refund as its own payment/ledger transaction. Original sale preserved.
 
 ### 10.3 Subsequent customer payment
 
-`POST /sales/{id}/payments` → validate `amount <= outstanding`, insert `customer_payments` row + ledger credit, update the `amount_paid` projection. **Never mutate an existing payment row.** Idempotency-key protected.
+`POST /sales/{id}/payments` → validate `amount <= outstanding`, insert `customer_payments` row + invoke `ICustomerLedgerService` to record ledger credit, update the `amount_paid` projection. **Never mutate an existing payment row.** Idempotency-key and correlation-id protected.
 
 ### 10.4 Supplier return
 
-One transaction: return header + lines, conditional stock decrement (fail if insufficient at that branch), IMEIs → `ReturnedToSupplier` (linked via `return_id`), `supplier_ledger_entries` credit by settlement type (`PayableDeduction` / `CashRefund` / `PendingCredit`). Unique `return_number` per branch series.
+One transaction: return header + lines, conditional stock decrement via `IInventoryStockService` (fail if insufficient at that branch), IMEIs → `ReturnedToSupplier` (linked via `return_id`), `supplier_ledger_entries` credit by settlement type (`PayableDeduction` / `CashRefund` / `PendingCredit`). Unique `return_number` per branch series.
 
 ### 10.5 Repair parts
 
-Reserve → conditional stock decrement → `Consumed`; `Returned` → reversing movement. Negative stock forbidden; consumption beyond stock fails atomically.
+Reserve → conditional stock decrement → `Consumed`; `Returned` → reversing movement via `IInventoryStockService`. Negative stock forbidden; consumption beyond stock fails atomically.
 
 ### 10.6 Branch transfer
 
@@ -913,29 +1059,65 @@ B02: TransferIn movement (stock_qty += n), IMEI branch_id → B02, status → 'I
 - Never changes tenant-level total stock; reconciliation asserts balance.
 - In-transit IMEIs are excluded from sale and cannot be re-stocked at origin (covered by the active-unique index).
 
+### 10.7 Estimate to Tax Invoice conversion
+
+`POST /pos/estimate/{id}/convert` enables cashiers to convert an accepted estimate directly into a binding tax invoice without re-entering the cart:
+
+```text
+BEGIN
+  1. Load estimate by ID (verifying invoice_type = 'Estimate' and tenant/branch access).
+  2. Verify current stock availability for all physical items and ensure specified IMEIs
+     are currently 'InStock' at the branch.
+  3. Validate customer credit limit if converting to an unpaid/credit sale.
+  4. Reserve new Tax Invoice number from invoice_sequences.
+  5. Invoke IInventoryStockService: decrement branch stock and transition IMEIs to 'Sold'.
+  6. INSERT sales (invoice_type = 'TaxInvoice', invoice_number = new sequence,
+     converted_from_estimate_id = estimate.id) and sale_items.
+  7. INSERT inventory_movements (Sale) for all physical lines.
+  8. Capture initial payments and record customer_ledger_entries if balance remains.
+  9. Update original estimate record (status = 'Converted', linked_tax_invoice_id = sale.id).
+ 10. INSERT audit_log (with correlation-id).
+COMMIT
+```
+
+### 10.8 Extended Nightly Reconciliation Sweep
+
+Nightly background worker sweeps all projections across all active tenants and branches:
+
+```text
+For each tenant & branch:
+  1. Assert: branch_inventory.stock_qty == SUM(inventory_movements.qty_delta)
+  2. Assert: sales.amount_paid == SUM(customer_payments.amount) for each sale
+  3. Assert: customers.total_purchases == SUM(sales.grand_total WHERE status = 'Active')
+  4. Assert: Derived customer credit == SUM(customer_ledger_entries.debit - credit)
+  5. Assert: Derived supplier payable == SUM(supplier_ledger_entries.credit - debit)
+  On any mismatch:
+    Emit alert via OpenTelemetry metric + create high-severity diagnostic entry.
+```
+
 ---
 
 ## 11. REST API Surface
 
-Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Mutation context: `X-Branch-Id`. All endpoints tenant-scoped by token; branch filtering applied by access scope.
+Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Request context headers: `X-Branch-Id: <guid>`, `X-Correlation-ID: <uuid>` (client may supply; server generates if omitted; always returned in response headers). All endpoints tenant-scoped by token; branch filtering applied by access scope.
 
 | Area | Endpoints (representative) |
 |---|---|
 | Auth | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` (incl. branches, roles, permissions) |
 | Branches | `GET/POST/PATCH /branches`, `GET /branches/{id}`, user assignment endpoints (`user_branches`, `user_role_assignments`) |
-| POS | `GET /pos/search?q=` (branch-scoped), `GET /pos/product/{id}` (incl. available IMEIs), `POST /pos/checkout` (idempotent), `POST /pos/estimate` |
-| Sales | `GET /sales` (all filters/sort/page: status, payment mode, type, paid/due, financed, category, amount range, dates, branch), `GET /sales/{id}`, `POST /sales/{id}/payments`, `POST /sales/{id}/void`, `POST /sales/{id}/refund`, `GET /sales/{id}/invoice.pdf` |
-| Customers | `GET/POST/PATCH /customers`, `GET /customers/{id}/ledger` (per-invoice branch attribution), `GET /customers/{id}/sales` |
+| POS | `GET /pos/search?q=` (branch-scoped), `GET /pos/product/{id}` (incl. available IMEIs, branch sell price override), `POST /pos/checkout` (idempotent, validates stock/IMEI/credit limit), `POST /pos/estimate`, `POST /pos/estimate/{id}/convert` (converts estimate to tax invoice) |
+| Sales | `GET /sales` (all filters/sort/page: status, payment mode, type, paid/due, financed, category, amount range, dates, branch), `GET /sales/{id}` (incl. IRN/QR data), `POST /sales/{id}/payments`, `POST /sales/{id}/void`, `POST /sales/{id}/refund`, `GET /sales/{id}/invoice.pdf` |
+| Customers | `GET/POST/PATCH /customers` (incl. `credit_limit`, live cross-branch balance), `GET /customers/{id}/ledger` (per-invoice branch attribution), `GET /customers/{id}/sales` |
 | Inventory | `GET/POST/PATCH /products`, `GET /inventory?branchIds=`, `GET /inventory/valuation?branchIds=`, `GET /inventory/low-stock`, `GET/POST /imeis`, `POST /inventory/adjustments` |
 | Purchases | `POST /purchases` (stock-in with optional IMEIs), `GET /purchases`, `POST /imports/supplier-invoice` (deterministic mapping; ambiguous → manual mapping step; no AI) |
 | Suppliers | `GET/POST/PATCH /suppliers`, `POST /suppliers/{id}/transactions`, `GET /suppliers/{id}/ledger?branchIds=`, `POST /supplier-returns`, `GET /supplier-returns/{id}/note.pdf` |
 | Transfers | `POST /inventory/transfers` (out), `POST /inventory/transfers/{id}/receive` |
-| Repairs | `GET/POST/PATCH /repair-services`, `GET/POST/PATCH /repair-jobs`, `POST /repair-jobs/{id}/status`, `POST /repair-jobs/{id}/parts`, `POST /repair-jobs/{id}/invoice`, `GET /repair-jobs/{id}/ticket.pdf` |
+| Repairs | `GET/POST/PATCH /repair-services`, `GET/POST/PATCH /repair-jobs`, `POST /repair-jobs/{id}/status`, `POST /repair-jobs/{id}/parts`, `POST /repair-jobs/{id}/invoice` (deterministic two-step link), `GET /repair-jobs/{id}/ticket.pdf` |
 | Expenses | `GET/POST/PATCH /expenses?from&to&branchIds=` |
 | Liabilities | `GET/POST/PATCH /liabilities`, `POST /liabilities/{id}/repayments` |
 | Reports | `GET /reports/dashboard?branchIds=`, `GET /reports/daily-sales?date&branchIds=`, `GET /reports/compare?date` (per-branch comparison), `GET /reports/inventory?branchIds=`, `GET /exports/gstr1?from&to` (grouped by GSTIN), `GET /exports/inventory?categories=&branchIds=` |
-| Settings | `GET/PUT /settings` (tenant + branch scoped), finance providers CRUD |
-| Platform | `GET /health/live`, `GET /health/ready`, `POST /tenant/export`, `POST /tenant/import` |
+| Settings | `GET/PUT /settings` (tenant + branch scoped, series format: FY consecutive vs daily), finance providers CRUD |
+| Platform | `GET /health/live`, `GET /health/ready`, `POST /tenant/export`, `POST /tenant/import` (record-level dedupe) |
 
 - Query/report endpoints accept `branchIds` (multi) or `all`; branch users are restricted server-side to their visible set regardless of what they request.
 - **OpenAPI → TypeScript client:** NSwag generates `frontend/src/app/core/api/` at build; CI regenerates and fails on drift. No hand-written API calls.
@@ -949,7 +1131,7 @@ Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Mutation context: 
 
 ```text
 src/app/
-├── core/        # bootstrap, interceptors (auth, error, idempotency, X-Branch-Id),
+├── core/        # bootstrap, interceptors (auth, error, idempotency, correlation-id, X-Branch-Id),
 │                # auth signal store, generated API client, guards, permission directives
 ├── shared/      # design system: pz-table, pz-form-field, pz-dialog, money pipe (INR/en-IN),
 │                # date pipe, empty/loading/error states, toast service
@@ -962,6 +1144,7 @@ src/app/
 - **State:** Angular signals for cart, current user, permissions, active branch; RxJS `toSignal` + `switchMap` for debounced search.
 - **Forms:** reactive forms; server validation errors mapped back to fields.
 - **Permissions:** structural directive `*pzCan="'sales:void'"` hides affordances — the server remains the enforcer.
+- **Interceptors:** `correlation-id.interceptor.ts` automatically attaches `X-Correlation-ID` to outgoing requests and captures response correlation IDs to attach to error toasts and problem-details modals.
 - **PWA:** service worker caches the app shell; the cart persists in IndexedDB so a network blip mid-billing doesn't lose it; checkout requires connectivity.
 
 ### 12.2 Branch UX
@@ -975,8 +1158,10 @@ src/app/
 
 - Global search auto-focused; barcode-scanner wedge handling: buffer rapid keystrokes, fire lookup on Enter when input arrives < 50 ms/key and ends with Enter (distinguishes scanner from typing); camera scanning (`@zxing/browser`) on mobile.
 - Hotkeys: `F2` focus search · `+`/`–` qty · `Del` remove line · `F4` payment · `F8` park cart.
-- Stock badges (in/low/out) per branch; customer typeahead by name/phone; payment split for partial payments; finance dialog with remembered providers (normalized, deduplicated case-insensitively; removal never touches history).
-- Printing: fetch server PDF → browser print dialog. **Printing failure never rolls back a completed sale** — show a "printing failed, sale saved" toast with a reprint action.
+- Stock badges (in/low/out) per branch; customer typeahead by name/phone with live cross-branch credit balance display; credit limit warning dialog with manager override option when limits are exceeded.
+- Estimate workflow: action in cart to save as Estimate; dedicated "Convert to Invoice" action on estimate details view without rebuilding cart.
+- Payment split for partial payments; finance dialog with remembered providers (normalized, deduplicated case-insensitively; removal never touches history).
+- Printing: fetch server PDF (QuestPDF layout reserves space for Phase 8 e-invoicing IRN and B2B signed QR code) → browser print dialog. **Printing failure never rolls back a completed sale** — show a "printing failed, sale saved" toast with a reprint action and correlation-id for support.
 
 ---
 
@@ -990,6 +1175,7 @@ Server-recomputed prices/totals        Idempotency on money endpoints
 Append-only audit + ledger tables      Permission-gated sensitive data (cost/profit)
 Secrets in cloud secret manager        Dependency + image scanning in CI
 Input validation on every endpoint     Cross-branch access tests (horizontal)
+Correlation-ID on all requests/audits  Strict session-mode DB pooling
 ```
 
 - Disabled tenant blocks login; deactivated branch blocks new operations but never deletes history.
@@ -999,10 +1185,11 @@ Input validation on every endpoint     Cross-branch access tests (horizontal)
 
 ## 14. DevOps
 
-### 14.1 Docker
+### 14.1 Docker & Database Pooling
 
 - Multi-stage `Dockerfile.api` (SDK build → ASP.NET runtime, non-root) and `Dockerfile.web` (node build → nginx).
 - `deploy/docker-compose.yml` for dev: `api`, `postgres`, `minio`, `otel-collector`.
+- **PostgreSQL Connection Pooling Rule:** Applications connect using Npgsql's built-in pool. If PgBouncer or an external cloud connection pooler is deployed, it **MUST be configured strictly in session mode (`pool_mode = session`)**. Transaction pooling mode is prohibited due to PostgreSQL RLS session-variable bleeding across tenants.
 
 ### 14.2 CI/CD (GitHub Actions)
 
@@ -1030,12 +1217,19 @@ Terraform/Bicep: resource group, managed PostgreSQL, object storage + lifecycle 
 
 ---
 
-## 15. Observability
+## 15. Observability & Supportability
 
-- **OpenTelemetry:** traces (HTTP + EF + Hangfire), metrics (checkout latency, stock-conflict rate, payment endpoints), structured logs (Serilog → OTLP). Trace id echoed in error responses.
-- Health checks: `/health/live` (process), `/health/ready` (DB, storage, jobs) — used by smoke tests and orchestrator probes.
-- Error tracking with tenant/user context (PII-minimal).
-- Business alerts: ledger reconciliation drift, failed nightly backup, checkout p95 > 1 s.
+- **End-to-End Correlation-ID Tracking:**
+  - `X-Correlation-ID` header accepted from clients or generated server-side on first entry.
+  - Echoed in all HTTP responses and RFC 7807 `ProblemDetails` error payloads (`extensions["correlationId"]`).
+  - Automatically pushed into Serilog `LogContext` for structured JSON log enrichment across all log entries.
+  - Attached to OpenTelemetry distributed trace activities (`Activity.Current`) and propagated to downstream HTTP calls and Hangfire background jobs.
+  - Persisted in `audit_log.correlation_id` to establish an unbroken link between user business actions and technical log telemetry.
+  - Cashiers seeing error dialogs can copy the Correlation ID to support; support can filter logs/traces by this ID to instantly view the entire execution flow.
+- **OpenTelemetry:** traces (HTTP + EF Core + Hangfire), metrics (checkout latency, stock-conflict rate, payment endpoints), structured logs (Serilog → OTLP).
+- **Health checks:** `/health/live` (process), `/health/ready` (DB, storage, jobs) — used by smoke tests and orchestrator probes.
+- **Error tracking with tenant/user context:** PII-minimal, indexed by correlation ID and tenant ID.
+- **Business alerts:** nightly ledger reconciliation drift (stock, payments, revenue, credit, payables), failed backup dumps, checkout p95 > 1 s.
 
 ---
 
@@ -1076,9 +1270,16 @@ Terraform/Bicep: resource group, managed PostgreSQL, object storage + lifecycle 
 The desktop product's JSON backup is the bridge.
 
 1. **Tool:** `pz-migrate` (CLI or admin-only Platform API). Input: desktop JSON backup.
-2. **Steps:** detect schema/version (reject unknown) → validate structure → map to the cloud schema (assign tenant, create a default "Main Branch", stamp every record with `branch_id`, remap ids, seed users/roles) → **dry-run mode** producing a reconciliation report → **import in a single transaction**.
-3. **Reconciliation report (mandatory):** per-table record counts, Σ grand totals, Σ payments, Σ stock qty, active credit balances — source vs. imported. Mismatch = failed migration; nothing is committed.
-4. **Rollout:** pilot with 2–3 real shop backups → staging import → owner verifies the daily-sales report matches the desktop report for a known date → cut over; keep the desktop app read-only as a fallback for 2–4 weeks.
+2. **Steps:** detect schema/version (reject unknown) → validate structure → map to the cloud schema (assign tenant, create a default "Main Branch", stamp every record with `branch_id`, remap ids, seed users/roles) → **dry-run mode** producing a reconciliation report → **record-level deduplicated import** in a single transaction.
+3. **Record-level deduplication for incremental sync:**
+   During the pilot phase (§17.4), the desktop app remains active as a fallback. An updated backup taken days or weeks later will have a different file hash. Instead of failing on file-hash collisions, `pz-migrate` dedupes per-record based on natural business keys:
+   - Sales: `(tenant_id, original_invoice_number)`
+   - IMEIs: `(tenant_id, imei)`
+   - Customers: `(tenant_id, phone)`
+   - Purchases: `(tenant_id, supplier_invoice_no, supplier_id, purchase_date)`
+   Existing records are preserved without duplication; newly created desktop transactions are imported incrementally.
+4. **Reconciliation report (mandatory):** per-table record counts, Σ grand totals, Σ payments, Σ stock qty, active credit balances — source vs. imported. Mismatch = failed migration; nothing is committed.
+5. **Rollout:** pilot with 2–3 real shop backups → staging import → owner verifies the daily-sales report matches the desktop report for a known date → cut over; keep the desktop app read-only as a fallback for 2–4 weeks.
 
 Multi-branch tenants branch out *after* migration (initial data lands in the default branch; branch transfers then redistribute stock).
 
@@ -1088,15 +1289,15 @@ Multi-branch tenants branch out *after* migration (initial data lands in the def
 
 | Phase | Scope | Exit criteria |
 |---|---|---|
-| **0 — Foundation** (weeks 1–3) | Repo, Docker, CI, migrations, Identity (login/JWT/refresh/RBAC), **branches + scoped role assignments + `X-Branch-Id` middleware + branch-aware RLS**, settings, health, observability | A user of a seeded tenant logs in; RLS blocks cross-tenant *and* cross-branch reads (tests prove both) |
-| **1 — Catalog & Inventory** (weeks 4–6) | Products catalog, branch inventory, IMEIs, stock-in via purchases, movements ledger, valuation, low/out-of-stock, adjustments | Inventory acceptance block; IMEI tenant-wide uniqueness proven under concurrency |
-| **2 — POS & Sales** (weeks 7–11) | Search/scan, cart, GST/margin/discount engine, checkout transaction, per-branch invoice numbering, payments (cash/UPI/card/credit), estimates, invoice PDF, sales history + detail | POS + Sales acceptance blocks; concurrency tests green |
-| **3 — Credit lifecycle** (weeks 12–13) | Customer master/ledger, subsequent payments, void/refund with history preservation | Payment/void/refund invariants tested |
+| **0 — Foundation** (weeks 1–3) | Repo, Docker, CI, migrations, Identity (login/JWT/refresh/RBAC), **branches + scoped role assignments + `X-Branch-Id` middleware + branch-aware RLS**, settings, health, correlation-id pipeline, observability | A user of a seeded tenant logs in; RLS blocks cross-tenant *and* cross-branch reads (tests prove both) |
+| **1 — Catalog & Inventory** (weeks 4–6) | Products catalog, branch inventory (with sell price overrides), IMEIs, stock-in via purchases, movements ledger, valuation, low/out-of-stock, adjustments | Inventory acceptance block; IMEI tenant-wide uniqueness proven under concurrency |
+| **2 — POS & Sales** (weeks 7–11) | Search/scan, cart, GST/margin/discount engine, checkout transaction (via internal module services), per-branch invoice numbering (CA-confirmed FY series), payments (cash/UPI/card/credit), estimates + conversion endpoint, invoice PDF (with IRN/QR slots), sales history + detail | POS + Sales acceptance blocks; concurrency tests green; estimate-to-invoice conversion verified |
+| **3 — Credit lifecycle** (weeks 12–13) | Customer master/ledger, customer credit limits + cross-branch balance display, subsequent payments, void/refund with history preservation | Payment/void/refund invariants tested; credit limit enforcement verified |
 | **4 — Suppliers** (weeks 14–16) | Supplier master, transactions, payables (per-branch + consolidated), supplier returns + IMEI return flow | Supplier acceptance block |
-| **5 — Repairs** (weeks 17–19) | Service catalogue, job tickets, status history, parts consumption, repair billing, warranty, feature flag | Repairs acceptance block |
-| **6 — Finance & reporting** (weeks 20–23) | Expenses, liabilities + repayments, dashboards (per-branch + consolidated + comparison), daily sales audit, inventory & GSTR-1 exports grouped by GSTIN | Reports reconcile with transactions |
-| **7 — Migration & hardening** (weeks 24–26) | `pz-migrate`, JSON export/import, rate limits, pen-test pass, load test (100 concurrent POS users), restore drills | Two real desktop backups migrated & reconciled |
-| **8 — Deferred** | Branch transfer workflow, offline PWA enhancements, mobile app, SignalR live dashboards, additional payment modes, full offline sync | Explicitly out of the initial release |
+| **5 — Repairs** (weeks 17–19) | Service catalogue, job tickets, status history, parts consumption, repair billing (two-step FK link), warranty, feature flag abstraction | Repairs acceptance block; no circular FK insert locks |
+| **6 — Finance & reporting** (weeks 20–23) | Expenses, liabilities + repayments, dashboards (per-branch + consolidated + comparison), daily sales audit, inventory & GSTR-1 exports grouped by GSTIN, extended nightly reconciliation worker | Reports reconcile with transactions; nightly sweep passes |
+| **7 — Migration & hardening** (weeks 24–26) | `pz-migrate` (record-level incremental dedupe), JSON export/import, rate limits, pen-test pass, load test (100 concurrent POS users), restore drills | Two real desktop backups migrated incrementally & reconciled |
+| **8 — Roadmap / Deferred** | **GST E-invoicing & IRP Integration (IRN & signed QR code via GSP/IRP for PANs crossing ₹5cr turnover)**, PAN aggregate turnover tracking & compliance alerts, branch transfer workflow, offline PWA enhancements, mobile app, SignalR live dashboards, full offline sync | Explicitly out of the initial release |
 
 ---
 
@@ -1107,8 +1308,14 @@ Multi-branch tenants branch out *after* migration (initial data lands in the def
 | Shops lose internet → billing stops | Cloud-first is a confirmed product decision; PWA keeps the cart; recommend 4G backup at the shop; full offline sync only if demanded |
 | Numbering/stock races under multi-terminal load | Conditional updates + unique indexes + concurrency test suite from Phase 2 |
 | Cross-branch data leakage | Two independent layers (query filters + RLS) + horizontal access tests in CI |
+| RLS + connection pool tenant data leak | Npgsql internal pooling; `SET LOCAL` within all transactions; strict `pool_mode = session` if external poolers (PgBouncer) deployed |
+| GST Rule 46(b) serial numbering challenge | Configurable sequence generator supporting `<BRANCH>/<FY>/<NNNNNN>` (consecutive across FY) vs daily; mandatory CA signoff before go-live |
+| E-invoicing ₹5cr threshold per-PAN | Turnover aggregates across all branches under tenant's PAN; pre-wired schema (`irn`, `irn_ack_no`, `irn_qr_data`), PDF template ready, Phase 8 roadmap |
+| Cross-module writes breaking architecture | Internal typed application services (`IInventoryStockService`, `ICustomerLedgerService`) orchestrated within ambient EF Core transaction |
+| Margin scheme cost drift on used phones | Domain rule: acquisition cost pulled from specific `inventory_imeis.purchase_price`, not tenant catalog default |
+| Unbounded cross-branch customer debt | Consolidated live balance displayed at POS checkout; configurable customer credit limit with warning/override gate |
 | Cloud cost sensitivity for small shops | Tenant density on shared DB; small container + basic PostgreSQL per environment |
-| Historical data quality from desktop imports | Dry-run + reconciliation report mandatory; cut over only on matching totals |
+| Incremental migration failures during pilot | Record-level deduplication on business keys (invoice no, IMEI, phone) instead of whole-file hash |
 | Print/format regressions vs. desktop | QuestPDF templates data-driven; side-by-side comparison during the Phase 2 pilot |
 | GST rule changes | Tax engine isolated + rates via settings; unit tests updated in one place |
 
@@ -1129,12 +1336,18 @@ The implementation is complete when **every checkbox in the product requirements
 
 - [ ] All product invariants covered by automated tests (including cross-branch and consolidation invariants)
 - [ ] RLS + query filters verified against cross-tenant **and** cross-branch access
-- [ ] Idempotency proven on checkout/payment replay
-- [ ] Branch-scoped invoice numbering proven collision-free under parallel load
+- [ ] Idempotency proven on checkout/payment replay (scoped by endpoint in PK)
+- [ ] Request Correlation-ID (`X-Correlation-ID`) verified across HTTP headers, Serilog logs, OpenTelemetry traces, and `audit_log`
+- [ ] Branch-scoped invoice numbering proven collision-free under parallel load (with CA-confirmed FY sequence format)
+- [ ] Estimate-to-Invoice conversion (`POST /pos/estimate/{id}/convert`) verified end-to-end
+- [ ] Customer credit limit and live cross-branch balance display verified at POS checkout
+- [ ] Two-step repair billing insert sequence verified free of circular FK deadlocks
+- [ ] Extended nightly reconciliation worker validates stock, payments, customer revenue, credit balances, and supplier payables
+- [ ] Incremental desktop backup migration verified with record-level deduplication
 - [ ] Consolidated reports equal the sum of branch reports (tested)
 - [ ] CI/CD runs the full pipeline including staging smoke + production approval gate
 - [ ] Backup restore drill has executed successfully at least once
-- [ ] A real desktop backup has been migrated and reconciled in staging
+- [ ] A real desktop backup has been migrated and reconciled in staging (including incremental sync)
 - [ ] OpenAPI-generated TypeScript client is the only frontend API surface
 - [ ] Printing failure never rolls back a completed sale
 

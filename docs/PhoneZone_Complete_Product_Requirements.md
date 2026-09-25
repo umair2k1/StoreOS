@@ -372,6 +372,9 @@ purchase price = P
 GST rate = R
 ```
 
+**Cost Source Rule for Margin Scheme:**
+For used phones tracked by IMEI, purchase price $P$ MUST be the specific acquisition cost of that exact physical unit (`inventory_imeis.purchase_price` recorded when the unit was purchased/stocked-in), NOT a generic catalog-wide default `products.purchase_price`. If sold without an IMEI, $P$ falls back to the branch inventory cost basis.
+
 If:
 
 ```text
@@ -440,21 +443,23 @@ Support:
 
 An estimate must not behave like a finalized taxable sale for reporting purposes.
 
+### Estimate to Invoice Conversion
+The system must provide an automated workflow to convert an accepted Estimate into a finalized Tax Invoice without requiring cashiers to rebuild the cart. The conversion action:
+1. Validates that all physical items are currently in stock at the branch and selected IMEIs remain available.
+2. Prompts for customer payment details and validates customer credit limits.
+3. Allocates a new Tax Invoice number and applies inventory decrements and ledger postings atomically.
+4. Marks the source estimate as converted with a bidirectional reference to the generated tax invoice.
+
 ## 8.2 Invoice number
 
 Invoice numbers must be unique.
 
-Current format:
+### Formats & GST Rule 46(b) Compliance
+Rule 46(b) of the CGST Rules mandates a *consecutive serial number, not exceeding sixteen characters, in one or multiple series, unique for a financial year*.
+- **Financial Year Consecutive Series (Recommended):** `<BRANCH>/<FY>/<NNNNNN>` (e.g. `B01/26-27/000042`, <= 16 characters, strictly consecutive across the financial year).
+- **Daily Timestamp Series (POS format):** `YYYYMMDD-HHMMSS-NNN` or `<BRANCH>-YYYYMMDD-HHMMSS-NNN` (consecutive within a single day).
 
-```text
-YYYYMMDD-HHMMSS-NNN
-```
-
-Where:
-
-- `YYYYMMDD` = business date.
-- `HHMMSS` = time.
-- `NNN` = daily sequence.
+*CA Confirmation Requirement:* Because daily-reset counters may challenge strict statutory financial-year consecutive seriality under audit, the sequence engine must support configurable series formats, and the series pattern must be explicitly confirmed with the business's Chartered Accountant (CA).
 
 The implementation must guarantee uniqueness even under rapid or concurrent creation.
 
@@ -485,6 +490,10 @@ A tax invoice should be capable of showing:
 - Finance/EMI information where applicable.
 - Gift information where applicable.
 - Description/notes where applicable.
+- **E-Invoicing Fields (mandatory once aggregate PAN turnover crosses ₹5 crore):**
+  - IRN (Invoice Reference Number — 64-character hash).
+  - IRP Acknowledgment Number and Date.
+  - Signed B2B QR Code.
 
 ## 8.4 Printing
 
@@ -1054,7 +1063,7 @@ Customer detail view should show:
 - Payment mode.
 - Repair tickets when repair module is enabled.
 
-## 17.5 Customer credit balance
+## 17.5 Customer credit balance & credit limits
 
 For active tax invoices:
 
@@ -1064,6 +1073,11 @@ creditBalance =
 ```
 
 Estimates must not create customer credit.
+
+### Credit Limits & Cross-Branch Visibility
+- **Cross-branch exposure:** In multi-branch operations, customer credit is tenant-global. A balance incurred at Branch A is visible and enforceable at Branch B.
+- **Credit Limit ($L$):** The system must allow assigning an optional credit limit to each customer.
+- **POS Checkout Check:** The POS checkout interface must display the customer's live consolidated credit balance. If `creditBalance + newCreditAmount > creditLimit`, the checkout workflow must display a credit limit alert and block the transaction unless approved via manager override permission.
 
 ## 17.6 Customer payment
 
@@ -2301,7 +2315,7 @@ The sale should remain recorded and the user should be told that printing failed
 
 ---
 
-# 41. Auditability Requirements
+# 41. Auditability & Observability Requirements
 
 The following events should remain reconstructable:
 
@@ -2320,6 +2334,26 @@ The following events should remain reconstructable:
 - Data restore.
 
 Historical snapshots should be preferred over recomputing old values from mutable master records.
+
+### 41.1 Request Correlation-ID & Diagnostic Traceability
+Every client interaction and auditable operation must carry an end-to-end Correlation ID (`X-Correlation-ID`):
+- Transmitted in HTTP request and response headers.
+- Enriched onto every structured log entry emitted during request execution.
+- Recorded in the audit log table (`audit_log.correlation_id`) to directly connect user-facing audit trails to server logs.
+- Propagated to background worker jobs and distributed trace activities.
+- Returned in standardized error responses so support teams can instantly pinpoint failing transactions from a cashier's error report.
+
+### 41.2 Extended Reconciliation Sweep
+The system must run automated daily reconciliation sweeping all operational projections against their underlying append-only ledgers:
+1. Branch physical stock vs. inventory movements sum.
+2. Invoice `amount_paid` vs. recorded payment transactions.
+3. Customer `total_purchases` vs. active tax invoice grand totals.
+4. Customer credit balances vs. customer ledger debit/credit entries.
+5. Supplier payables vs. supplier ledger credit/debit entries.
+Any divergence must trigger an immediate diagnostic alert.
+
+### 41.3 Record-Level Deduplication for Data Portability
+Data import tools (e.g. migration from desktop backups) must enforce record-level deduplication on natural keys (invoice numbers, IMEIs, customer phone numbers, supplier bills). Successive imports of updated backups must skip existing records and import new records incrementally without whole-file collision failures.
 
 ---
 
