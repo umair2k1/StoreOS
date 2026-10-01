@@ -232,3 +232,29 @@ prompt-completion order and are never rewritten, only appended to.
   - `xunit.runner.visualstudio`
   - `Microsoft.NET.Test.Sdk`
   - `FluentAssertions`
+
+## P-005
+
+### CI Workflow
+- File: `.github/workflows/ci.yml`
+- Triggers:
+  - `push` on all branches (`**`)
+  - `pull_request` on all branches (`**`)
+- Jobs:
+  - `backend-build-test`:
+    - Runs on: `ubuntu-latest`
+    - Steps:
+      - `actions/checkout@v4`
+      - `actions/setup-dotnet@v4` (`dotnet-version: "10.0.x"`)
+      - `dotnet restore StoreOS.sln`
+      - `dotnet build StoreOS.sln --no-restore -c Release`
+      - `dotnet test backend/tests/StoreOS.Domain.Tests --no-build -c Release --logger "trx;LogFileName=domain-tests.trx"`
+      - `actions/upload-artifact@v4` (`name: domain-test-results`, `path: "**/domain-tests.trx"`, `if: always()`)
+  - `frontend-build`:
+    - Runs on: `ubuntu-latest`
+    - Status: Gated with `if: false` (remains disabled until P-007 when Angular workspace + `package.json` exist)
+    - Steps:
+      - `actions/checkout@v4`
+      - `actions/setup-node@v4` (`node-version: "24"`)
+      - `npm ci --prefix frontend`
+      - `npm run build --prefix frontend -- --configuration production`

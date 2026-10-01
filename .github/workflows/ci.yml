@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  backend-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore StoreOS.sln
+      - name: Build
+        run: dotnet build StoreOS.sln --no-restore -c Release
+      - name: Unit tests (Domain)
+        run: dotnet test backend/tests/StoreOS.Domain.Tests --no-build -c Release --logger "trx;LogFileName=domain-tests.trx"
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: domain-test-results
+          path: "**/domain-tests.trx"
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    if: false # flipped to true in P-1203 once frontend/package.json exists
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm ci --prefix frontend
+      - run: npm run build --prefix frontend -- --configuration production
