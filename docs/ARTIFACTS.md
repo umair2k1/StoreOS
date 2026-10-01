@@ -258,3 +258,34 @@ prompt-completion order and are never rewritten, only appended to.
       - `actions/setup-node@v4` (`node-version: "24"`)
       - `npm ci --prefix frontend`
       - `npm run build --prefix frontend -- --configuration production`
+
+## P-006
+
+### Angular Workspace Bootstrap
+- Angular CLI Version: `@angular/cli@21.2.24` (Angular 21.2.0 framework packages)
+- Workspace Project Name: `storeos-web` (in `frontend/angular.json` and `frontend/package.json`)
+- Project Type: Application (Standalone components, SCSS styling, Routing enabled)
+- PWA Schematic: `@angular/pwa@21.2.24`
+  - Service Worker Registration: `provideServiceWorker('ngsw-worker.js', { enabled: !isDevMode(), registrationStrategy: 'registerWhenStable:30000' })` in `frontend/src/app/app.config.ts`
+  - Service Worker Configuration: `frontend/ngsw-config.json`
+  - Web Manifest File: `frontend/public/manifest.webmanifest`
+  - Manifest Link Tag: `<link rel="manifest" href="manifest.webmanifest" />` in `frontend/src/index.html` (line 9)
+- Production Build Output Directory: `frontend/dist/storeos-web/browser` (entry: `index.html`)
+
+### Components
+- `App` (`frontend/src/app/app.ts`):
+  - Decorator:
+    ```typescript
+    @Component({
+      selector: 'app-root',
+      imports: [RouterOutlet],
+      templateUrl: './app.html',
+      styleUrl: './app.scss'
+    })
+    ```
+  - Class Signature:
+    ```typescript
+    export class App {
+      protected readonly title = signal('storeos-web');
+    }
+    ```
