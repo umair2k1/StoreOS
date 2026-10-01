@@ -70,6 +70,12 @@ Everything else — GST engine, margin scheme, EMI, ledgers, IMEI rules, repair 
 | 12 | **India-localized:** INR, `en-IN`, GST engine per spec, GSTR-1 export. | Product requirement. |
 | 13 | **Void/refund authority is permission-based**, assignable per-branch or tenant-wide — no hard rule in code. | Each chain decides its own control model. |
 | 14 | **Strict White-Labeling & Stealth Identity:** The platform name (`StoreOS`) is strictly internal. The app prompts the user for their shop's name during onboarding, and immediately calls itself by the shop's name everywhere (browser title, top bar, login, PWA, receipts, invoices, WhatsApp/SMS). Zero public vendor branding. | Retailers demand their own customer-facing identity; cashiers and customers should see only their local shop brand. |
+| 15 | **Unified Transaction Scope for RLS (Reads & Writes):** Every database operation runs inside an explicit transaction (`ReadCommitted` for reads, `Serializable`/`RepeatableRead` for checkout) where `SET LOCAL` configures session variables (`app.tenant_id`, `app.branch_ids`, `app.all_branches`). | RLS evaluates correctly on both reads and writes without connection pooling leakage; prevents 0-row bugs and cross-tenant leakage. |
+| 16 | **100% RLS Coverage on All Tenant Tables:** Every table holding `tenant_id` (including tenant-only tables like `customers`, `suppliers`, `products`) gets an active RLS policy. Enforced by an automated CI schema test. | Prevents raw-SQL queries or missing EF query filters from leaking customer PII or financial data tenant-wide. |
+| 17 | **BFF Token Security (In-Memory Access Token + HttpOnly Refresh Cookie):** 15-minute access token kept strictly in Angular memory; 30-day rotating refresh token kept in an `HttpOnly`, `SameSite=Strict`, `Secure` cookie. Token family reuse detection revokes all sessions on replay. | Eliminates XSS token exfiltration; protects against refresh token theft. |
+| 18 | **Subdomain-Per-Tenant White-Labeling (`*.pos.storeos.io`):** Wildcard DNS/TLS and tenant subdomains (`<tenant>.pos.storeos.io`) provide browser origin isolation and dynamic W3C Web Manifest generation. | Ensures PWA installs onto cashier devices with the shop's custom brand name and icon without cross-tenant origin collisions. |
+| 19 | **Dedicated Reporting Seam (`ReportingDbContext`):** Heavy analytics, dashboards, and GSTR-1 exports are routed through a separate `ReportingDbContext` with its own connection string (`ConnectionStrings:Reporting`). | Allows seamless zero-code routing to a PostgreSQL read replica as tenant volume grows, keeping checkout hot-paths uncontended. |
+| 20 | **DPDP Act 2023 & GST 72-Month Invariant:** StoreOS operates as Data Processor; tenant is Data Fiduciary. Customer PII can be anonymized upon statutory erasure request, while fiscal tax invoices remain immutable for the 72-month GST retention period. | Reconciles India's DPDP Act privacy obligations with mandatory Section 36 CGST statutory record retention. |
 
 ---
 
@@ -91,34 +97,54 @@ Everything else — GST engine, margin scheme, EMI, ledgers, IMEI rules, repair 
 ## 4. System Architecture
 
 ```text
-                        ┌────────────────────────────┐
-   Browser (Angular     │  CDN / Static host         │
-   PWA, desktop &       │  Angular bundle (nginx)    │
-   tablet)              └─────────────┬──────────────┘
-                                       │ HTTPS, JWT, X-Branch-Id
-                        ┌─────────────▼──────────────┐
-                        │  ASP.NET Core modular      │
-                        │  monolith (API)            │
-                        │  ┌──────────────────────┐  │
-                        │  │ Modules: Identity,   │  │
-                        │  │ Tenancy & Branches,  │  │
-                        │  │ Catalog, Inventory,  │  │
-                        │  │ Sales, Customers,    │  │
-                        │  │ Suppliers, Repairs,  │  │
-                        │  │ Expenses, Liabilities│  │
-                        │  │ Reporting, Platform  │  │
-                        │  └──────────────────────┘  │
-                        │  CQRS · EF Core · Hangfire │
-                        └───┬──────────┬───────────┬─┘
-                            │          │           │
-                   ┌────────▼───┐ ┌────▼─────┐ ┌───▼────────────┐
-                   │ PostgreSQL │ │ S3-like  │ │ OTLP collector │
-                   │ (managed,  │ │ object   │ │ → Grafana /    │
-                   │ RLS on)    │ │ storage  │ │ App Insights   │
-                   └────────────┘ └──────────┘ └────────────────┘
+                        ┌───────────────────────────────────────────────┐
+   Browser (Angular     │  CDN / Edge Ingress (nginx / Cloudflare)      │
+   PWA, desktop &       │  Host: *.pos.storeos.io (subdomain per tenant)│
+   tablet)              └───────────────────────┬───────────────────────┘
+                                                │ HTTPS, In-Memory JWT, HttpOnly Cookie,
+                                                │ X-Branch-Id, X-Correlation-ID
+                        ┌───────────────────────▼───────────────────────┐
+                        │  ASP.NET Core modular monolith (API)          │
+                        │  ┌─────────────────────────────────────────┐  │
+                        │  │ Modules: Identity, Tenancy & Branches,  │  │
+                        │  │ Catalog, Inventory, Sales, Customers,   │  │
+                        │  │ Suppliers, Repairs, Expenses,           │  │
+                        │  │ Liabilities, Reporting, Platform        │  │
+                        │  └─────────────────────────────────────────┘  │
+                        │  CQRS · Hangfire · Dynamic W3C Manifest       │
+                        │  StoreOsDbContext (Writes/POS)                │
+                        │  ReportingDbContext (Read Replica Seam)       │
+                        └───┬───────────────────┬──────────────┬────────┘
+                            │                   │              │
+             ┌──────────────┴───────┐     ┌─────▼────────┐  ┌──▼───────────────┐
+             │ PostgreSQL (Managed) │     │ S3 Object    │  │ OTLP collector   │
+             │ ┌──────────────────┐ │     │ Storage      │  │ → Grafana /      │
+             │ │ Primary Writer   │ │     │ (SSE-KMS,    │  │   App Insights   │
+             │ │ (StoreOsDbContext│ │     │  WORM lock,  │  └──────────────────┘
+             │ │  RLS enabled)    │ │     │  private)    │
+             │ └─────────┬────────┘ │     └──────────────┘
+             │           │ WAL      │
+             │ ┌─────────▼────────┐ │
+             │ │ Read Replica     │ │
+             │ │ (ReportingContext│ │
+             │ │  dashboards/GSTR)│ │
+             │ └──────────────────┘ │
+             └──────────────────────┘
 ```
 
-**Runtime topology per environment:** static site + API container(s) + managed PostgreSQL + object storage + secret manager. Scale by adding API replicas; PostgreSQL stays single-writer — correct for POS semantics.
+**Runtime topology per environment:**
+1. **Frontend / Edge Hosting:** Dynamic tenant subdomains (`https://<tenant>.pos.storeos.io`) served via CDN with wildcard DNS/TLS (`*.pos.storeos.io`). Each tenant runs in its own browser origin, isolating PWA installations and caches.
+2. **API & Background Jobs:** ASP.NET Core API container(s) hosting modular endpoints and background workers (Hangfire).
+3. **Database Topology & Reporting Seam:**
+   - **Operational Primary Writer:** Handles POS checkouts, inventory updates, and transactional commands via `StoreOsDbContext` within ambient transactions with `SET LOCAL` RLS parameters.
+   - **Reporting Replica Seam:** Read-heavy aggregates (dashboard queries, GSTR-1 exports, inventory valuation) execute through `ReportingDbContext` (`QueryTrackingBehavior.NoTracking`), configured on Day 1 to point to `ConnectionStrings:Reporting`. As tenant volume grows, this connection string is repointed to a PostgreSQL read replica without code changes, isolating the checkout hot path from analytical contention.
+4. **CORS Architecture:**
+   - The API explicitly enforces CORS against incoming tenant subdomains using a dynamic origin validator matching `^https://([a-z0-9-]+)\.pos\.storeos\.io$` and `^https://pos\.storeos\.io$` (plus `http://localhost:4200` in dev).
+   - Supported methods: `GET, POST, PUT, PATCH, DELETE, OPTIONS`.
+   - Allowed headers: `Content-Type, Authorization, X-Branch-Id, X-Correlation-ID, Idempotency-Key, X-Requested-With`.
+   - Exposed headers: `X-Correlation-ID, Idempotency-Key, Content-Disposition`.
+   - `AllowCredentials: true` is strictly enabled to permit transmission of the `SameSite=Strict` refresh token cookie during auth flows.
+5. **Object Storage:** S3-compatible private storage encrypted at rest via SSE-KMS, with 30-day WORM Object Lock for backups and sanitized tenant branding assets.
 
 ---
 
@@ -302,6 +328,12 @@ public static LineTax StandardGst(decimal lineTotal, decimal gstRate)
 ```csharp
 public static LineTax MarginSchemeGst(decimal sell, decimal cost, decimal gstRate)
 {
+    // Hard domain validation: cost basis MUST be strictly positive.
+    // Silent fallback to cost = 0 is prohibited (would treat full selling price as profit margin,
+    // miscalculating GST and creating severe statutory audit liability under CGST Rule 32(5)).
+    if (cost <= 0)
+        throw new DomainValidationException("Margin scheme requires a known positive cost basis (> 0). Cost cannot be zero or empty.");
+
     var margin = sell - cost;
     if (margin <= 0) return LineTax.Zero;
     var taxable = Money.Round2(margin / (1 + gstRate / 100m));
@@ -311,10 +343,10 @@ public static LineTax MarginSchemeGst(decimal sell, decimal cost, decimal gstRat
 }
 ```
 
-**Margin-scheme cost source rule:** Margin scheme is a per-sale-line toggle, but `products.purchase_price` is merely a tenant-wide catalog default. For used phones, acquisition cost varies unit by unit:
-- **When an IMEI is present on the line:** `cost = inventory_imeis.purchase_price` (the actual acquisition cost recorded when that specific physical unit was purchased/stocked-in).
-- **When no IMEI is present:** `cost = branch_inventory.cost_price` (falling back to `products.purchase_price` if unseeded).
-This ensures each used phone accurately reflects its individual gross margin and GST liability, rather than reporting an identical, incorrect margin across units of the same model.
+**Margin-scheme cost source & mandatory cost rule:** Margin scheme is a per-sale-line toggle valid strictly for `UsedPhone` items. Because acquisition cost varies unit-by-unit:
+- **When an IMEI is present on the line:** `cost = inventory_imeis.purchase_price`. If `inventory_imeis.purchase_price` is NULL or `<= 0`, checkout immediately fails with a hard validation error (`422 UnprocessableEntity`: *"Margin scheme sale for IMEI {imei} rejected: no valid positive purchase cost recorded."*).
+- **When no IMEI is present:** `cost = branch_inventory.cost_price > 0 ? branch_inventory.cost_price : products.purchase_price`. If neither cost basis is seeded (`<= 0`), checkout immediately fails with `422 UnprocessableEntity`: *"Margin scheme requires a known positive cost basis for product '{product.name}'. Please update inventory cost before billing under margin scheme."*
+- **No silent zero fallback:** Treating unseeded cost as 0 would compute `margin = sell` and miscalculate tax as if the entire selling price were gross margin. A hard validation error forces data correction before an invoice can be finalized.
 
 ### 7.3 Invoice discount (proportional)
 
@@ -404,6 +436,7 @@ CREATE TABLE users (
   email text NOT NULL,
   password_hash text NOT NULL,
   display_name text NOT NULL,
+  token_version int NOT NULL DEFAULT 1,        -- incremented on role changes/logout to invalidate active JWTs
   is_active bool NOT NULL DEFAULT true,
   created_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (tenant_id, email)
@@ -439,11 +472,26 @@ CREATE TABLE refresh_tokens (
   id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES users(id),
   token_hash text NOT NULL,
+  family_id uuid NOT NULL,                     -- tracks token lineage for theft/reuse detection
+  is_revoked bool NOT NULL DEFAULT false,
+  replaced_by_token_id uuid NULL REFERENCES refresh_tokens(id),
   expires_at timestamptz NOT NULL,
-  revoked_at timestamptz NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE INDEX ix_refresh_tokens_family ON refresh_tokens (family_id);
+CREATE INDEX ix_refresh_tokens_lookup ON refresh_tokens (user_id, token_hash);
 ```
+
+**Refresh Token Theft & Reuse Detection:**
+- Refresh tokens use rotating token families (`family_id`).
+- When a refresh token is presented to `POST /auth/refresh`, if it has already been rotated (`is_revoked = true` or `replaced_by_token_id IS NOT NULL`), the server identifies this as a token replay/theft attack.
+- The server immediately revokes the **entire family** (`UPDATE refresh_tokens SET is_revoked = true WHERE family_id = @familyId`), increments `users.token_version`, logs a critical security alert, and forces re-authentication across all user devices.
+
+**Stale Permissions & 15-Minute JWT Window Mitigation:**
+- Standard queries trust claims (`BranchIds`, `Permissions`) inside the short-lived 15-minute access token validated against `token_version`.
+- When an administrator modifies a user's role assignments or deactivates an account, the backend immediately increments `users.token_version` and invalidates any active refresh token families.
+- A fast distributed cache check (or 30s in-memory cache) rejects tokens where `claim.ver != cached.token_version`.
+- **High-Impact Operations:** Sensitive actions (`sales:void`, `sales:refund`, `inventory:adjustments`, `settings:manage`, `branches:manage`) **bypass token claims and execute a live, direct DB query** against `user_role_assignments` and `role_permissions` inside the transaction, guaranteeing zero lag on permission revocation.
 
 **Effective access per request:**
 
@@ -672,10 +720,12 @@ CREATE TABLE customers (                        -- tenant-wide
   phone text,
   gstin text,
   credit_limit numeric(18,2) NULL,             -- tenant-wide credit limit (NULL = unlimited)
+  desktop_id text NULL,                        -- immutable desktop SQLite PK for incremental pilot sync deduplication
   total_purchases numeric(18,2) NOT NULL DEFAULT 0,    -- projection
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX ix_customers_tenant_phone ON customers (tenant_id, phone);
+CREATE INDEX ix_customers_tenant_desktop_id ON customers (tenant_id, desktop_id) WHERE desktop_id IS NOT NULL;
 
 -- Customer Credit Limits & Cross-Branch Visibility:
 -- Customer credit is tenant-global and consolidated across all branches. To prevent customers accumulating
@@ -938,9 +988,51 @@ Every branch-scoped entity gets the same two-condition filter. Tenant-only entit
 
 ### 9.2 PostgreSQL RLS & Connection Pooling — Critical Production Architecture
 
+#### Architectural Mandate: Unified Transaction Scope for Reads and Writes
+
+In PostgreSQL, `SET LOCAL` is valid **strictly within an active transaction block** (`BEGIN … COMMIT/ROLLBACK`). If plain read queries (`GET /customers`, dashboard metrics) run without an explicit transaction wrapper:
+1. `SET LOCAL` cannot be executed outside a transaction block.
+2. `current_setting('app.tenant_id', true)` evaluates to `NULL`.
+3. Strict RLS policies (`tenant_id = current_setting('app.tenant_id')::uuid`) evaluate to `NULL` (false), causing plain read queries to **silently return zero rows** (visible bug).
+4. Loosening the policy to `OR current_setting('app.tenant_id', true) IS NULL` to "make reads work" is **strictly forbidden**, as it causes uninitialized connections to **silently return all tenants' data across the database** (catastrophic cross-tenant breach).
+
+**Architectural Decision: Every DbContext operation runs inside an explicit transaction context.**
+- An ASP.NET Core middleware (`TenantTransactionMiddleware`) or EF Core execution strategy automatically begins an explicit transaction for every incoming database operation:
+  - Read-only endpoints execute in a `ReadCommitted` transaction with `READ ONLY` mode.
+  - Write and mutation endpoints execute within explicit `RepeatableRead` or `Serializable` transactions.
+- An EF Core `DbTransactionInterceptor` (`TransactionStartedAsync`) immediately dispatches the session context parameters:
+  ```sql
+  SET LOCAL app.tenant_id = @tenantId;
+  SET LOCAL app.branch_ids = @branchIds;
+  SET LOCAL app.all_branches = @allBranches;
+  ```
+- **Benefits:**
+  - `current_setting('app.tenant_id')` is guaranteed to be set on **every** read and write query.
+  - Setting values automatically evaporate on `COMMIT` or `ROLLBACK`, guaranteeing zero context bleeding across pooled physical Npgsql connections.
+  - RLS functions as an active, hardware-enforced second layer of defense on both reads and writes.
+
+#### Written Rule: 100% RLS Coverage on Every Tenant Table
+
+Row Level Security is NOT limited to branch-scoped tables. PII-bearing master tables (`customers`, `suppliers`, `users`) are the most sensitive assets in the system. A single raw-SQL query, projection query, or missed EF query filter must never leak customer phone numbers, GSTINs, or supplier financials.
+
+**Rule:** Every table containing a `tenant_id` column MUST have RLS enabled and forced:
 ```sql
-ALTER TABLE sales ENABLE ROW LEVEL SECURITY;
-CREATE POLICY tenant_branch_isolation ON sales USING (
+ALTER TABLE <table_name> ENABLE ROW LEVEL SECURITY;
+ALTER TABLE <table_name> FORCE ROW LEVEL SECURITY;
+```
+
+**Policy Archetype A — Tenant-Only Tables (PII & Master Data):**
+Applied to `customers`, `products`, `suppliers`, `liabilities`, `users`, `roles`, `settings`, `audit_log`, `import_batches`:
+```sql
+CREATE POLICY tenant_isolation_policy ON customers USING (
+  tenant_id = current_setting('app.tenant_id')::uuid
+);
+```
+
+**Policy Archetype B — Branch-Scoped Tables (Operational Data):**
+Applied to `sales`, `sale_items`, `branch_inventory`, `purchases`, `inventory_imeis`, `inventory_movements`, `customer_payments`, `customer_ledger_entries`, `supplier_ledger_entries`, `expenses`, `repair_jobs`:
+```sql
+CREATE POLICY tenant_branch_isolation_policy ON sales USING (
   tenant_id = current_setting('app.tenant_id')::uuid
   AND (
     current_setting('app.all_branches', true) = 'true'
@@ -949,23 +1041,17 @@ CREATE POLICY tenant_branch_isolation ON sales USING (
 );
 ```
 
-Apply the same policy shape to every branch-scoped table.
+**Automated CI Enforcement Guard:**
+`StoreOS.IntegrationTests` contains an automated schema-verification test that inspects `information_schema.columns`, `pg_class`, and `pg_policy`:
+- Asserts that 100% of tables with a `tenant_id` column have `relrowsecurity = true` and at least one active policy.
+- Asserts that no policy contains an `OR current_setting(...) IS NULL` bypass.
+- Any pull request introducing a new table with `tenant_id` without its RLS migration bundle immediately fails the CI build.
 
-#### Connection Pooling vs. RLS Session State (Production Safety Mandate)
+#### Connection Pooling Safety Mandate
 
-`current_setting('app.tenant_id')` set via session-level `SET` survives for the life of a PostgreSQL connection session, NOT an individual HTTP request. Under connection pooling:
-- **Catastrophic Failure Mode (Transaction-Mode Pooling):** If an external connection pooler like PgBouncer is deployed in **transaction pooling mode** (`pool_mode = transaction`), physical connections are recycled across arbitrary clients between transactions without resetting GUC session variables (`app.tenant_id`). Tenant A's connection will serve Tenant B's next query, causing silent cross-tenant data leakage under concurrent load.
-- **Architectural Decision & Configuration:**
-  1. **Primary Strategy (Npgsql Native Pooling):** ASP.NET Core relies on Npgsql's built-in connection pool directly against PostgreSQL. External poolers are omitted in standard deployments.
-  2. **Transaction-Scoped Context via `SET LOCAL`:** For all transactional operations, EF Core interceptors (`DbTransactionInterceptor` / `SaveChangesInterceptor`) issue `SET LOCAL` commands:
-     ```sql
-     SET LOCAL app.tenant_id = @tenantId;
-     SET LOCAL app.branch_ids = @branchIds;
-     SET LOCAL app.all_branches = @allBranches;
-     ```
-     Because `SET LOCAL` is strictly scoped to the active transaction, settings automatically evaporate on `COMMIT` or `ROLLBACK`, guaranteeing zero context leakage across pooled physical connections.
-  3. **External Pooler Constraint (PgBouncer):** If PgBouncer is required in high-scale infrastructure, it **MUST be configured exclusively in session pooling mode (`pool_mode = session`)**, NEVER `transaction` or `statement` mode.
-  4. **Primary Line of Defense:** EF Core query filters (§9.1) execute inside application memory and enforce tenant/branch scoping on every generated SQL query as the first line of defense; PostgreSQL RLS functions as defense-in-depth.
+- **Native Npgsql Pooling:** The application connects directly using Npgsql's built-in connection pool. External poolers are omitted in standard deployments.
+- **External Pooler Constraint (PgBouncer):** If PgBouncer or a cloud-managed proxy is deployed in front of PostgreSQL, it **MUST be configured strictly in session pooling mode (`pool_mode = session`)**, NEVER `transaction` or `statement` mode. `SET LOCAL` inside explicit transactions ensures isolation even in edge cases, but session mode ensures PostgreSQL session-level health remains intact.
+- **Dual Defense Layers:** EF Core query filters (§9.1) execute in application memory on generated SQL; PostgreSQL RLS enforces row filtering at the database engine level.
 
 ### 9.3 Branch context on mutations
 
@@ -1001,7 +1087,10 @@ BEGIN
      - Authorized overrides applied only with permission; otherwise client price is ignored.
      - Margin scheme: allowed only for UsedPhone items.
        * Cost basis = inventory_imeis.purchase_price (when IMEI selected),
-                      else branch_inventory.cost_price / products.purchase_price.
+                      else branch_inventory.cost_price > 0 ? branch_inventory.cost_price : products.purchase_price.
+       * Hard Validation Guard: Cost basis MUST be strictly positive (> 0). If unseeded, 0, or negative,
+         checkout immediately fails with 422 UnprocessableEntity ("Margin scheme requires a known positive cost basis").
+         Silent fallback to 0 is strictly forbidden.
      - Compute tax via TaxEngine; GST rate from product (or tenant default setting).
   3. Credit validation (if payment_mode = 'Credit' or partial payment with balance > 0):
      - Compute live cross-branch outstanding debt across all branches.
@@ -1031,6 +1120,15 @@ BEGIN
  10. INSERT audit_log (stamped with request correlation_id).
 COMMIT
 ```
+
+#### Concurrency & Serialization Failure Retry Wrapper
+
+Under `Serializable` or `RepeatableRead` isolation, PostgreSQL's MVCC engine will throw error `40001 (serialization_failure)` or `40P01 (deadlock_detected)` when concurrent cashier transactions update the same branch inventory row or sequence counter. To prevent cashiers seeing spurious "Transaction Failed" errors at peak hours:
+- `CheckoutHandler` is wrapped in an automated Polly/resilience retry pipeline keyed off the request's mandatory `Idempotency-Key` header.
+- **Retry Policy:** Catches `NpgsqlException` where `SqlState IN ('40001', '40P01')`.
+- **Backoff Strategy:** Up to 3 retries with exponential backoff and full jitter (initial delay 25ms, backoff factor 2.0, max delay 250ms, $\pm 10$ms jitter).
+- **Idempotency Safety:** Because the client supplies an `Idempotency-Key`, the pipeline is guaranteed idempotent. Each retry executes in a fresh DbContext transaction, refreshing snapshot state and re-testing conditional stock availability.
+- **Terminal Exhaustion:** If retries are exhausted under extreme sustained contention, returns `409 Conflict` (or `422 OutOfStock` if inventory was depleted by the competing transaction), accompanied by the request correlation-id.
 
 ### 10.2 Void / refund
 
@@ -1062,22 +1160,25 @@ B02: TransferIn movement (stock_qty += n), IMEI branch_id → B02, status → 'I
 
 ### 10.7 Estimate to Tax Invoice conversion
 
-`POST /pos/estimate/{id}/convert` enables cashiers to convert an accepted estimate directly into a binding tax invoice without re-entering the cart:
+`POST /pos/estimate/{id}/convert` enables cashiers to convert an accepted estimate directly into a binding tax invoice without re-entering the cart.
+- **Mandatory Header:** `Idempotency-Key: <guid>` (required; duplicates return the cached `TaxInvoice` payload without re-decrementing stock or re-allocating sequence numbers).
+- **Serialization Failure Wrapper:** Wrapped in the identical `40001`/`40P01` retry wrapper with jittered backoff as checkout.
 
 ```text
 BEGIN
-  1. Load estimate by ID (verifying invoice_type = 'Estimate' and tenant/branch access).
-  2. Verify current stock availability for all physical items and ensure specified IMEIs
+  1. Validate Idempotency-Key. If already processed, return existing invoice response.
+  2. Load estimate by ID (verifying invoice_type = 'Estimate' and tenant/branch access).
+  3. Verify current stock availability for all physical items and ensure specified IMEIs
      are currently 'InStock' at the branch.
-  3. Validate customer credit limit if converting to an unpaid/credit sale.
-  4. Reserve new Tax Invoice number from invoice_sequences.
-  5. Invoke IInventoryStockService: decrement branch stock and transition IMEIs to 'Sold'.
-  6. INSERT sales (invoice_type = 'TaxInvoice', invoice_number = new sequence,
+  4. Validate customer credit limit if converting to an unpaid/credit sale.
+  5. Reserve new Tax Invoice number from invoice_sequences.
+  6. Invoke IInventoryStockService: decrement branch stock and transition IMEIs to 'Sold'.
+  7. INSERT sales (invoice_type = 'TaxInvoice', invoice_number = new sequence,
      converted_from_estimate_id = estimate.id) and sale_items.
-  7. INSERT inventory_movements (Sale) for all physical lines.
-  8. Capture initial payments and record customer_ledger_entries if balance remains.
-  9. Update original estimate record (status = 'Converted', linked_tax_invoice_id = sale.id).
- 10. INSERT audit_log (with correlation-id).
+  8. INSERT inventory_movements (Sale) for all physical lines.
+  9. Capture initial payments and record customer_ledger_entries if balance remains.
+ 10. Update original estimate record (status = 'Converted', linked_tax_invoice_id = sale.id).
+ 11. INSERT audit_log (with correlation-id).
 COMMIT
 ```
 
@@ -1104,23 +1205,24 @@ Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Request context he
 
 | Area | Endpoints (representative) |
 |---|---|
-| Auth | `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/me` (incl. branches, roles, permissions) |
+| Auth | `POST /auth/login`, `POST /auth/refresh` (HttpOnly cookie, family reuse detection), `POST /auth/logout`, `GET /auth/me` (incl. branches, roles, permissions, token_version) |
 | Branches | `GET/POST/PATCH /branches`, `GET /branches/{id}`, user assignment endpoints (`user_branches`, `user_role_assignments`) |
-| POS | `GET /pos/search?q=` (branch-scoped), `GET /pos/product/{id}` (incl. available IMEIs, branch sell price override), `POST /pos/checkout` (idempotent, validates stock/IMEI/credit limit), `POST /pos/estimate`, `POST /pos/estimate/{id}/convert` (converts estimate to tax invoice) |
-| Sales | `GET /sales` (all filters/sort/page: status, payment mode, type, paid/due, financed, category, amount range, dates, branch), `GET /sales/{id}` (incl. IRN/QR data), `POST /sales/{id}/payments`, `POST /sales/{id}/void`, `POST /sales/{id}/refund`, `GET /sales/{id}/invoice.pdf` |
-| Customers | `GET/POST/PATCH /customers` (incl. `credit_limit`, live cross-branch balance), `GET /customers/{id}/ledger` (per-invoice branch attribution), `GET /customers/{id}/sales` |
-| Inventory | `GET/POST/PATCH /products`, `GET /inventory?branchIds=`, `GET /inventory/valuation?branchIds=`, `GET /inventory/low-stock`, `GET/POST /imeis`, `POST /inventory/adjustments` |
+| POS | `GET /pos/search?q=` (branch-scoped), `GET /pos/product/{id}` (incl. available IMEIs, branch sell price override), `POST /pos/checkout` (requires `Idempotency-Key`, 40001 retry-safe, validates stock/IMEI/credit limit), `POST /pos/estimate`, `POST /pos/estimate/{id}/convert` (requires `Idempotency-Key`, converts estimate to tax invoice, 40001 retry-safe) |
+| Sales | `GET /sales` (all filters/sort/page: status, payment mode, type, paid/due, financed, category, amount range, dates, branch), `GET /sales/{id}` (incl. IRN/QR data), `POST /sales/{id}/payments` (requires `Idempotency-Key`), `POST /sales/{id}/void` (live DB permission re-check), `POST /sales/{id}/refund` (live DB permission re-check), `GET /sales/{id}/invoice.pdf` |
+| Customers | `GET/POST/PATCH /customers` (incl. `credit_limit`, live cross-branch balance), `GET /customers/{id}/ledger` (per-invoice branch attribution), `GET /customers/{id}/sales`, `POST /customers/{id}/anonymize` (DPDP Act right to erasure handler) |
+| Inventory | `GET/POST/PATCH /products`, `GET /inventory?branchIds=`, `GET /inventory/valuation?branchIds=` (routed to ReportingDbContext), `GET /inventory/low-stock`, `GET/POST /imeis`, `POST /inventory/adjustments` (live DB permission re-check) |
 | Purchases | `POST /purchases` (stock-in with optional IMEIs), `GET /purchases`, `POST /imports/supplier-invoice` (deterministic mapping; ambiguous → manual mapping step; no AI) |
 | Suppliers | `GET/POST/PATCH /suppliers`, `POST /suppliers/{id}/transactions`, `GET /suppliers/{id}/ledger?branchIds=`, `POST /supplier-returns`, `GET /supplier-returns/{id}/note.pdf` |
 | Transfers | `POST /inventory/transfers` (out), `POST /inventory/transfers/{id}/receive` |
 | Repairs | `GET/POST/PATCH /repair-services`, `GET/POST/PATCH /repair-jobs`, `POST /repair-jobs/{id}/status`, `POST /repair-jobs/{id}/parts`, `POST /repair-jobs/{id}/invoice` (deterministic two-step link), `GET /repair-jobs/{id}/ticket.pdf` |
 | Expenses | `GET/POST/PATCH /expenses?from&to&branchIds=` |
 | Liabilities | `GET/POST/PATCH /liabilities`, `POST /liabilities/{id}/repayments` |
-| Reports | `GET /reports/dashboard?branchIds=`, `GET /reports/daily-sales?date&branchIds=`, `GET /reports/compare?date` (per-branch comparison), `GET /reports/inventory?branchIds=`, `GET /exports/gstr1?from&to` (grouped by GSTIN), `GET /exports/inventory?categories=&branchIds=` |
-| Settings | `GET/PUT /settings` (tenant + branch scoped, series format: FY consecutive vs daily), finance providers CRUD |
-| Platform | `GET /health/live`, `GET /health/ready`, `POST /tenant/export`, `POST /tenant/import` (record-level dedupe) |
+| Reports | `GET /reports/dashboard?branchIds=`, `GET /reports/daily-sales?date&branchIds=`, `GET /reports/compare?date` (per-branch comparison), `GET /reports/inventory?branchIds=`, `GET /exports/gstr1?from&to` (grouped by GSTIN), `GET /exports/inventory?categories=&branchIds=` *(all routed to ReportingDbContext / read replica)* |
+| Settings | `GET/PUT /settings` (tenant + branch scoped, series format: FY consecutive vs daily), `POST /tenants/me/logo` (PNG/JPEG/WebP <= 2MB, magic byte validation), finance providers CRUD |
+| Platform | `GET /health/live`, `GET /health/ready`, `GET /tenant/manifest.webmanifest` (dynamic W3C manifest), `POST /tenant/export`, `POST /tenant/import` (record-level dedupe) |
 
 - Query/report endpoints accept `branchIds` (multi) or `all`; branch users are restricted server-side to their visible set regardless of what they request.
+- **Reporting Connection Seam:** Reports and exports execute exclusively via `ReportingDbContext` (`QueryTrackingBehavior.NoTracking`), isolating heavy analytical aggregate queries from the primary checkout database.
 - **OpenAPI → TypeScript client:** NSwag generates `frontend/src/app/core/api/` at build; CI regenerates and fails on drift. No hand-written API calls.
 - **Rate limiting:** `POST /auth/login` 5/min/IP; global 200 req/min/user.
 
@@ -1132,20 +1234,49 @@ Base: `https://…/api`. Auth: `Authorization: Bearer <jwt>`. Request context he
 
 The application operates as a **strict white-label solution**. The platform name `StoreOS` is strictly an internal architectural identifier and is completely invisible to cashiers, store managers, and retail customers.
 
-1. **First-Run Onboarding Modal / Wizard:**
+1. **Subdomain-Per-Tenant Architecture & Ingress Infrastructure:**
+   - **Wildcard DNS & TLS:** Wildcard DNS record `*.pos.storeos.io` routes to the edge CDN/load balancer. TLS certificates are managed automatically via Let's Encrypt / Cloudflare Wildcard SSL (`*.pos.storeos.io`).
+   - **Origin Isolation for PWAs:** Each tenant operates under its own distinct subdomain origin (e.g., `https://apex.pos.storeos.io`). Because browser security sandboxes (Origin, IndexedDB, Service Worker scope, CacheStorage) are strictly partitioned per origin, tenants never share local client storage or PWA service worker contexts.
+   - **Dynamic W3C Web Manifest (`/api/tenant/manifest.webmanifest`):**
+     * The Angular `index.html` references `<link rel="manifest" href="/api/tenant/manifest.webmanifest">`.
+     * The API resolves the tenant from the HTTP `Host` header (`apex.pos.storeos.io`), retrieves custom branding, and dynamically generates the W3C manifest JSON with:
+       ```json
+       {
+         "name": "Apex Mobiles POS",
+         "short_name": "Apex POS",
+         "start_url": "/",
+         "display": "standalone",
+         "theme_color": "#1e293b",
+         "background_color": "#0f172a",
+         "icons": [{ "src": "/api/tenant/logo.png?size=512", "sizes": "512x512", "type": "image/png" }]
+       }
+       ```
+     * When a cashier on a tablet or desktop clicks "Install App", the browser installs the application natively under the shop's name and icon (e.g., *"Apex Mobiles POS"*), with zero vendor trace.
+   - **Universal Entrypoint & Subdomain Routing:**
+     * `https://pos.storeos.io` serves as a universal login portal. Upon email entry or authentication, users are redirected to their tenant's specific subdomain (`https://<tenant>.pos.storeos.io`).
+
+2. **First-Run Onboarding Modal / Wizard:**
    - When an owner provisions a tenant or logs in for the first time, the onboarding flow immediately prompts:
      * **"What is your Shop / Business Name?"** (e.g., *"Apex Mobiles"*).
      * Optional brand details: logo upload, GSTIN, store address, phone numbers, email, and thermal receipt footer message.
    - Once submitted, the system saves `tenants.name` and initializes the branch settings.
-2. **Dynamic Shop Identity Across the Entire Application:**
+
+3. **Tenant Logo Upload & Asset Security:**
+   - **Endpoint:** `POST /tenants/me/logo` (restricted to tenant `settings:manage` permission).
+   - **Validation Rules:**
+     * Allowed MIME types: strictly `image/png`, `image/jpeg`, `image/webp`. SVG format is **strictly forbidden** (or sanitized with an aggressive SVG sanitizer) to prevent stored Cross-Site Scripting (XSS) vectors.
+     * Maximum file size: **2 MB**.
+     * Binary magic-number inspection: verifies file header bytes match the declared image format.
+   - **Storage & Processing:** Uploaded images are normalized/resized via ImageSharp (max 512×512 icon, max 1024×256 invoice header), stripped of EXIF metadata, and saved to private object storage under `tenants/{tenant_id}/branding/logo_{hash}.webp`. Served via CDN edge cache with immutable cache headers.
+
+4. **Dynamic Shop Identity Across the Entire Application:**
    - **Browser Tab `<title>`:** Driven dynamically by Angular's `Title` service: `{{ activeBranch.name }} | {{ currentTenant.name }}` (e.g., `Main Branch | Apex Mobiles`).
    - **Top Navigation Bar:** Displays the shop's custom brand name and logo front-and-center, accompanied by the active branch switcher.
-   - **PWA & Desktop App Name:** Configured using the shop's name so cashiers install "Apex Mobiles POS" onto their tablets or desktops.
    - **Login & Lock Screen:** Dynamically renders the tenant's brand name and logo (resolved via subdomain or user account context), never vendor branding.
    - **Customer Invoices, Receipts, & PDFs:** QuestPDF templates format the header strictly using the shop's trade name, logo, address, and GSTIN.
    - **SMS / WhatsApp Notifications:** Messages originate exclusively under the shop's identity.
 
-### 12.2 Structure
+### 12.2 Structure & Token Storage Architecture
 
 ```text
 src/app/
@@ -1158,6 +1289,31 @@ src/app/
     ├── transfers/  suppliers/  repairs/  expenses/  liabilities/  reports/  settings/
     └── admin/ (branches, users, roles)
 ```
+
+#### Token Storage & Auth Flow (In-Memory Access Token + HttpOnly Cookie)
+
+Storing JWT access tokens in browser `localStorage` or `sessionStorage` exposes financial and PII data to token exfiltration via Cross-Site Scripting (XSS). StoreOS enforces a secure **BFF Token Architecture**:
+
+1. **Short-Lived Access Token (15-min JWT):**
+   - Kept **strictly in memory** inside Angular's `AuthSignalStore` (a private signal state service).
+   - **Never persisted** to `localStorage`, `sessionStorage`, or `IndexedDB`.
+   - If the browser tab is refreshed or closed, the in-memory token is immediately destroyed.
+2. **Long-Lived Rotating Refresh Token (30 Days):**
+   - Issued in an `HttpOnly`, `Secure`, `SameSite=Strict` cookie (`storeos_refresh_token`, path `/api/auth`).
+   - Browser JavaScript has zero read/write access to this cookie, eliminating XSS token theft.
+3. **Silent Refresh on Application Bootstrap:**
+   - On page load or tab refresh, Angular's `APP_INITIALIZER` dispatches a silent `POST /api/auth/refresh` request.
+   - The browser automatically attaches the HttpOnly cookie. The endpoint responds with a fresh 15-minute access token and current user profile, re-hydrating the `AuthSignalStore` without requiring user re-login.
+4. **Auth Interceptor Workflow:**
+   - The Angular `auth.interceptor.ts` injects `Authorization: Bearer <memory_token>` from `AuthSignalStore`.
+   - On `401 Unauthorized`:
+     * Buffers all outgoing concurrent HTTP requests.
+     * Fires a single `POST /api/auth/refresh` request.
+     * On success: stores the new access token in `AuthSignalStore` and replays all buffered requests with the new token.
+     * On failure (refresh token expired, revoked, or theft detected): clears all memory state and redirects cashier to `/login`.
+5. **CSRF & Cookie Protection:**
+   - The refresh cookie specifies `SameSite=Strict`, blocking cross-site transmission.
+   - State-changing auth requests require the custom header `X-Requested-With: XMLHttpRequest` and an anti-CSRF token verified on the server.
 
 - **State:** Angular signals for cart, current user, permissions, active branch; RxJS `toSignal` + `switchMap` for debounced search.
 - **Forms:** reactive forms; server validation errors mapped back to fields.
@@ -1187,14 +1343,57 @@ src/app/
 
 ```text
 HTTPS everywhere                       Parameterized queries only (EF Core)
-JWT + rotating refresh, revocable      Rate limiting on auth + global
+In-memory JWT + HttpOnly refresh       Rate limiting on auth + global
 Tenant isolation: query filters + RLS  Branch isolation: scoped filters + RLS
-Server-recomputed prices/totals        Idempotency on money endpoints
+100% RLS coverage on all tenant tables Unified transaction scope on all queries
+Server-recomputed prices/totals        Idempotency on all money & stock mutations
 Append-only audit + ledger tables      Permission-gated sensitive data (cost/profit)
+Live DB check for high-impact actions  Token family theft/reuse detection
 Secrets in cloud secret manager        Dependency + image scanning in CI
 Input validation on every endpoint     Cross-branch access tests (horizontal)
 Correlation-ID on all requests/audits  Strict session-mode DB pooling
+DPDP Act compliant PII anonymization   WORM object lock on encrypted backups
 ```
+
+### 13.1 Dynamic CORS Architecture
+
+Because the frontend is hosted across dynamic tenant subdomains (`https://<tenant>.pos.storeos.io`) and static CDN origins while the API runs on a dedicated domain, ASP.NET Core applies a strict CORS policy:
+- **Origin Validation:** Evaluated via a dynamic origin matcher:
+  * Production: `^https://([a-z0-9-]+)\.pos\.storeos\.io$` and `^https://pos\.storeos\.io$`
+  * Local Dev: `http://localhost:4200`
+- **Allowed Methods:** `GET, POST, PUT, PATCH, DELETE, OPTIONS`
+- **Allowed Headers:** `Content-Type, Authorization, X-Branch-Id, X-Correlation-ID, Idempotency-Key, X-Requested-With`
+- **Exposed Headers:** `X-Correlation-ID, Idempotency-Key, Content-Disposition`
+- **Credentials:** `AllowCredentials: true` is strictly enabled to permit transmission of the `SameSite=Strict` refresh token cookie during auth flows.
+- **Preflight Caching:** `MaxAge = TimeSpan.FromHours(1)` to minimize OPTIONS round-trips on POS terminals.
+
+### 13.2 Data Privacy & India DPDP Act 2023 Compliance
+
+StoreOS centralizes retail customer PII (names, phone numbers, addresses, GSTINs) into a multi-tenant cloud repository. Compliance with India's Digital Personal Data Protection (DPDP) Act 2023 is designed into the core data model:
+
+1. **Fiduciary vs. Processor Role:**
+   - **Retail Tenant:** The **Data Fiduciary**, maintaining the primary relationship with the retail consumer and determining business purposes for collecting data.
+   - **StoreOS:** The **Data Processor**, processing customer data strictly on behalf of the tenant and subject to tenant instructions.
+2. **Statutory Retention vs. Right to Erasure / Anonymization:**
+   - Under Section 36 of the Central Goods and Services Tax (CGST) Act 2017, registered businesses are **statutorily mandated to retain all books of accounts and tax invoices for a minimum of 72 months (6 years)** from the due date of filing the annual return.
+   - **Erasure / Anonymization Protocol (`POST /customers/{id}/anonymize`):**
+     * When a customer exercises their right to data erasure under the DPDP Act, the system performs an in-place irreversible anonymization rather than deleting fiscal invoice records:
+       - `customers` row: `name = 'Anonymized Customer'`, `phone = NULL`, `gstin = NULL`.
+       - Ledger records: linked customer name snapshots replaced with `'Anonymized Customer'`.
+       - `sales` / `sale_items`: immutable invoice numbers, amounts, and GST splits are preserved for statutory tax audit integrity, with customer contact fields scrubbed.
+     * Generates an audit log entry (`customer.anonymized`) stamped with the correlation-id and operator user ID.
+3. **Data Minimization at POS:**
+   - In accordance with Indian GST laws, cash retail transactions under ₹50,000 do not require customer identification. The POS screen defaults to `Walk-in Customer` and allows cashiers to bill without forcing collection of phone numbers.
+4. **Notice & Consent on Digital Receipts:**
+   - Invoices sent via SMS or WhatsApp include a standard statutory notice: *"Digital invoice issued by [Shop Name]. To view privacy preferences or manage your information, visit [tenant.pos.storeos.io/privacy]."*
+
+### 13.3 Authorization & Stale Permission Mitigation
+
+- **Two-Tiered Authorization:**
+  * Standard operations: Fast authorization via JWT claims validated against the user's current `token_version` cached in memory.
+  * **High-Impact Operations:** Sensitive endpoints (`POST /sales/{id}/void`, `POST /sales/{id}/refund`, `POST /inventory/adjustments`, `PUT /settings`, `PATCH /branches/{id}`) **bypass JWT token claims** and execute a live, direct database query against `user_role_assignments` and `role_permissions` inside the transaction. If an employee's void authority is revoked, their ability to void sales is cut off with zero latency.
+- **Refresh Token Family & Theft Detection:**
+  * Refresh tokens are linked via `family_id`. Presenting an already-rotated token triggers immediate theft mitigation: the entire token family is revoked, `token_version` is incremented, all active sessions for the user are invalidated, and an alert is dispatched.
 
 - Disabled tenant blocks login; deactivated branch blocks new operations but never deletes history.
 - Renderer/client can never execute arbitrary database operations — only the typed API.
@@ -1222,16 +1421,31 @@ push/PR → build (dotnet & ng) → unit tests → integration tests (Testcontai
 
 Environments: `dev` (compose), `staging`, `production` (GitHub Environments with reviewers + secrets). Secrets live in the cloud secret manager — never in the repo; dev via `dotnet user-secrets`.
 
-### 14.3 Backups & DR
+### 14.3 Backups, DR & Encryption Architecture
 
-- Managed PostgreSQL PITR (7–35 days) — platform level.
-- Nightly `pg_dump` per environment → object storage, 30-day retention.
-- **Monthly restore drill in CI/staging:** restore the latest dump into a scratch DB and run reconciliation assertions (row counts, ledger sums, `stock_qty` vs movements). Alert on failure.
-- Per-tenant JSON export to object storage on schedule and on demand.
+- **Platform-Level PITR:** Managed PostgreSQL Continuous WAL archiving / Point-In-Time Recovery (7–35 days retention).
+- **Nightly Logical Dumps (`pg_dump`):** Nightly automated schema + data dumps per environment.
+- **Backup Encryption at Rest (Mandatory):**
+  * All database dump files and per-tenant JSON exports MUST be encrypted at rest using AES-256-GCM / AWS KMS SSE-KMS (or Azure Key Vault / GCP KMS customer-managed encryption keys). Plaintext database dumps in object storage are strictly prohibited.
+  * Encrypted streaming via GPG/AES pipeline before upload, or enforced via S3 bucket policy requiring `x-amz-server-side-encryption: aws:kms`.
+- **Bucket Access Scoping & IAM Least Privilege:**
+  * Backup object storage buckets are completely private; Block Public Access is enforced at the cloud account root level.
+  * Dedicated backup runner service principal / IAM role granted **write-only permissions (`s3:PutObject`)** on backup prefixes.
+  * `s3:DeleteObject` and bucket mutation permissions are strictly denied to all application runtime identities.
+  * **WORM Object Lock (Compliance Mode):** Buckets enforce S3 Object Lock (Compliance Mode) with a 30-day immutability retention period, preventing ransomware tampering, insider threats, or accidental deletion.
+- **Monthly Restore Drill in CI/Staging:** Restore the latest dump into a scratch DB and run automated reconciliation assertions (row counts, ledger sums, `stock_qty` vs movements). Alert on failure.
+- **Per-Tenant JSON Export:** Automated and on-demand tenant data export to private encrypted object storage.
 
-### 14.4 IaC
+### 14.4 IaC (Terraform / Bicep)
 
-Terraform/Bicep: resource group, managed PostgreSQL, object storage + lifecycle rules, container host, secret manager, DNS/TLS, monitoring ingestion. Staging and production differ only by variables.
+Terraform/Bicep modules provision:
+- Multi-AZ resource group & virtual network.
+- Managed PostgreSQL (Primary Writer) + Read Replica connection provisioning for `ReportingDbContext`.
+- Encrypted object storage buckets (backup WORM bucket + tenant media bucket) with KMS keys and lifecycle rules.
+- Container host (Azure Container Apps / AWS ECS / Cloud Run) with non-root Docker execution.
+- Secret manager & key vault for DB credentials and JWT signing keys.
+- Edge CDN with Wildcard DNS/TLS certificate (`*.pos.storeos.io`) and dynamic CORS configuration.
+- OpenTelemetry collector and monitoring ingestion. Staging and production differ only by variables.
 
 ---
 
@@ -1267,8 +1481,14 @@ Terraform/Bicep: resource group, managed PostgreSQL, object storage + lifecycle 
 
 | Invariant | Test |
 |---|---|
+| 100% RLS table coverage | Automated CI schema test: asserts all tables with `tenant_id` have `relrowsecurity = true` and no NULL fallback |
 | No double-selling a physical unit (any branch) | IMEI unique index + status check |
 | No sale above available stock (per branch) | Conditional update test |
+| Serialization failure recovery (`40001`/`40P01`) | Parallel contention test: assert Polly retry wrapper catches serialization failures and succeeds on backoff |
+| Margin scheme zero/unseeded cost rejection | Unit & integration tests: assert $P \le 0$ rejects sale with 422, zero fallback prohibited |
+| Refresh token replay & theft detection | Security test: assert presenting a rotated token revokes entire token family and forces re-login |
+| Sensitive actions bypass stale JWT claims | Authorization test: assert revoking `sales:void` immediately blocks void on active JWT via live DB check |
+| DPDP customer erasure preserves GST compliance | Privacy test: assert customer PII anonymized while invoice numbers, amounts, and GST totals remain intact |
 | Repair services never count as stock | Reconciliation: no `branch_inventory` rows for services; valuation excludes them |
 | Historical invoices survive master-data changes | Snapshot columns asserted |
 | Payments are transactions, not overwrites | Payment rows never mutated |
@@ -1289,13 +1509,17 @@ The desktop product's JSON backup is the bridge.
 
 1. **Tool:** `pz-migrate` (CLI or admin-only Platform API). Input: desktop JSON backup.
 2. **Steps:** detect schema/version (reject unknown) → validate structure → map to the cloud schema (assign tenant, create a default "Main Branch", stamp every record with `branch_id`, remap ids, seed users/roles) → **dry-run mode** producing a reconciliation report → **record-level deduplicated import** in a single transaction.
-3. **Record-level deduplication for incremental sync:**
-   During the pilot phase (§17.4), the desktop app remains active as a fallback. An updated backup taken days or weeks later will have a different file hash. Instead of failing on file-hash collisions, `pz-migrate` dedupes per-record based on natural business keys:
+3. **Record-level deduplication & phone edit reconciliation for incremental sync:**
+   During the pilot phase (§17.4), the desktop app remains active as a fallback. An updated backup taken days or weeks later will have a different file hash. Instead of failing on file-hash collisions, `pz-migrate` dedupes per-record based on immutable keys and natural business keys:
    - Sales: `(tenant_id, original_invoice_number)`
    - IMEIs: `(tenant_id, imei)`
-   - Customers: `(tenant_id, phone)`
    - Purchases: `(tenant_id, supplier_invoice_no, supplier_id, purchase_date)`
-   Existing records are preserved without duplication; newly created desktop transactions are imported incrementally.
+   - **Customers Two-Tier Deduplication:**
+     * *Primary Match:* `(tenant_id, desktop_id)`. The migration engine maps the desktop SQLite customer primary key to `customers.desktop_id`. If a customer's phone number was edited on the desktop app between two pilot syncs, the match succeeds via `desktop_id`, updating the phone in cloud rather than creating a duplicate customer.
+     * *Secondary Match:* `(tenant_id, phone)` (fallback when `desktop_id` is missing).
+   - **Conflict Logging & Manual Reconciliation Path:**
+     * If an incremental sync detects a conflict (e.g. `desktop_id` matches an existing cloud customer but the phone number matches a different existing customer), `pz-migrate` logs the divergence to `migration_conflicts.json` and skips the record without aborting the batch.
+     * A dedicated CLI tool `pz-migrate reconcile-customers --tenant=<id> [--dry-run]` lists phone divergences and provides an interactive command to merge duplicated customer records and consolidate their ledger histories before final pilot cutover.
 4. **Reconciliation report (mandatory):** per-table record counts, Σ grand totals, Σ payments, Σ stock qty, active credit balances — source vs. imported. Mismatch = failed migration; nothing is committed.
 5. **Rollout:** pilot with 2–3 real shop backups → staging import → owner verifies the daily-sales report matches the desktop report for a known date → cut over; keep the desktop app read-only as a fallback for 2–4 weeks.
 
@@ -1325,15 +1549,21 @@ Multi-branch tenants branch out *after* migration (initial data lands in the def
 |---|---|
 | Shops lose internet → billing stops | Cloud-first is a confirmed product decision; PWA keeps the cart; recommend 4G backup at the shop; full offline sync only if demanded |
 | Numbering/stock races under multi-terminal load | Conditional updates + unique indexes + concurrency test suite from Phase 2 |
+| Serialization failure (`40001`) under peak concurrent checkout | Automated Polly retry pipeline with exponential jittered backoff keyed on `Idempotency-Key` for checkout and estimate conversion |
 | Cross-branch data leakage | Two independent layers (query filters + RLS) + horizontal access tests in CI |
-| RLS + connection pool tenant data leak | Npgsql internal pooling; `SET LOCAL` within all transactions; strict `pool_mode = session` if external poolers (PgBouncer) deployed |
+| RLS + connection pool tenant data leak | Unified transaction scope on all reads/writes; `SET LOCAL` within all transactions; 100% table RLS coverage; strict `pool_mode = session` if external poolers deployed |
 | GST Rule 46(b) serial numbering challenge | Configurable sequence generator supporting `<BRANCH>/<FY>/<NNNNNN>` (consecutive across FY) vs daily; mandatory CA signoff before go-live |
 | E-invoicing ₹5cr threshold per-PAN | Turnover aggregates across all branches under tenant's PAN; pre-wired schema (`irn`, `irn_ack_no`, `irn_qr_data`), PDF template ready, Phase 8 roadmap |
 | Cross-module writes breaking architecture | Internal typed application services (`IInventoryStockService`, `ICustomerLedgerService`) orchestrated within ambient EF Core transaction |
-| Margin scheme cost drift on used phones | Domain rule: acquisition cost pulled from specific `inventory_imeis.purchase_price`, not tenant catalog default |
+| Margin scheme cost drift or silent zero fallback | Domain guard: acquisition cost pulled from `inventory_imeis.purchase_price` or positive branch cost basis ($P > 0$); unseeded/zero cost rejected with 422 |
+| Stale permissions in 15-minute JWT window | Live direct DB query inside transaction for sensitive actions (`sales:void`, `sales:refund`, `settings:manage`); user `token_version` check on all requests |
+| Refresh token theft / replay | Token family lineage tracking; replaying an already-rotated token revokes entire token family and terminates all sessions |
 | Unbounded cross-branch customer debt | Consolidated live balance displayed at POS checkout; configurable customer credit limit with warning/override gate |
+| Reporting aggregates contending with checkout hot path | Architecture seam: `ReportingDbContext` with distinct connection string (`ConnectionStrings:Reporting`), ready for zero-code PostgreSQL read replica routing |
+| Backup dump data exposure | Mandatory SSE-KMS encryption at rest, private bucket with write-only IAM runner, 30-day WORM Object Lock |
+| DPDP Act compliance on centralized customer PII | Data processor role definition; anonymization endpoint scrubs customer PII while preserving 72-month immutable GST invoice records |
 | Cloud cost sensitivity for small shops | Tenant density on shared DB; small container + basic PostgreSQL per environment |
-| Incremental migration failures during pilot | Record-level deduplication on business keys (invoice no, IMEI, phone) instead of whole-file hash |
+| Incremental migration failures or phone edit dupes | Two-tier deduplication (`desktop_id` primary, `phone` fallback), conflict logging, and `pz-migrate reconcile-customers` CLI tool |
 | Print/format regressions vs. desktop | QuestPDF templates data-driven; side-by-side comparison during the Phase 2 pilot |
 | GST rule changes | Tax engine isolated + rates via settings; unit tests updated in one place |
 
@@ -1353,15 +1583,24 @@ Multi-branch tenants branch out *after* migration (initial data lands in the def
 The implementation is complete when **every checkbox in the product requirements' acceptance section passes**, plus:
 
 - [ ] All product invariants covered by automated tests (including cross-branch and consolidation invariants)
+- [ ] 100% of tables with `tenant_id` verified protected by RLS via automated CI schema assertions (no NULL fallback)
+- [ ] Unified transaction scope verified: reads and writes both execute with `SET LOCAL app.tenant_id` active
+- [ ] Serialization failure (`40001`/`40P01`) retry wrapper verified under concurrent checkout and estimate conversion load
+- [ ] Margin scheme zero/unseeded cost rejection ($P \le 0$) verified with 422 validation
+- [ ] Refresh token reuse detection revokes entire token family on replay (tested)
+- [ ] Live DB permission re-check verified for sensitive operations (`sales:void`, `sales:refund`)
+- [ ] Subdomain-per-tenant routing (`*.pos.storeos.io`) and dynamic W3C web manifest verified
+- [ ] Backup artifacts verified encrypted at rest with 30-day WORM retention lock
+- [ ] Customer PII anonymization verified to preserve historical GST invoice numbers and tax splits
 - [ ] RLS + query filters verified against cross-tenant **and** cross-branch access
-- [ ] Idempotency proven on checkout/payment replay (scoped by endpoint in PK)
+- [ ] Idempotency proven on checkout, payment replay, and estimate conversion (scoped by endpoint in PK)
 - [ ] Request Correlation-ID (`X-Correlation-ID`) verified across HTTP headers, Serilog logs, OpenTelemetry traces, and `audit_log`
 - [ ] Branch-scoped invoice numbering proven collision-free under parallel load (with CA-confirmed FY sequence format)
 - [ ] Estimate-to-Invoice conversion (`POST /pos/estimate/{id}/convert`) verified end-to-end
 - [ ] Customer credit limit and live cross-branch balance display verified at POS checkout
 - [ ] Two-step repair billing insert sequence verified free of circular FK deadlocks
 - [ ] Extended nightly reconciliation worker validates stock, payments, customer revenue, credit balances, and supplier payables
-- [ ] Incremental desktop backup migration verified with record-level deduplication
+- [ ] Incremental desktop backup migration verified with two-tier deduplication (`desktop_id` + phone)
 - [ ] Consolidated reports equal the sum of branch reports (tested)
 - [ ] CI/CD runs the full pipeline including staging smoke + production approval gate
 - [ ] Backup restore drill has executed successfully at least once

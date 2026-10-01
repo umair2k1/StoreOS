@@ -365,8 +365,10 @@ purchase price = P
 GST rate = R
 ```
 
-**Cost Source Rule for Margin Scheme:**
-For used phones tracked by IMEI, purchase price $P$ MUST be the specific acquisition cost of that exact physical unit (`inventory_imeis.purchase_price` recorded when the unit was purchased/stocked-in), NOT a generic catalog-wide default `products.purchase_price`. If sold without an IMEI, $P$ falls back to the branch inventory cost basis.
+**Cost Source & Mandatory Cost Basis Rule for Margin Scheme:**
+For used phones tracked by IMEI, purchase price $P$ MUST be the specific positive acquisition cost of that exact physical unit (`inventory_imeis.purchase_price` recorded when the unit was purchased/stocked-in), NOT a generic catalog-wide default `products.purchase_price`. If sold without an IMEI, $P$ falls back to the branch inventory cost basis (`branch_inventory.cost_price` or `products.purchase_price`), which MUST be strictly greater than zero ($P > 0$).
+
+**Hard Validation Guard:** Margin scheme requires a strictly known, positive cost basis ($P > 0$). If $P$ is unseeded, zero, or negative, checkout MUST be rejected with a hard validation error (`422 UnprocessableEntity`). Silent fallback to $P = 0$ is strictly prohibited, as it treats the entire selling price as profit margin and creates severe GST miscalculation and statutory compliance liabilities under CGST Rule 32(5).
 
 If:
 
@@ -2714,7 +2716,7 @@ Print/display invoice
 ```text
 Select Used Phone
     ↓
-Confirm purchase cost
+Confirm purchase cost (must be > 0; zero or unseeded cost rejected)
     ↓
 Enable margin scheme
     ↓

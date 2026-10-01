@@ -1,0 +1,207 @@
+# P-301 — User entity password hashing (Argon2/PBKDF2) service
+
+**Phase:** 3 &nbsp;|&nbsp; **Minimum executor reasoning level:** med
+
+## 1. ROLE & MISSION
+
+You are implementing **Prompt P-301** of the StoreOS Cloud build ("User entity password hashing (Argon2/PBKDF2) service") in the Oh My Pi IDE. You have no memory of any other prompt; everything you need is in this document.
+
+## 2. WORLD STATE
+
+- Phase 1 backbone and Phase 2 domain engines complete.
+- `User` entity exists (P-104) with a `PasswordHash` property and `ChangePasswordHash`
+  method, but nothing computes an actual hash yet — `User.Create` currently accepts a
+  pre-computed hash string as a parameter, which is correct (Domain stays hashing-algorithm
+  agnostic); this prompt builds the CONCRETE hashing implementation in Infrastructure.
+
+## 3. CONTEXT BLOCK
+
+Use **Argon2id** via `Konscious.Security.Cryptography.Argon2` (pinned in
+P-004/P-118... actually add it now to `Directory.Packages.props` if not already present —
+confirm `Konscious.Security.Cryptography.Argon2` version `1.3.1` is listed; it was included
+in the P-004 allowlist already).
+
+Create `backend/src/StoreOS.Application/Identity/IPasswordHasher.cs`:
+
+```csharp
+namespace StoreOS.Application.Identity;
+
+public interface IPasswordHasher
+{
+    string Hash(string plainTextPassword);
+    bool Verify(string plainTextPassword, string storedHash);
+}
+```
+
+Create `backend/src/StoreOS.Infrastructure/Identity/Argon2PasswordHasher.cs`:
+
+```csharp
+using System.Security.Cryptography;
+using Konscious.Security.Cryptography;
+using StoreOS.Application.Identity;
+
+namespace StoreOS.Infrastructure.Identity;
+
+public class Argon2PasswordHasher : IPasswordHasher
+{
+    private const int SaltSize = 16;
+    private const int HashSize = 32;
+    private const int DegreeOfParallelism = 4;
+    private const int Iterations = 3;
+    private const int MemorySizeKb = 65536; // 64 MB
+
+    public string Hash(string plainTextPassword)
+    {
+        if (string.IsNullOrEmpty(plainTextPassword))
+            throw new ArgumentException("Password cannot be empty.", nameof(plainTextPassword));
+        var salt = RandomNumberGenerator.GetBytes(SaltSize);
+        var hash = ComputeHash(plainTextPassword, salt);
+        // Stored format: argon2id$<iterations>$<memoryKb>$<parallelism>$<base64salt>$<base64hash>
+        return $"argon2id${Iterations}${MemorySizeKb}${DegreeOfParallelism}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+    }
+
+    public bool Verify(string plainTextPassword, string storedHash)
+    {
+        var parts = storedHash.Split('$');
+        if (parts.Length != 6 || parts[0] != "argon2id") return false;
+        var iterations = int.Parse(parts[1]);
+        var memoryKb = int.Parse(parts[2]);
+        var parallelism = int.Parse(parts[3]);
+        var salt = Convert.FromBase64String(parts[4]);
+        var expectedHash = Convert.FromBase64String(parts[5]);
+        var actualHash = ComputeHash(plainTextPassword, salt, iterations, memoryKb, parallelism);
+        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+    }
+
+    private static byte[] ComputeHash(string password, byte[] salt,
+        int iterations = Iterations, int memoryKb = MemorySizeKb, int parallelism = DegreeOfParallelism)
+    {
+        using var argon2 = new Argon2id(System.Text.Encoding.UTF8.GetBytes(password))
+        {
+            Salt = salt,
+            DegreeOfParallelism = parallelism,
+            Iterations = iterations,
+            MemorySize = memoryKb
+        };
+        return argon2.GetBytes(HashSize);
+    }
+}
+```
+
+Register: `builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();` (stateless,
+safe as singleton).
+
+## 4. TASK
+
+1. Confirm `Konscious.Security.Cryptography.Argon2` package reference exists on
+   `StoreOS.Infrastructure.csproj` (add if missing, no explicit version per central management).
+2. Create `IPasswordHasher.cs` in `StoreOS.Application/Identity/` and
+   `Argon2PasswordHasher.cs` in `StoreOS.Infrastructure/Identity/` exactly as shown.
+3. Register as singleton in `Program.cs`.
+4. Write `StoreOS.IntegrationTests/Identity/PasswordHasherTests.cs`: (a) hash a password,
+   verify succeeds with the SAME plaintext; (b) verify FAILS with a different plaintext;
+   (c) two hashes of the SAME plaintext are DIFFERENT strings (proving random salt per call);
+   (d) the stored hash string never contains the plaintext password as a substring; (e)
+   `Verify` against a malformed/garbage stored-hash string returns `false` (not an exception)
+   — wrap the parsing in a try/catch inside `Verify` and return `false` on any parse failure
+   rather than letting a `FormatException` propagate.
+5. Update `Argon2PasswordHasher.Verify` to wrap its body in try/catch returning `false` on any
+   exception, per point (e) above — revise the CONTEXT BLOCK's `Verify` method accordingly
+   before finalizing.
+
+## 5. HARD CONSTRAINTS
+
+- Never store plaintext passwords anywhere — not in logs, not in
+  audit_log `changes` JSON, not in any DTO. `User.PasswordHash` and this hasher's output are
+  the only sanctioned representations.
+- `Verify` must run in constant time relative to a correct hash (`CryptographicOperations
+  .FixedTimeEquals`) to avoid timing side-channels — never use `==` or `SequenceEqual` to
+  compare hash bytes.
+- `Verify` must never throw on malformed input — always return `false` instead, since this
+  method sits directly in the login path and an exception there could be an availability
+  issue or an information-leak vector via stack traces.
+
+Global invariants (apply to all backend code in this repo):
+
+```
+- Money: C# decimal ONLY. Never double/float. numeric(18,2) in Postgres.
+  Round half-up: MidpointRounding.AwayFromZero, 2 dp, via Money.Round2.
+- EMI uses pure decimal exponentiation (DecimalPow loop) — Math.Pow is forbidden.
+- Timestamps: timestamptz, stored UTC. Business date computed in tenant timezone
+  (Asia/Kolkata default).
+- Every tenant table has tenant_id; indexes lead with tenant_id (then branch_id).
+- All DB access happens inside transactions with SET LOCAL app.tenant_id / app.branch_ids /
+  app.all_branches (RLS session scope). No query outside this scope.
+- Validation failures -> 400 with field problems; domain violations -> DomainException -> 422
+  with code+message. Never a 500 for business rule violations.
+- Authorization runs in MediatR pipeline behaviors, never controllers, never frontend.
+- Server recomputes all prices/taxes/totals from DB master data; client-submitted amounts
+  are ignored unless an override permission exists.
+- Historical snapshots on sale lines are immutable; ledgers and audit_log are append-only.
+- tenant_id-scoped RLS must be active on every table containing tenant_id.
+- Namespace convention: StoreOS.* everywhere (StoreOS.Domain, StoreOS.Application,
+  StoreOS.Infrastructure, StoreOS.Api, StoreOS.Modules). Never PhoneZone.*.
+- Layering: StoreOS.Application NEVER references StoreOS.Infrastructure. Application code reaches
+  the database only through IAppDbContext and reaches infrastructure services only through
+  interfaces declared in StoreOS.Application/Abstractions (see _shared/CONTRACTS.md).
+- Transactions: exactly ONE transaction per MediatR request, opened by TransactionBehavior
+  (Infrastructure). Handlers never call BeginTransaction/Commit/Rollback. Serialization-failure
+  retry wraps the WHOLE transaction (SerializationRetryBehavior is the outermost behavior).
+- RLS: policies read session variables ONLY via NULLIF(current_setting('app.x', true), '') and
+  never contain an "IS NULL" bypass. Queries implement IReadOnlyRequest, report queries
+  IReportingRequest, Serializable commands ISerializableRequest (Application/Abstractions).
+```
+
+## 6. FORBIDDEN PATTERNS
+
+```
+FORBIDDEN in all code you produce:
+- TODO / FIXME / HACK / XXX comments
+- NotImplementedException / NotSupportedException / "not implemented" exceptions
+- Empty method bodies; methods returning null/0/"" as placeholders for real logic
+- "// similar to above", "// rest omitted", "for brevity", ellipses (...) inside code
+- Mock/fake/in-memory service implementations in production code (test projects ONLY)
+- Hardcoded demo data in production code paths
+- Angular: "coming soon" templates, buttons with empty (click) handlers, services
+  returning of(mockData) instead of real HTTP calls
+If you cannot fully implement something: STOP and write "BLOCKED: <reason>" as the first line below the `---`
+separator in docs/BUILD_LOG.md. Never silently stub. Before finishing, grep your created/modified files
+for the forbidden patterns above and fix every hit before running verification.
+```
+
+## 7. VERIFICATION
+
+```bash
+cd store-os-cloud
+dotnet test backend/tests/StoreOS.IntegrationTests --filter PasswordHasherTests
+# Expected: 5 passed (roundtrip, wrong-password rejection, salt uniqueness, no-plaintext-leak,
+# graceful malformed-hash handling).
+```
+
+## 8. FAILURE PROTOCOL
+
+If any build or test command in VERIFICATION fails:
+1. You may attempt up to **3** fix iterations, confined strictly to files you created or
+   modified in this prompt. Do not touch unrelated files.
+2. Re-run the full VERIFICATION block after each fix attempt.
+3. If still failing after 3 attempts, STOP immediately. Do not stub code to force a pass.
+   Do not delete or weaken any test to make the build green. Instead, write as the first line below the `---`
+   separator of `docs/BUILD_LOG.md` (see P-001 for the exact rule):
+   `BLOCKED: P-301 — <exact error message/stack trace>`
+   and end your turn without committing.
+
+## 9. REPORT
+
+1. Append one line to `docs/BUILD_LOG.md`:
+   `P-301 | DONE | <list of files you created/modified>`
+2. Append to `docs/ARTIFACTS.md`, under a new `## P-301` heading, the exact signature of
+   every new interface, class, entity, DB table/column, endpoint route, or Angular
+   component/service you created, so that later prompts can quote them verbatim. At minimum
+   include: the `IPasswordHasher` interface signature and the stored-hash string format
+(`argon2id$<iterations>$<memoryKb>$<parallelism>$<salt>$<hash>`), since P-902 (backup/restore)
+and P-903/904 (migration) will need to preserve this format when importing pre-hashed
+passwords from the desktop app's backup (if applicable) without re-hashing.
+3. If you touched migrations, record the exact migration name and the `dotnet ef` command
+   used, so later prompts know the current migration HEAD.
+4. Run `git add -A && git commit -m "P-301: <one-line summary>"` only after verification is
+   fully green.
