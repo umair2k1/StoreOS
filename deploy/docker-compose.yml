@@ -1,0 +1,71 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: storeos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: storeos
+      POSTGRES_PASSWORD: storeos_dev_password
+      POSTGRES_DB: storeos
+      STOREOS_APP_PASSWORD: storeos_app_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - storeos_pg_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U storeos -d storeos"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    container_name: storeos-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: storeos_minio
+      MINIO_ROOT_PASSWORD: storeos_minio_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - storeos_minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    container_name: storeos-otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+
+  api:
+    build:
+      context: ../backend
+      dockerfile: ../deploy/Dockerfile.api
+    container_name: storeos-api
+    profiles: ["full"]
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+      ConnectionStrings__Reporting: "Host=postgres;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+    ports:
+      - "5000:8080"
+
+volumes:
+  storeos_pg_data:
+  storeos_minio_data:
