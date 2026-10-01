@@ -97,3 +97,35 @@ prompt-completion order and are never rewritten, only appended to.
 - `deploy/db/init/01-app-role.sh`: Provisions `storeos_app` role with `NOSUPERUSER NOBYPASSRLS`.
 - `deploy/db/post-migrate.sql`: Post-migration script revoking `UPDATE, DELETE, TRUNCATE` on append-only tables from `storeos_app` (`audit_log`, `customer_ledger_entries`, `supplier_ledger_entries`, `inventory_movements`, `repair_job_status_history`, `customer_payments`, `liability_payments`, and `__EFMigrationsHistory`).
 - `deploy/db/apply-post-migrate.sh`: Utility script to run `post-migrate.sql` against `$STOREOS_MIGRATIONS_CONNECTION_URI`.
+
+## P-003
+
+### Dockerfiles & Configurations
+- `deploy/Dockerfile.api`:
+  - Multi-stage build (.NET 10 SDK -> ASP.NET Core 10 runtime).
+  - Non-root user: `storeos` (UID 1000, GID 1000).
+  - Exposes port `8080`, sets `ASPNETCORE_URLS=http://+:8080`, `ASPNETCORE_ENVIRONMENT=Production`.
+  - Build context in `deploy/docker-compose.yml`: `..` (repo root), copying `backend/` and publishing `src/StoreOS.Api/StoreOS.Api.csproj`.
+- `deploy/Dockerfile.web`:
+  - Multi-stage build (`node:24-alpine` -> `nginx:1.27-alpine`).
+  - Non-root user: `storeos` (UID 1000, GID 1000).
+  - Serves compiled SPA from `/src/dist/storeos-web/browser` via custom non-root Nginx config.
+  - Build verification note: Build is DEFERRED until P-007 (after Angular workspace and `frontend/package.json` are initialized in P-006).
+- `deploy/nginx.conf`:
+  - Nginx configuration listening on port `8080`.
+  - SPA fallback: `try_files $uri $uri/ /index.html`.
+  - Static asset caching: 30d immutable cache headers for common static extensions.
+
+### Compose Service Updates (`deploy/docker-compose.yml`)
+- `api`:
+  - Build context: `..`
+  - Dockerfile: `deploy/Dockerfile.api`
+  - Container name: `storeos-api`
+  - Profile: `full`
+  - Ports: `5000:8080`
+- `web`:
+  - Build context: `..`
+  - Dockerfile: `deploy/Dockerfile.web`
+  - Container name: `storeos-web`
+  - Profile: `full`
+  - Ports: `8081:8080`

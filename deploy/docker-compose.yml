@@ -52,8 +52,8 @@ services:
 
   api:
     build:
-      context: ../backend
-      dockerfile: ../deploy/Dockerfile.api
+      context: ..
+      dockerfile: deploy/Dockerfile.api
     container_name: storeos-api
     profiles: ["full"]
     restart: unless-stopped
@@ -65,6 +65,16 @@ services:
       ConnectionStrings__Reporting: "Host=postgres;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
     ports:
       - "5000:8080"
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: storeos-web
+    profiles: ["full"]
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
 
 volumes:
   storeos_pg_data:

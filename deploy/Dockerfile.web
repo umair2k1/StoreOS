@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+FROM node:24-alpine AS build
+WORKDIR /src
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ .
+RUN npm run build -- --configuration production
+
+FROM nginx:1.27-alpine AS runtime
+RUN addgroup -g 1000 storeos && adduser -D -u 1000 -G storeos storeos
+COPY --from=build /src/dist/storeos-web/browser /usr/share/nginx/html
+COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+RUN chown -R storeos:storeos /usr/share/nginx/html /var/cache/nginx /var/run \
+    && touch /var/run/nginx.pid && chown storeos:storeos /var/run/nginx.pid
+USER storeos
+EXPOSE 8080
