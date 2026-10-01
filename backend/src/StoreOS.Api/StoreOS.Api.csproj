@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StoreOS.Modules\StoreOS.Modules.csproj" />
+    <ProjectReference Include="..\StoreOS.Application\StoreOS.Application.csproj" />
+    <ProjectReference Include="..\StoreOS.Infrastructure\StoreOS.Infrastructure.csproj" />
+    <ProjectReference Include="..\StoreOS.Domain\StoreOS.Domain.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="StoreOS.IntegrationTests" />
+    <InternalsVisibleTo Include="StoreOS.ConcurrencyTests" />
+  </ItemGroup>
+
+</Project>

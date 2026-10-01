@@ -1,2 +1,21 @@
 # Local prompt archives
 /local-only/
+
+# Build and compilation
+bin/
+obj/
+
+# Node
+node_modules/
+dist/
+.angular/
+
+# IDE and Editors
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.user
+
+# Environment and logs
+*.log
+.env
