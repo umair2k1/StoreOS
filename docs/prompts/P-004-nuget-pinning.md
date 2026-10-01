@@ -23,14 +23,14 @@ place. Create `backend/Directory.Packages.props`:
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.10" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.10" />
-    <PackageVersion Include="Npgsql" Version="8.0.5" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0" />
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="Npgsql" Version="10.0.0" />
     <PackageVersion Include="MediatR" Version="12.4.1" />
     <PackageVersion Include="FluentValidation" Version="11.10.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.10.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageVersion Include="System.IdentityModel.Tokens.Jwt" Version="8.1.2" />
     <PackageVersion Include="Hangfire.AspNetCore" Version="1.8.14" />
     <PackageVersion Include="Hangfire.PostgreSql" Version="1.20.10" />
@@ -53,9 +53,9 @@ place. Create `backend/Directory.Packages.props`:
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageVersion Include="FluentAssertions" Version="6.12.1" />
     <PackageVersion Include="Testcontainers.PostgreSql" Version="3.10.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.0" />
     <PackageVersion Include="NSwag.MSBuild" Version="14.1.0" />
-    <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="8.0.2" />
+    <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.9.0" />
   </ItemGroup>
 </Project>
@@ -66,10 +66,10 @@ Create `backend/Directory.Build.props`:
 ```xml
 <Project>
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>12.0</LangVersion>
+    <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <NoWarn>CS1591</NoWarn>
   </PropertyGroup>
@@ -82,7 +82,7 @@ that is a defect in this manifest, not license to freelance a new dependency.
 
 ## 4. TASK
 
-> **REVISION NOTE (review v2):** two extra steps belong to this prompt: (A) create a LOCAL tool manifest so every clean checkout/CI runner has the EF CLI: `dotnet new tool-manifest` then `dotnet tool install dotnet-ef --version 8.0.10` (same version as the EF Core pin) and commit `.config/dotnet-tools.json`; from now on `dotnet ef` means the local tool (`dotnet tool restore` first). (B) `StoreOS.Infrastructure.csproj` uses ASP.NET Core types (`IHttpContextAccessor`, `HttpContext`, JWT bearer); a class library does not get them by default, so add `<ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>` to `StoreOS.Infrastructure.csproj` (this is not a NuGet package, so the allowlist is unaffected).
+> **REVISION NOTE (review v2):** two extra steps belong to this prompt: (A) create a LOCAL tool manifest so every clean checkout/CI runner has the EF CLI: `dotnet new tool-manifest` then `dotnet tool install dotnet-ef --version 10.0.0` (same version as the EF Core pin) and commit `.config/dotnet-tools.json`; from now on `dotnet ef` means the local tool (`dotnet tool restore` first). (B) `StoreOS.Infrastructure.csproj` uses ASP.NET Core types (`IHttpContextAccessor`, `HttpContext`, JWT bearer); a class library does not get them by default, so add `<ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>` to `StoreOS.Infrastructure.csproj` (this is not a NuGet package, so the allowlist is unaffected).
 
 1. Create `backend/Directory.Packages.props` and `backend/Directory.Build.props`
    exactly as shown.

@@ -23,13 +23,13 @@ non-root):
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
 RUN dotnet restore StoreOS.sln
 RUN dotnet publish src/StoreOS.Api/StoreOS.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 RUN addgroup --system --gid 1000 storeos && \
     adduser --system --uid 1000 --ingroup storeos --shell /bin/false storeos
@@ -56,14 +56,14 @@ plus `WORKDIR /src/backend`. Use this corrected Dockerfile:
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY backend/ ./backend/
 WORKDIR /src/backend
 RUN dotnet restore src/StoreOS.Api/StoreOS.Api.csproj
 RUN dotnet publish src/StoreOS.Api/StoreOS.Api.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 RUN addgroup --system --gid 1000 storeos && \
     adduser --system --uid 1000 --ingroup storeos --shell /bin/false storeos
@@ -79,7 +79,7 @@ Create `deploy/Dockerfile.web` (node build -> nginx):
 
 ```dockerfile
 # syntax=docker/dockerfile:1
-FROM node:20-alpine AS build
+FROM node:24-alpine AS build
 WORKDIR /src
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci

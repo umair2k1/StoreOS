@@ -38,7 +38,7 @@ standalone component/pipe/service (not a placeholder):
 - `components/pz-dialog/pz-dialog.component.ts` + `pz-dialog.service.ts` (a simple
   signal-driven modal service: `open(component, data)` / `close(result)`, rendered via
   Angular CDK's `Overlay` - add `@angular/cdk` as a new pinned dependency now,
-  version matching your Angular 18 install exactly, e.g. `18.2.13`).
+  version matching your Angular 21 install exactly, e.g. `21.0.0`).
 - `components/empty-state/empty-state.component.ts`, `components/loading-state/loading-state
   .component.ts`, `components/error-state/error-state.component.ts` (small, reusable, each
   accepting a message/icon input).

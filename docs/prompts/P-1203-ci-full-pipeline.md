@@ -15,7 +15,7 @@ You are implementing **Prompt P-1203** of the StoreOS Cloud build ("CI: wire int
 
 ## 3. CONTEXT BLOCK
 
-> **REVISION NOTE (review v2):** the e2e job now migrates as the OWNER role, runs `deploy/db/apply-post-migrate.sh`, seeds with the owner connection, and starts the API with the app role (`storeos_app`) and a readiness wait, otherwise Playwright starts before the API is up and RLS would silently be bypassed. `dotnet-ef` must be a LOCAL tool: add `.config/dotnet-tools.json` (created in P-004; if missing create it with `dotnet new tool-manifest` and `dotnet tool install dotnet-ef --version <same 8.0.x minor as EF Core in P-004>`), so `dotnet tool restore` works on clean runners. The tester users log in on `http://apexci.localhost:4200` (see P-1008/P-1010) or through the API with `Host: apexci.localhost`.
+> **REVISION NOTE (review v2):** the e2e job now migrates as the OWNER role, runs `deploy/db/apply-post-migrate.sh`, seeds with the owner connection, and starts the API with the app role (`storeos_app`) and a readiness wait, otherwise Playwright starts before the API is up and RLS would silently be bypassed. `dotnet-ef` must be a LOCAL tool: add `.config/dotnet-tools.json` (created in P-004; if missing create it with `dotnet new tool-manifest` and `dotnet tool install dotnet-ef --version <same 10.0.x minor as EF Core in P-004>`), so `dotnet tool restore` works on clean runners. The tester users log in on `http://apexci.localhost:4200` (see P-1008/P-1010) or through the API with `Host: apexci.localhost`.
 
 Extend `.github/workflows/ci.yml` with the full pipeline described in
 Plan Section 14.2:
@@ -29,7 +29,7 @@ Plan Section 14.2:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: "8.0.x" }
+        with: { dotnet-version: "10.0.x" }
       - run: dotnet restore StoreOS.sln
       - run: dotnet build StoreOS.sln --no-restore -c Release
       - run: dotnet test backend/tests/StoreOS.IntegrationTests --no-build -c Release --logger "trx;LogFileName=integration-tests.trx"
@@ -44,9 +44,9 @@ Plan Section 14.2:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: "8.0.x" }
+        with: { dotnet-version: "10.0.x" }
       - uses: actions/setup-node@v4
-        with: { node-version: "20" }
+        with: { node-version: "24" }
       - run: docker compose -f deploy/docker-compose.yml up -d postgres minio otel-collector
       - name: Migrate (owner role) and apply grants
         env:

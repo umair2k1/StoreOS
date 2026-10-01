@@ -123,7 +123,7 @@ Create `backend/src/StoreOS.Api/appsettings.json` connection strings section:
    section shown (both `Default` and `Reporting` keys, identical values for now).
 5. Add `Microsoft.EntityFrameworkCore.Design` as a `PackageReference` to `StoreOS.Api.csproj`
    (needed for `dotnet ef` tooling) and install the EF CLI tool if not already available:
-   `dotnet tool restore` (the local `dotnet-ef` 8.0.10 tool manifest is created in P-004; do not install it globally).
+   `dotnet tool restore` (the local `dotnet-ef` 10.0.0 tool manifest is created in P-004; do not install it globally).
 6. Confirm `dotnet ef dbcontext info --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
    resolves the context successfully (requires the postgres container from P-002 running).
 7. Add basic CORS scaffolding to `Program.cs` (full dynamic subdomain validator comes later

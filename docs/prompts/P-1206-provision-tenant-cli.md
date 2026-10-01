@@ -13,7 +13,7 @@ You are implementing **Prompt P-1206** of the StoreOS Cloud build ("Tenant provi
 
 ## 3. CONTEXT BLOCK
 
-`tools/provision` (console project, `net8.0` unless the toolchain decision O-03 changed it) references Domain, Application, Infrastructure like `tools/seed`. It connects with the OWNER connection (`STOREOS_MIGRATIONS_CONNECTION`), because provisioning legitimately creates rows for a tenant that does not exist yet. It must NEVER be included in the API Docker image (P-003) and is run by an operator, not by the API.
+`tools/provision` (console project, `net10.0` per toolchain decision O-03) references Domain, Application, Infrastructure like `tools/seed`. It connects with the OWNER connection (`STOREOS_MIGRATIONS_CONNECTION`), because provisioning legitimately creates rows for a tenant that does not exist yet. It must NEVER be included in the API Docker image (P-003) and is run by an operator, not by the API.
 
 Command line: `dotnet run --project tools/provision -- --name "Apex Mobiles" --subdomain apex --owner-email owner@apex.example --owner-name "Anil Kumar" [--branch-code B01] [--branch-name "Main Branch"] [--gstin 27AAAAA0000A1Z5] [--timezone Asia/Kolkata] [--repairs true|false]`; the temporary Owner password is GENERATED (16 chars, `RandomNumberGenerator`) and printed ONCE to stdout with the login URL `https://<subdomain>.pos.storeos.io`.
 

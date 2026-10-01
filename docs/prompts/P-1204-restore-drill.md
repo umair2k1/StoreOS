@@ -33,7 +33,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: "8.0.x" }
+        with: { dotnet-version: "10.0.x" }
       - run: docker compose -f deploy/docker-compose.yml up -d postgres minio
       - run: dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
       - run: dotnet run --project tools/seed -- --tenant-name "Restore Drill Seed"

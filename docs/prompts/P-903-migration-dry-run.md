@@ -24,7 +24,7 @@ Section 10 mandatory-coverage list: "Desktop migration import with desktop_id na
 dedup"). Add it to the solution:
 
 ```bash
-dotnet new console -n pz-migrate -o tools/pz-migrate -f net8.0
+dotnet new console -n pz-migrate -o tools/pz-migrate -f net10.0
 dotnet sln StoreOS.sln add tools/pz-migrate/pz-migrate.csproj
 dotnet add tools/pz-migrate reference backend/src/StoreOS.Domain
 dotnet add tools/pz-migrate reference backend/src/StoreOS.Application
@@ -74,7 +74,7 @@ public record ReconciliationReport(
    this tool per the original manifest's Phase 0 scaffolding (only `StoreOS.Domain.Tests`/
    `StoreOS.IntegrationTests`/`StoreOS.ConcurrencyTests` exist under `backend/tests/`) - create
    a NEW test project now: `dotnet new xunit -n pz-migrate.Tests -o tools/pz-migrate.Tests -f
-   net8.0`, add it to the solution, reference `tools/pz-migrate`.
+   net10.0`, add it to the solution, reference `tools/pz-migrate`.
 5. Write `tools/pz-migrate.Tests/DryRunImportTests.cs`: (a) a well-formed sample desktop backup
    JSON fixture file (create a small, hand-crafted realistic fixture with a handful of items/
    sales/customers) produces a correct `ReconciliationReport` with exact hand-computed sums; (b)

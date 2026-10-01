@@ -8,7 +8,7 @@ You are implementing **Prompt P-007** of the StoreOS Cloud build ("Angular npm p
 
 ## 2. WORLD STATE
 
-- P-006 complete: `frontend/` is a working Angular 18 standalone PWA workspace
+- P-006 complete: `frontend/` is a working Angular 21 standalone PWA workspace
   named `storeos-web`, building successfully to `dist/storeos-web/browser`.
 - P-003's `Dockerfile.web` build was deferred until this prompt exists (per P-003's report).
 - P-005's CI `frontend-build` job is currently disabled (`if: false`).
@@ -40,7 +40,7 @@ Set `"engines"` in `package.json`:
 
 ```json
 "engines": {
-  "node": ">=20.0.0 <21.0.0",
+  "node": ">=24.0.0",
   "npm": ">=10.0.0"
 }
 ```

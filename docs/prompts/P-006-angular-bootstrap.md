@@ -14,19 +14,19 @@ You are implementing **Prompt P-006** of the StoreOS Cloud build ("Angular works
 
 ## 3. CONTEXT BLOCK
 
-Use **Angular 18** (`@angular/cli@18`) with standalone-components style,
+Use **Angular 21** (`@angular/cli@21`) with standalone-components style,
 routing, SCSS, and the PWA schematic. Exact commands, run from the repo root
 (`store-os-cloud/`):
 
 ```bash
 rm -f frontend/.gitkeep
-npx -y @angular/cli@18 new storeos-web --directory=frontend --routing --style=scss \
+npx -y @angular/cli@21 new storeos-web --directory=frontend --routing --style=scss \
   --standalone --skip-git --package-manager=npm
 cd frontend
-npx -y @angular/cli@18 add @angular/pwa --project=storeos-web --skip-confirmation
+npx -y @angular/cli@21 add @angular/pwa --project=storeos-web --skip-confirmation
 ```
 
-This produces `frontend/` populated with a standard Angular 18 standalone-app workspace
+This produces `frontend/` populated with a standard Angular 21 standalone-app workspace
 named `storeos-web`, plus PWA assets (`ngsw-config.json`, `manifest.webmanifest`,
 `src/assets/icons/`, and service-worker registration wired into `app.config.ts`).
 
@@ -53,8 +53,7 @@ project name is required because P-003's `Dockerfile.web` references
 
 ## 5. HARD CONSTRAINTS
 
-- Angular version: 18.x exactly (via `npx @angular/cli@18`). Do not
-  use Angular 17 or 19.
+- Angular version: 21.x exactly (via `npx @angular/cli@21`).
 - Project name inside `angular.json` must be exactly `storeos-web` — every later Dockerfile
   and build script path depends on this.
 - Do not add any UI library (Material, PrimeNG, Tailwind, etc.) in this prompt — that

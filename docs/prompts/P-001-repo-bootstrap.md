@@ -38,8 +38,8 @@ store-os-cloud/
     └── seed/
 ```
 
-Use **.NET 8 LTS** for every backend project (`dotnet --version` must report an 8.x SDK;
-if not installed, install the .NET 8 SDK first via your platform's standard method before
+Use **.NET 10 LTS** for every backend project (`dotnet --version` must report a 10.x SDK;
+if not installed, install the .NET 10 SDK first via your platform's standard method before
 proceeding).
 
 Exact commands to scaffold the solution and projects:
@@ -49,15 +49,15 @@ mkdir -p store-os-cloud && cd store-os-cloud
 dotnet new sln -n StoreOS
 mkdir -p backend/src backend/tests frontend deploy docs tools/pz-migrate tools/seed
 
-dotnet new classlib -n StoreOS.Domain -o backend/src/StoreOS.Domain -f net8.0
-dotnet new classlib -n StoreOS.Application -o backend/src/StoreOS.Application -f net8.0
-dotnet new classlib -n StoreOS.Infrastructure -o backend/src/StoreOS.Infrastructure -f net8.0
-dotnet new classlib -n StoreOS.Modules -o backend/src/StoreOS.Modules -f net8.0
-dotnet new webapi -n StoreOS.Api -o backend/src/StoreOS.Api -f net8.0 --use-controllers
+dotnet new classlib -n StoreOS.Domain -o backend/src/StoreOS.Domain -f net10.0
+dotnet new classlib -n StoreOS.Application -o backend/src/StoreOS.Application -f net10.0
+dotnet new classlib -n StoreOS.Infrastructure -o backend/src/StoreOS.Infrastructure -f net10.0
+dotnet new classlib -n StoreOS.Modules -o backend/src/StoreOS.Modules -f net10.0
+dotnet new webapi -n StoreOS.Api -o backend/src/StoreOS.Api -f net10.0 --use-controllers
 
-dotnet new xunit -n StoreOS.Domain.Tests -o backend/tests/StoreOS.Domain.Tests -f net8.0
-dotnet new xunit -n StoreOS.IntegrationTests -o backend/tests/StoreOS.IntegrationTests -f net8.0
-dotnet new xunit -n StoreOS.ConcurrencyTests -o backend/tests/StoreOS.ConcurrencyTests -f net8.0
+dotnet new xunit -n StoreOS.Domain.Tests -o backend/tests/StoreOS.Domain.Tests -f net10.0
+dotnet new xunit -n StoreOS.IntegrationTests -o backend/tests/StoreOS.IntegrationTests -f net10.0
+dotnet new xunit -n StoreOS.ConcurrencyTests -o backend/tests/StoreOS.ConcurrencyTests -f net10.0
 
 dotnet sln StoreOS.sln add backend/src/StoreOS.Domain/StoreOS.Domain.csproj
 dotnet sln StoreOS.sln add backend/src/StoreOS.Application/StoreOS.Application.csproj
@@ -133,7 +133,7 @@ for its corresponding test project, e.g. in `StoreOS.Domain.csproj`:
 
 ## 5. HARD CONSTRAINTS
 
-- .NET SDK version: 8.0.x only. Do not use .NET 9 or any preview SDK.
+- .NET SDK version: 10.0.x only. Do not use preview SDKs.
 - Do not add any NuGet package in this prompt beyond what `dotnet new` scaffolds by default.
   Package pinning is handled in P-004.
 - Do not write any business logic yet — this prompt is scaffolding only.

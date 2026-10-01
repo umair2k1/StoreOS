@@ -20,7 +20,7 @@ You are implementing **Prompt P-1201** of the StoreOS Cloud build ("Seed script:
 
 Create a new console project `tools/seed`:
 ```bash
-dotnet new console -n seed -o tools/seed -f net8.0
+dotnet new console -n seed -o tools/seed -f net10.0
 dotnet sln StoreOS.sln add tools/seed/seed.csproj
 dotnet add tools/seed reference backend/src/StoreOS.Domain
 dotnet add tools/seed reference backend/src/StoreOS.Infrastructure
