@@ -129,3 +129,106 @@ prompt-completion order and are never rewritten, only appended to.
   - Container name: `storeos-web`
   - Profile: `full`
   - Ports: `8081:8080`
+
+## P-004
+
+### Tool Manifest & CLI Tools
+- `.config/dotnet-tools.json`: Local .NET tool manifest with `dotnet-ef` pinned to version `10.0.0`.
+
+### Build & Package Management Configurations
+- `backend/Directory.Build.props`:
+  - `TargetFramework`: `net10.0`
+  - `Nullable`: `enable`
+  - `ImplicitUsings`: `enable`
+  - `LangVersion`: `13.0`
+  - `TreatWarningsAsErrors`: `false`
+  - `NoWarn`: `CS1591`
+- `backend/Directory.Packages.props`:
+  - `ManagePackageVersionsCentrally`: `true`
+  - Centrally pinned packages (34 items):
+    - `Microsoft.EntityFrameworkCore`: `10.0.0`
+    - `Microsoft.EntityFrameworkCore.Design`: `10.0.0`
+    - `Npgsql.EntityFrameworkCore.PostgreSQL`: `10.0.0`
+    - `Npgsql`: `10.0.0`
+    - `MediatR`: `12.4.1`
+    - `FluentValidation`: `11.10.0`
+    - `FluentValidation.DependencyInjectionExtensions`: `11.10.0`
+    - `Microsoft.AspNetCore.Authentication.JwtBearer`: `10.0.0`
+    - `System.IdentityModel.Tokens.Jwt`: `8.1.2`
+    - `Hangfire.AspNetCore`: `1.8.14`
+    - `Hangfire.PostgreSql`: `1.20.10`
+    - `QuestPDF`: `2024.10.2`
+    - `Serilog.AspNetCore`: `8.0.3`
+    - `Serilog.Sinks.Console`: `6.0.0`
+    - `Serilog.Enrichers.CorrelationId`: `3.0.1`
+    - `OpenTelemetry.Extensions.Hosting`: `1.9.0`
+    - `OpenTelemetry.Instrumentation.AspNetCore`: `1.9.0`
+    - `OpenTelemetry.Instrumentation.EntityFrameworkCore`: `1.9.0-beta.1`
+    - `OpenTelemetry.Exporter.OpenTelemetryProtocol`: `1.9.0`
+    - `Polly`: `8.4.2`
+    - `Polly.Extensions.Http`: `3.0.0`
+    - `AWSSDK.S3`: `3.7.408`
+    - `SixLabors.ImageSharp`: `3.1.5`
+    - `Microsoft.FeatureManagement`: `3.5.0`
+    - `Konscious.Security.Cryptography.Argon2`: `1.3.1`
+    - `xunit`: `2.9.2`
+    - `xunit.runner.visualstudio`: `2.8.2`
+    - `Microsoft.NET.Test.Sdk`: `17.11.1`
+    - `FluentAssertions`: `6.12.1`
+    - `Testcontainers.PostgreSql`: `3.10.0`
+    - `Microsoft.AspNetCore.Mvc.Testing`: `10.0.0`
+    - `NSwag.MSBuild`: `14.1.0`
+    - `AspNetCore.HealthChecks.NpgSql`: `9.0.0`
+    - `Swashbuckle.AspNetCore`: `6.9.0`
+
+### Project PackageReference Mappings
+- `StoreOS.Api`:
+  - `Microsoft.EntityFrameworkCore.Design`
+  - `Serilog.AspNetCore`
+  - `Serilog.Sinks.Console`
+  - `OpenTelemetry.Extensions.Hosting`
+  - `OpenTelemetry.Instrumentation.AspNetCore`
+  - `OpenTelemetry.Exporter.OpenTelemetryProtocol`
+  - `AspNetCore.HealthChecks.NpgSql`
+  - `Swashbuckle.AspNetCore`
+- `StoreOS.Infrastructure`:
+  - FrameworkReference: `Microsoft.AspNetCore.App`
+  - `Microsoft.EntityFrameworkCore`
+  - `Npgsql.EntityFrameworkCore.PostgreSQL`
+  - `MediatR`
+  - `Hangfire.AspNetCore`
+  - `Hangfire.PostgreSql`
+  - `QuestPDF`
+  - `Polly`
+  - `AWSSDK.S3`
+  - `SixLabors.ImageSharp`
+  - `Microsoft.FeatureManagement`
+  - `Konscious.Security.Cryptography.Argon2`
+  - `System.IdentityModel.Tokens.Jwt`
+  - `Microsoft.AspNetCore.Authentication.JwtBearer`
+- `StoreOS.Application`:
+  - `MediatR`
+  - `FluentValidation`
+  - `FluentValidation.DependencyInjectionExtensions`
+  - `Microsoft.EntityFrameworkCore`
+- `StoreOS.Domain`:
+  - Dependency-free (0 package references).
+- `StoreOS.Modules`:
+  - No external package references.
+- `StoreOS.Domain.Tests`:
+  - `xunit`
+  - `xunit.runner.visualstudio`
+  - `Microsoft.NET.Test.Sdk`
+  - `FluentAssertions`
+- `StoreOS.IntegrationTests`:
+  - `xunit`
+  - `xunit.runner.visualstudio`
+  - `Microsoft.NET.Test.Sdk`
+  - `FluentAssertions`
+  - `Testcontainers.PostgreSql`
+  - `Microsoft.AspNetCore.Mvc.Testing`
+- `StoreOS.ConcurrencyTests`:
+  - `xunit`
+  - `xunit.runner.visualstudio`
+  - `Microsoft.NET.Test.Sdk`
+  - `FluentAssertions`
