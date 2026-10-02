@@ -9,6 +9,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Branch> Branches => Set<Branch>();
+    public DbSet<Setting> Settings => Set<Setting>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

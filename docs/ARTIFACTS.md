@@ -482,3 +482,49 @@ prompt-completion order and are never rewritten, only appended to.
     - `is_active` boolean NOT NULL DEFAULT true
     - `created_at` timestamptz NOT NULL DEFAULT now()
     - UNIQUE INDEX `IX_branches_tenant_id_code` ON (`tenant_id`, `code`)
+
+## P-103
+
+### Domain Entities
+- `StoreOS.Domain.Tenancy.Setting` (`backend/src/StoreOS.Domain/Tenancy/Setting.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Tenancy;
+  public class Setting
+  {
+      public Guid TenantId { get; }
+      public Guid? BranchId { get; }
+      public string Key { get; }
+      public string ValueJson { get; }
+      public static Setting Create(Guid tenantId, Guid? branchId, string key, string valueJson);
+      public void UpdateValue(string valueJson);
+  }
+  ```
+
+### DbContext Updates
+- `StoreOsDbContext` DbSet property (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  public DbSet<Setting> Settings => Set<Setting>();
+  ```
+
+### Canonical Setting Keys
+- `"shop_profile"` (branch-level: name/address/phone/email/GSTIN/logo url/receipt footer)
+- `"invoice_series_format"` (branch-level: `"FY_CONSECUTIVE"` or `"DAILY_TIMESTAMP"`)
+- `"default_gst_rate"` (tenant-level, e.g. `18`)
+- `"bank_config"` (tenant-level)
+- `"finance_providers"` (tenant-level, JSON array)
+- `"repair_module_enabled"` (tenant-level bool, mirrors `tenants.features.repairs` — reserved key)
+
+### Database Schema & Migrations
+- Migration: `002_Settings` (`backend/src/StoreOS.Infrastructure/Migrations/20261002135423_002_Settings.cs`)
+  - Generation Command: `dotnet ef migrations add 002_Settings --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261002135423_002_Settings`
+- Tables:
+  - `public.settings`:
+    - `tenant_id` uuid NOT NULL
+    - `branch_id` uuid NULL REFERENCES `branches(id)` ON DELETE RESTRICT
+    - `key` text NOT NULL
+    - `value` jsonb NOT NULL
+    - `branch_id_key` uuid NOT NULL GENERATED ALWAYS AS (`COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)`) STORED
+    - PRIMARY KEY (`tenant_id`, `branch_id_key`, `key`)
+    - INDEX `IX_settings_branch_id` ON (`branch_id`)

@@ -83,6 +83,32 @@ namespace StoreOS.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Tenancy.Setting", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<string>("ValueJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("value");
+
+                    b.HasKey("TenantId", "BranchId", "Key");
+
+                    b.HasIndex("BranchId");
+
+                    b.ToTable("settings", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Tenancy.Tenant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -143,6 +169,15 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasOne("StoreOS.Domain.Tenancy.Tenant", null)
                         .WithMany()
                         .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Tenancy.Setting", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
