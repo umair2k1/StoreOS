@@ -12,6 +12,7 @@ builder.Services.AddDbContext<StoreOsDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
+builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
 
 // CORS Scaffolding (Plan §13.1: localhost:4200 for local frontend dev)
 builder.Services.AddCors(options =>

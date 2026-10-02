@@ -373,3 +373,112 @@ prompt-completion order and are never rewritten, only appended to.
 
 ### Documentation & Runbooks
 - `docs/RUNBOOK-db-roles.md`: Architecture of PostgreSQL roles (`storeos` / `storeos_owner` and `storeos_app`), post-migration script requirements, and local reproduction procedures.
+
+## P-102
+
+### Domain Entities & Utilities
+- `StoreOS.Domain.Tenancy.Slug` (`backend/src/StoreOS.Domain/Tenancy/Slug.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Tenancy;
+  public static class Slug
+  {
+      public static string FromName(string name);
+  }
+  ```
+- `StoreOS.Domain.Tenancy.Tenant` (`backend/src/StoreOS.Domain/Tenancy/Tenant.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Tenancy;
+  public class Tenant
+  {
+      public Guid Id { get; }
+      public string Name { get; }
+      public string Subdomain { get; }
+      public bool IsActive { get; }
+      public string Timezone { get; }
+      public string FeaturesJson { get; }
+      public DateTimeOffset CreatedAt { get; }
+      public static Tenant Create(string name, string timezone = "Asia/Kolkata", string? subdomain = null);
+      public void Rename(string name);
+      public void SetSubdomain(string subdomain);
+      public void Deactivate();
+      public void Activate();
+      public void SetFeatures(string featuresJson);
+  }
+  ```
+- `StoreOS.Domain.Tenancy.Branch` (`backend/src/StoreOS.Domain/Tenancy/Branch.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Tenancy;
+  public class Branch
+  {
+      public Guid Id { get; }
+      public Guid TenantId { get; }
+      public string Code { get; }
+      public string Name { get; }
+      public string? Address { get; }
+      public string? Phone { get; }
+      public string? Email { get; }
+      public string? Gstin { get; }
+      public bool IsActive { get; }
+      public DateTimeOffset CreatedAt { get; }
+      public static Branch Create(Guid tenantId, string code, string name);
+      public void UpdateProfile(string name, string? address, string? phone, string? email, string? gstin);
+      public void Deactivate();
+      public void Activate();
+  }
+  ```
+
+### Application Abstractions
+- `StoreOS.Application.Abstractions.TenantPublicProfile` & `ITenantResolver` (`backend/src/StoreOS.Application/Abstractions/ITenantResolver.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+  public record TenantPublicProfile(Guid TenantId, string Name, string Subdomain, bool IsActive);
+  public interface ITenantResolver
+  {
+      Task<TenantPublicProfile?> ResolveFromHostAsync(string host, CancellationToken ct = default);
+      Task<TenantPublicProfile?> ResolveByIdAsync(Guid tenantId, CancellationToken ct = default);
+  }
+  ```
+
+### Infrastructure Services & DbContext Updates
+- `StoreOS.Infrastructure.Tenancy.TenantResolver` (`backend/src/StoreOS.Infrastructure/Tenancy/TenantResolver.cs`):
+  ```csharp
+  namespace StoreOS.Infrastructure.Tenancy;
+  public class TenantResolver : ITenantResolver
+  {
+      public TenantResolver(StoreOsDbContext dbContext, IConfiguration configuration);
+      public Task<TenantPublicProfile?> ResolveFromHostAsync(string host, CancellationToken ct = default);
+      public Task<TenantPublicProfile?> ResolveByIdAsync(Guid tenantId, CancellationToken ct = default);
+  }
+  ```
+- `StoreOsDbContext` DbSet properties (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  public DbSet<Tenant> Tenants => Set<Tenant>();
+  public DbSet<Branch> Branches => Set<Branch>();
+  ```
+
+### Database Schema & Migrations
+- Migration: `001_InitTenancyBranches` (`backend/src/StoreOS.Infrastructure/Migrations/20261002134844_001_InitTenancyBranches.cs`)
+  - Generation Command: `dotnet ef migrations add 001_InitTenancyBranches --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261002134844_001_InitTenancyBranches`
+- Tables:
+  - `public.tenants`:
+    - `id` uuid PRIMARY KEY
+    - `name` text NOT NULL
+    - `subdomain` text NOT NULL UNIQUE (`ux_tenants_subdomain`), CHECK (`subdomain ~ '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'`)
+    - `is_active` boolean NOT NULL DEFAULT true
+    - `timezone` text NOT NULL DEFAULT 'Asia/Kolkata'
+    - `features` jsonb NOT NULL DEFAULT '{}'
+    - `created_at` timestamptz NOT NULL DEFAULT now()
+  - `public.branches`:
+    - `id` uuid PRIMARY KEY
+    - `tenant_id` uuid NOT NULL REFERENCES `tenants(id)` ON DELETE RESTRICT
+    - `code` text NOT NULL CHECK (`code ~ '^[A-Z1-9][A-Z0-9]{0,2}$'`)
+    - `name` text NOT NULL
+    - `address` text NULL
+    - `phone` text NULL
+    - `email` text NULL
+    - `gstin` text NULL
+    - `is_active` boolean NOT NULL DEFAULT true
+    - `created_at` timestamptz NOT NULL DEFAULT now()
+    - UNIQUE INDEX `IX_branches_tenant_id_code` ON (`tenant_id`, `code`)

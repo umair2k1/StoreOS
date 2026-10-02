@@ -1,10 +1,14 @@
 using Microsoft.EntityFrameworkCore;
+using StoreOS.Domain.Tenancy;
 
 namespace StoreOS.Infrastructure.Persistence;
 
 public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IAppDbContext
 {
     public StoreOsDbContext(DbContextOptions<StoreOsDbContext> options) : base(options) { }
+
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<Branch> Branches => Set<Branch>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
