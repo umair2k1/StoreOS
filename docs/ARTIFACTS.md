@@ -252,7 +252,7 @@ prompt-completion order and are never rewritten, only appended to.
       - `actions/upload-artifact@v4` (`name: domain-test-results`, `path: "**/domain-tests.trx"`, `if: always()`)
   - `frontend-build`:
     - Runs on: `ubuntu-latest`
-    - Status: Gated with `if: false` (remains disabled until P-007 when Angular workspace + `package.json` exist)
+    - Status: Gated with `if: false` in P-005; enabled in P-007 (runs unconditionally on push and PR)
     - Steps:
       - `actions/checkout@v4`
       - `actions/setup-node@v4` (`node-version: "24"`)
@@ -289,3 +289,30 @@ prompt-completion order and are never rewritten, only appended to.
       protected readonly title = signal('storeos-web');
     }
     ```
+
+## P-007
+
+### Pinned Dependencies & Engines
+- `rxjs`: `7.8.1` (exact pinned dependency in `frontend/package.json`)
+- `zone.js`: `0.15.0` (exact pinned dependency in `frontend/package.json`, bumped from `0.14.10` to satisfy `@angular/core@21.2.25` peer dependency requirement `~0.15.0 || ~0.16.0`)
+- `@playwright/test`: `1.48.2` (exact pinned devDependency in `frontend/package.json`)
+- `engines` in `frontend/package.json`:
+  ```json
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=10.0.0"
+  }
+  ```
+
+### Playwright Configuration
+- Configuration File: `frontend/playwright.config.ts`
+- Test Directory: `testDir: './e2e'`
+- Target Directory: `frontend/e2e` (with placeholder `frontend/e2e/.gitkeep`)
+
+### CI Workflow Updates
+- File: `.github/workflows/ci.yml`
+- Job: `frontend-build` enabled (removed `if: false`, runs unconditionally on `push` and `pull_request`)
+
+### Docker Image Verification
+- Image: `storeos-web:dev`
+- Command: `docker build -f deploy/Dockerfile.web -t storeos-web:dev .` (verified build succeeds with output `/src/dist/storeos-web/browser`)
