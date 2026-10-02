@@ -528,3 +528,121 @@ prompt-completion order and are never rewritten, only appended to.
     - `branch_id_key` uuid NOT NULL GENERATED ALWAYS AS (`COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)`) STORED
     - PRIMARY KEY (`tenant_id`, `branch_id_key`, `key`)
     - INDEX `IX_settings_branch_id` ON (`branch_id`)
+
+## P-104
+
+### Domain Entities
+- `StoreOS.Domain.Identity.User` (`backend/src/StoreOS.Domain/Identity/User.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+  public class User
+  {
+      public Guid Id { get; }
+      public Guid TenantId { get; }
+      public string Email { get; }
+      public string PasswordHash { get; }
+      public string DisplayName { get; }
+      public int TokenVersion { get; }
+      public bool IsActive { get; }
+      public DateTimeOffset CreatedAt { get; }
+      public static User Create(Guid tenantId, string email, string passwordHash, string displayName);
+      public void ChangePasswordHash(string newHash);
+      public void BumpTokenVersion();
+      public void Deactivate();
+      public void Activate();
+  }
+  ```
+- `StoreOS.Domain.Identity.Role` (`backend/src/StoreOS.Domain/Identity/Role.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+  public class Role
+  {
+      public Guid Id { get; }
+      public Guid TenantId { get; }
+      public string Name { get; }
+      public static Role Create(Guid tenantId, string name);
+      public void Rename(string name);
+  }
+  ```
+- `StoreOS.Domain.Identity.RolePermission` (`backend/src/StoreOS.Domain/Identity/RolePermission.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+  public class RolePermission
+  {
+      public Guid RoleId { get; }
+      public string PermissionCode { get; }
+      public static RolePermission Create(Guid roleId, string permissionCode);
+  }
+  ```
+- `StoreOS.Domain.Identity.UserBranch` (`backend/src/StoreOS.Domain/Identity/UserBranch.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+  public class UserBranch
+  {
+      public Guid UserId { get; }
+      public Guid BranchId { get; }
+      public bool IsDefault { get; }
+      public static UserBranch Create(Guid userId, Guid branchId, bool isDefault = false);
+      public void SetDefault(bool isDefault);
+  }
+  ```
+- `StoreOS.Domain.Identity.UserRoleAssignment` (`backend/src/StoreOS.Domain/Identity/UserRoleAssignment.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+  public class UserRoleAssignment
+  {
+      public Guid UserId { get; }
+      public Guid RoleId { get; }
+      public Guid? BranchId { get; }
+      public static UserRoleAssignment Create(Guid userId, Guid roleId, Guid? branchId = null);
+  }
+  ```
+
+### DbContext Updates
+- `StoreOsDbContext` DbSet properties (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  public DbSet<User> Users => Set<User>();
+  public DbSet<Role> Roles => Set<Role>();
+  public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+  public DbSet<UserBranch> UserBranches => Set<UserBranch>();
+  public DbSet<UserRoleAssignment> UserRoleAssignments => Set<UserRoleAssignment>();
+  ```
+
+### Database Schema & Migrations
+- Migration: `003_Identity` (`backend/src/StoreOS.Infrastructure/Migrations/20261002135950_003_Identity.cs`)
+  - Generation Command: `dotnet ef migrations add 003_Identity --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261002135950_003_Identity`
+- Tables:
+  - `public.users`:
+    - `id` uuid PRIMARY KEY
+    - `tenant_id` uuid NOT NULL
+    - `email` text NOT NULL
+    - `password_hash` text NOT NULL
+    - `display_name` text NOT NULL
+    - `token_version` integer NOT NULL DEFAULT 1
+    - `is_active` boolean NOT NULL DEFAULT true
+    - `created_at` timestamptz NOT NULL DEFAULT now()
+    - UNIQUE INDEX `IX_users_tenant_id_email` ON (`tenant_id`, `email`)
+  - `public.roles`:
+    - `id` uuid PRIMARY KEY
+    - `tenant_id` uuid NOT NULL
+    - `name` text NOT NULL
+  - `public.role_permissions`:
+    - `role_id` uuid NOT NULL REFERENCES `roles(id)` ON DELETE CASCADE
+    - `permission_code` text NOT NULL
+    - PRIMARY KEY (`role_id`, `permission_code`)
+  - `public.user_branches`:
+    - `user_id` uuid NOT NULL REFERENCES `users(id)` ON DELETE CASCADE
+    - `branch_id` uuid NOT NULL REFERENCES `branches(id)` ON DELETE RESTRICT
+    - `is_default` boolean NOT NULL DEFAULT false
+    - PRIMARY KEY (`user_id`, `branch_id`)
+    - INDEX `IX_user_branches_branch_id` ON (`branch_id`)
+  - `public.user_role_assignments`:
+    - `user_id` uuid NOT NULL REFERENCES `users(id)` ON DELETE CASCADE
+    - `role_id` uuid NOT NULL REFERENCES `roles(id)` ON DELETE RESTRICT
+    - `branch_id` uuid NULL REFERENCES `branches(id)` ON DELETE RESTRICT
+    - `branch_id_key` uuid NOT NULL GENERATED ALWAYS AS (`COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid)`) STORED
+    - PRIMARY KEY (`user_id`, `role_id`, `branch_id_key`)
+    - INDEX `IX_user_role_assignments_branch_id` ON (`branch_id`)
+    - INDEX `IX_user_role_assignments_role_id` ON (`role_id`)
