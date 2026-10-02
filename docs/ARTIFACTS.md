@@ -316,3 +316,60 @@ prompt-completion order and are never rewritten, only appended to.
 ### Docker Image Verification
 - Image: `storeos-web:dev`
 - Command: `docker build -f deploy/Dockerfile.web -t storeos-web:dev .` (verified build succeeds with output `/src/dist/storeos-web/browser`)
+
+## P-101
+
+### Interfaces
+- `StoreOS.Application.Abstractions.IAppDbContext` (`backend/src/StoreOS.Application/Abstractions/IAppDbContext.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IAppDbContext
+  {
+      DbSet<TEntity> Set<TEntity>() where TEntity : class;
+      DatabaseFacade Database { get; }
+      ChangeTracker ChangeTracker { get; }
+      Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+  }
+  ```
+
+### DbContext & Factory
+- `StoreOS.Infrastructure.Persistence.StoreOsDbContext` (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  namespace StoreOS.Infrastructure.Persistence;
+
+  public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IAppDbContext
+  {
+      public StoreOsDbContext(DbContextOptions<StoreOsDbContext> options) : base(options) { }
+      protected override void OnModelCreating(ModelBuilder modelBuilder);
+  }
+  ```
+- `StoreOS.Infrastructure.Persistence.StoreOsDbContextFactory` (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContextFactory.cs`):
+  ```csharp
+  namespace StoreOS.Infrastructure.Persistence;
+
+  public sealed class StoreOsDbContextFactory : IDesignTimeDbContextFactory<StoreOsDbContext>
+  {
+      public StoreOsDbContext CreateDbContext(string[] args);
+  }
+  ```
+
+### Connection Strings & Configuration
+- Configuration File: `backend/src/StoreOS.Api/appsettings.json`
+- Connection Strings:
+  - `Default`: `"Host=localhost;Port=5432;Database=storeos;Username=storeos_app;Password=storeos_app_dev_password;Maximum Pool Size=50"`
+  - `Reporting`: `"Host=localhost;Port=5432;Database=storeos;Username=storeos_app;Password=storeos_app_dev_password;Maximum Pool Size=20"`
+- Design-time Migrations Connection: `STOREOS_MIGRATIONS_CONNECTION` env var or `"Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"`
+
+### CORS Policy
+- Name: `"Default"`
+- Allowed Origins: `http://localhost:4200`
+- Headers & Methods: Any (`AllowAnyHeader()`, `AllowAnyMethod()`)
+- Credentials: Enabled (`AllowCredentials()`)
+
+### Health Check Endpoints
+- `/health/live`: Liveness check (always returns HTTP 200 OK `Healthy` without evaluating dependencies)
+- `/health/ready`: Readiness check (verifies PostgreSQL database connectivity via `AspNetCore.HealthChecks.NpgSql`, tagged `"ready"`)
+
+### Documentation & Runbooks
+- `docs/RUNBOOK-db-roles.md`: Architecture of PostgreSQL roles (`storeos` / `storeos_owner` and `storeos_app`), post-migration script requirements, and local reproduction procedures.
