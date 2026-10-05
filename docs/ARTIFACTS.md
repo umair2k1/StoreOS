@@ -1043,3 +1043,41 @@ CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
 | `forbidden` | 403 Forbidden | Authenticated principal lacks required permission |
 | Any other DomainException | 422 Unprocessable Entity | Domain/business rule violation (or 404 for `*_not_found`, 409 for conflicts) |
 | `ValidationException` | 400 Bad Request | Field-level validation error dictionary |
+
+## P-115
+
+### Permission Catalog
+- Class: `StoreOS.Domain.Identity.PermissionCatalog` (`backend/src/StoreOS.Domain/Identity/PermissionCatalog.cs`)
+- Constants (All 17 canonical permission codes):
+  - `PosCheckout` = `"pos:checkout"`
+  - `SalesDiscountApply` = `"sales:discount:apply"`
+  - `SalesVoid` = `"sales:void"`
+  - `SalesRefund` = `"sales:refund"`
+  - `SalesCreditOverride` = `"sales:credit:override"`
+  - `SalesReadAnyBranch` = `"sales:read:any-branch"`
+  - `InventoryCostView` = `"inventory:cost:view"`
+  - `ReportsProfitView` = `"reports:profit:view"`
+  - `InventoryManage` = `"inventory:manage"`
+  - `PurchasesManage` = `"purchases:manage"`
+  - `InventoryAdjustments` = `"inventory:adjustments"`
+  - `ExpensesManage` = `"expenses:manage"`
+  - `LiabilitiesManage` = `"liabilities:manage"`
+  - `RepairsManage` = `"repairs:manage"`
+  - `SettingsManage` = `"settings:manage"`
+  - `UsersManage` = `"users:manage"`
+  - `BranchesManage` = `"branches:manage"`
+
+### Permission Checker
+- Interface: `StoreOS.Application.Identity.IPermissionChecker` (`backend/src/StoreOS.Application/Identity/IPermissionChecker.cs`)
+  ```csharp
+  public interface IPermissionChecker
+  {
+      bool IsValidPermissionCode(string code);
+      IReadOnlyList<string> AllCodes { get; }
+  }
+  ```
+- Implementation: `StoreOS.Infrastructure.Identity.PermissionChecker` (`backend/src/StoreOS.Infrastructure/Identity/PermissionChecker.cs`)
+  ```csharp
+  public class PermissionChecker : IPermissionChecker
+  ```
+- DI Registration: `builder.Services.AddSingleton<IPermissionChecker, PermissionChecker>();`
