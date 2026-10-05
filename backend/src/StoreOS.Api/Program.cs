@@ -74,6 +74,7 @@ builder.Services.AddScoped<StoreOS.Application.Inventory.IInventoryStockService,
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IInvoiceSequenceAllocator, StoreOS.Infrastructure.Sales.InvoiceSequenceAllocator>();
 builder.Services.AddScoped<StoreOS.Application.Sales.Checkout.PricingResolver>();
 builder.Services.AddHostedService<RlsRoleGuard>();
+builder.Services.AddScoped<StoreOS.Application.Customers.ICustomerLedgerService, StoreOS.Infrastructure.Customers.CustomerLedgerService>();
 
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();

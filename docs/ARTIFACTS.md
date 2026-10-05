@@ -2807,3 +2807,31 @@ var sgst = Money.Round2(totalGst - cgst);
   - `20261005194733_019_CustomersLedger` applied via:
     `dotnet ef migrations add 019_CustomersLedger --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
     `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-507
+### ICustomerLedgerService & Cross-Branch Consolidated Balance
+- Application Contract (`StoreOS.Application.Customers.ICustomerLedgerService`):
+  ```csharp
+  namespace StoreOS.Application.Customers;
+
+  public interface ICustomerLedgerService
+  {
+      Task RecordInvoiceDebitAsync(Guid customerId, Guid saleId, decimal amount, Guid branchId,
+          DateOnly entryDate, CancellationToken ct);
+      Task RecordPaymentCreditAsync(Guid customerId, Guid saleId, decimal amount, Guid branchId,
+          DateOnly entryDate, CancellationToken ct);
+      Task RecordVoidReversalAsync(Guid customerId, Guid saleId, decimal amount, Guid branchId,
+          DateOnly entryDate, CancellationToken ct);
+      Task RecordRefundCreditAsync(Guid customerId, Guid saleId, decimal amount, Guid branchId,
+          DateOnly entryDate, CancellationToken ct);
+      Task<decimal> GetConsolidatedBalanceAsync(Guid customerId, CancellationToken ct);
+  }
+  ```
+- Infrastructure Implementation (`StoreOS.Infrastructure.Customers.CustomerLedgerService`):
+  - Registered scoped: `AddScoped<ICustomerLedgerService, CustomerLedgerService>()`.
+  - `RecordInvoiceDebitAsync`: stages a debit row with `CustomerLedgerEntryType.Invoice`.
+  - `RecordPaymentCreditAsync`: stages a credit row with `CustomerLedgerEntryType.Payment`.
+  - `RecordVoidReversalAsync`: stages a credit row with `CustomerLedgerEntryType.InvoiceVoid`.
+  - `RecordRefundCreditAsync`: stages a credit row with `CustomerLedgerEntryType.Refund`.
+  - Staged-write convention: none of the `Record*Async` methods call `SaveChangesAsync()`; atomic commit is owned by the calling request pipeline handler.
+  - `GetConsolidatedBalanceAsync`: the sole sanctioned balance-computation path in the entire codebase (P-509, P-601, P-905). Explicitly uses `.IgnoreQueryFilters()` with `e.TenantId == _scope.TenantId && e.CustomerId == customerId` to sum debits and credits across all branches, returning `Math.Max(0m, sums.Debit - sums.Credit)`.
