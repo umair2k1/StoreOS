@@ -16,6 +16,13 @@ builder.Services.AddDbContext<StoreOsDbContext>((sp, options) =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
     options.AddInterceptors(sp.GetRequiredService<StoreOS.Infrastructure.Persistence.RlsSessionInterceptor>());
 });
+builder.Services.AddDbContext<StoreOS.Infrastructure.Persistence.ReportingDbContext>((sp, options) =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Reporting"), npgsql => { });
+    options.AddInterceptors(sp.GetRequiredService<StoreOS.Infrastructure.Persistence.RlsSessionInterceptor>());
+});
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IReportingDbContext>(
+    sp => sp.GetRequiredService<StoreOS.Infrastructure.Persistence.ReportingDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();

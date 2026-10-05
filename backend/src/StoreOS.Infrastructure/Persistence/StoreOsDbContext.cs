@@ -31,11 +31,6 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
         modelBuilder.HasDefaultSchema("public");
         // Entity configurations are added via IEntityTypeConfiguration<T> classes applied
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StoreOsDbContext).Assembly);
-
-        // Tenant-only filter archetype (Plan §9.1)
-        modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _scope.TenantId);
-        modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _scope.TenantId);
-        modelBuilder.Entity<AuditLogEntry>().HasQueryFilter(a => a.TenantId == _scope.TenantId && (a.BranchId == null || _scope.AllBranches || _scope.BranchIds.Contains(a.BranchId.Value)));
-        modelBuilder.Entity<IdempotencyRecord>().HasQueryFilter(i => i.TenantId == _scope.TenantId);
+        QueryFilters.ApplyAll(modelBuilder, () => _scope);
     }
 }

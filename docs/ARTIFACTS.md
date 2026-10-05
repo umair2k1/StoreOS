@@ -1213,3 +1213,38 @@ CREATE INDEX ix_idempotency_created ON idempotency_keys (created_at);
   T:System.Single;Do not use float for monetary values; use decimal.
   ```
 - Analyzer Diagnostics: RS0030 active on `StoreOS.Domain`.
+
+## P-119
+
+### Reporting DbContext Seam
+- Interface: `StoreOS.Application.Abstractions.IReportingDbContext` (`backend/src/StoreOS.Application/Abstractions/IReportingDbContext.cs`)
+  ```csharp
+  public interface IReportingDbContext
+  {
+      DbSet<TEntity> Set<TEntity>() where TEntity : class;
+  }
+  ```
+- Implementation: `StoreOS.Infrastructure.Persistence.ReportingDbContext` (`backend/src/StoreOS.Infrastructure/Persistence/ReportingDbContext.cs`)
+  ```csharp
+  public class ReportingDbContext : DbContext, IReportingDbContext
+  ```
+  *Note: globally configures `QueryTrackingBehavior.NoTracking`, applies configurations from `StoreOsDbContext.Assembly`, and delegates to `QueryFilters.ApplyAll`.*
+- Shared Query Filters: `StoreOS.Infrastructure.Persistence.QueryFilters` (`backend/src/StoreOS.Infrastructure/Persistence/QueryFilters.cs`)
+  ```csharp
+  public static class QueryFilters
+  {
+      public static void ApplyAll(ModelBuilder modelBuilder, Expression<Func<IAccessScope>> scopeAccessor);
+      public static void ApplyAll(ModelBuilder modelBuilder, IAccessScope scope);
+  }
+  ```
+
+### Query Filter Convention
+Every future entity-adding prompt must add its query filter line to `QueryFilters.ApplyAll`, never inline in either DbContext.
+
+### DI Registration & Connection Strings (Program.cs)
+- `builder.Services.AddDbContext<ReportingDbContext>` mapped to `ConnectionStrings:Reporting` with `RlsSessionInterceptor`.
+- `builder.Services.AddScoped<IReportingDbContext, ReportingDbContext>()`.
+
+### Transaction Behavior Resolution (P-109 / P-119)
+- When `request is IReportingRequest`: resolves `ReportingDbContext`, opens `RepeatableRead` transaction, and issues `SET LOCAL transaction_read_only = on`.
+- Otherwise: resolves `StoreOsDbContext` as before.

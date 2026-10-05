@@ -35,11 +35,15 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         // Requests without any tenant context never touch RLS-protected tables (e.g. tenant lookup by host).
         if (!_scope.HasTenantContext) return await next();
 
-        var db = _services.GetRequiredService<StoreOsDbContext>();
+        DbContext db = request is IReportingRequest
+            ? _services.GetRequiredService<ReportingDbContext>()
+            : _services.GetRequiredService<StoreOsDbContext>();
+
         if (db.Database.CurrentTransaction is not null) return await next(); // nested Send(): join the outer transaction
 
         var (isolation, readOnly) = request switch
         {
+            IReportingRequest => (IsolationLevel.RepeatableRead, true),
             ISerializableRequest => (IsolationLevel.Serializable, false),
             IReadOnlyRequest => (IsolationLevel.ReadCommitted, true),
             _ => (IsolationLevel.RepeatableRead, false)
