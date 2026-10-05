@@ -822,6 +822,33 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("purchases", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Sales.InvoiceSequence", b =>
+                {
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<string>("SeriesKey")
+                        .HasColumnType("text")
+                        .HasColumnName("series_key");
+
+                    b.Property<int>("LastSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("last_seq");
+
+                    b.HasKey("TenantId", "BranchId", "SeriesKey");
+
+                    b.HasIndex("BranchId");
+
+                    b.ToTable("invoice_sequences", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Suppliers.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1153,6 +1180,15 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasOne("StoreOS.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Sales.InvoiceSequence", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

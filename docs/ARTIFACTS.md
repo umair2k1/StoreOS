@@ -2509,3 +2509,62 @@ var sgst = Money.Round2(totalGst - cgst);
 - Migration:
   - `20261005190340_016_Transfers` applied via:
     `dotnet ef migrations add 016_Transfers --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-501
+### invoice_sequences Table & Atomic Upsert Allocator
+- Application Interface (`StoreOS.Application.Abstractions.IInvoiceSequenceAllocator`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IInvoiceSequenceAllocator
+  {
+      Task<int> AllocateNextAsync(Guid tenantId, Guid branchId, string seriesKey, CancellationToken ct);
+  }
+  ```
+- Domain Entity (`StoreOS.Domain.Sales.InvoiceSequence`):
+  ```csharp
+  namespace StoreOS.Domain.Sales;
+
+  public class InvoiceSequence
+  {
+      public Guid TenantId { get; private set; }
+      public Guid BranchId { get; private set; }
+      public string SeriesKey { get; private set; } = default!;
+      public int LastSeq { get; private set; }
+      public static InvoiceSequence Create(Guid tenantId, Guid branchId, string seriesKey, int lastSeq = 0);
+  }
+  ```
+- Infrastructure Implementation (`StoreOS.Infrastructure.Sales.InvoiceSequenceAllocator`):
+  - Reuses ambient connection/transaction via `_db.Database.GetDbConnection()` and `_db.Database.CurrentTransaction?.GetDbTransaction()`.
+  - Atomic upsert query:
+    ```sql
+    INSERT INTO invoice_sequences (tenant_id, branch_id, series_key, last_seq)
+    VALUES (@t, @b, @s, 1)
+    ON CONFLICT (tenant_id, branch_id, series_key)
+    DO UPDATE SET last_seq = invoice_sequences.last_seq + 1
+    RETURNING last_seq;
+    ```
+  - Registered scoped: `AddScoped<IInvoiceSequenceAllocator, InvoiceSequenceAllocator>()`.
+- Table Schema & RLS Policy:
+  - Table: `public.invoice_sequences` with composite PK `(tenant_id, branch_id, series_key)`.
+  - Branch-scoped RLS policy (`tenant_branch_isolation_policy`):
+    ```sql
+    ALTER TABLE public.invoice_sequences ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE public.invoice_sequences FORCE ROW LEVEL SECURITY;
+    CREATE POLICY tenant_branch_isolation_policy ON public.invoice_sequences USING (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      AND (
+        COALESCE(NULLIF(current_setting('app.all_branches', true), ''), 'false') = 'true'
+        OR branch_id = ANY (string_to_array(NULLIF(current_setting('app.branch_ids', true), ''), ',')::uuid[])
+      )
+    );
+    ```
+- Empirical Findings on Rollback:
+  - Allocations participate directly in the ambient database transaction.
+  - When a transaction containing an `AllocateNextAsync` call is rolled back (`ROLLBACK`), the row insert/update in `invoice_sequences` is rolled back completely by PostgreSQL. A subsequent allocation in a new transaction returns the exact same number, introducing zero gap.
+- Concurrency Verification:
+  - 50 concurrent transactions allocating for the same `(tenant_id, branch_id, series_key)` produce strictly unique integers `1..50` with no gaps and no duplicate allocations.
+- Migration:
+  - `20261005193020_017_InvoiceSequences` applied via:
+    `dotnet ef migrations add 017_InvoiceSequences --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
