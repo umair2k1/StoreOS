@@ -7,7 +7,7 @@ using StoreOS.Domain.Identity;
 namespace StoreOS.Application.Behaviors;
 
 public class LiveDbPermissionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
+    where TRequest : notnull
 {
     private readonly IAccessScope _scope;
     private readonly IAppDbContext _db;

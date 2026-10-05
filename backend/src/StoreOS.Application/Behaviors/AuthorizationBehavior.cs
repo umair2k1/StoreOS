@@ -5,7 +5,7 @@ using StoreOS.Domain.Exceptions;
 namespace StoreOS.Application.Behaviors;
 
 public class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
-    where TRequest : IRequest<TResponse>
+    where TRequest : notnull
 {
     private readonly IAccessScope _scope;
 

@@ -10,4 +10,5 @@ public interface IAppDbContext
     DatabaseFacade Database { get; }
     ChangeTracker ChangeTracker { get; }
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default);
 }

@@ -20,6 +20,7 @@ public class ErrorCatalogTests
     [InlineData("branch_context_required", HttpStatusCode.BadRequest)]
     [InlineData("idempotency_key_required", HttpStatusCode.BadRequest)]
     [InlineData("idempotency_key_invalid", HttpStatusCode.BadRequest)]
+    [InlineData("invalid_permission_code", HttpStatusCode.BadRequest)]
     [InlineData("branch_code_taken", HttpStatusCode.Conflict)]
     [InlineData("imei_already_active", HttpStatusCode.Conflict)]
     [InlineData("idempotency_key_reuse", HttpStatusCode.Conflict)]

@@ -1833,3 +1833,51 @@ var sgst = Money.Round2(totalGst - cgst);
     - `PATCH /api/branches/{id:guid}` -> Update with `UpdateBranchBody` (returns 204 `NoContent`)
 - Error Catalog Status Mapping:
   - `branch_code_taken` -> 409 Conflict (`ErrorCatalog.cs`)
+
+## P-311
+
+### Users/Roles/Branch-Assignment Administration
+- Roles Slices (`StoreOS.Application/Identity/Roles/`):
+  - `RoleDto`: `record RoleDto(Guid Id, string Name, IReadOnlyList<string> Permissions)`
+  - `CreateRole/`:
+    - Command: `CreateRoleCommand(string Name, IReadOnlyList<string> PermissionCodes)` (`IRequest<Guid>`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `CreateRoleValidator` (Name required max 100, PermissionCodes not null)
+    - Handler: `CreateRoleHandler` (validates all permission codes via `IPermissionChecker.IsValidPermissionCode`, throws `DomainValidationException("invalid_permission_code")` on invalid codes, creates role & distinct `RolePermission` rows)
+  - `GetRoles/`:
+    - Query: `GetRolesQuery()` (`IRequest<IReadOnlyList<RoleDto>>`, `IRequiresPermission`, `RequiredPermission => "users:manage"`, `IReadOnlyRequest`)
+    - Handler: `GetRolesHandler` (lists tenant roles with permissions mapped to `RoleDto`)
+- Users Slices (`StoreOS.Application/Identity/Users/`):
+  - `UserDto`: `record UserDto(Guid Id, string Email, string DisplayName, bool IsActive, int TokenVersion, IReadOnlyList<UserRoleAssignmentDto> Roles, IReadOnlyList<UserBranchAssignmentDto> Branches)`
+  - `CreateUser/`:
+    - Command: `CreateUserCommand(string Email, string DisplayName, string Password, Guid? InitialRoleId = null, Guid? InitialBranchId = null)` (`IRequest<Guid>`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `CreateUserValidator` (Email valid, DisplayName max 100, Password min 8)
+    - Handler: `CreateUserHandler` (validates email uniqueness, hashes password with `IPasswordHasher`, creates user, binds initial role & branch)
+  - `GetUsers/`:
+    - Query: `GetUsersQuery()` (`IRequest<IReadOnlyList<UserDto>>`, `IRequiresPermission`, `RequiredPermission => "users:manage"`, `IReadOnlyRequest`)
+    - Handler: `GetUsersHandler` (lists tenant users with assigned roles & branches, uses left join to safely project `BranchId`)
+  - `AssignRole/`:
+    - Command: `AssignRoleCommand(Guid UserId, Guid RoleId, Guid? BranchId = null)` (`IRequest`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `AssignRoleValidator` (UserId, RoleId required)
+    - Handler: `AssignRoleHandler` (validates user, role, and branch within tenant, assigns role)
+  - `AssignBranch/`:
+    - Command: `AssignBranchCommand(Guid UserId, Guid BranchId, bool IsDefault = false)` (`IRequest`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `AssignBranchValidator` (UserId, BranchId required)
+    - Handler: `AssignBranchHandler` (validates user and branch within tenant, manages `is_default` flag, inserts or updates `UserBranch`)
+  - `DeactivateUser/`:
+    - Command: `DeactivateUserCommand(Guid UserId)` (`IRequest`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `DeactivateUserValidator` (UserId required)
+    - Handler: `DeactivateUserHandler` (calls `user.Deactivate()`, bumping `TokenVersion` and invalidating sessions)
+- Controllers (`StoreOS.Api.Controllers/`):
+  - `RolesController`:
+    - `GET /api/roles` -> List
+    - `POST /api/roles` -> Create (201 Created)
+  - `UsersController`:
+    - `GET /api/users` -> List
+    - `POST /api/users` -> Create (201 Created)
+    - `POST /api/users/{id}/roles` -> AssignRole (204 NoContent)
+    - `POST /api/users/{id}/branches` -> AssignBranch (204 NoContent)
+    - `POST /api/users/{id}/deactivate` -> Deactivate (204 NoContent)
+- Error Catalog Status Mapping:
+  - `invalid_permission_code` -> 400 Bad Request (`ErrorCatalog.cs`)
+- Abstraction Contract Extension:
+  - `IAppDbContext.ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)` implemented in `StoreOsDbContext` for raw SQL commands.

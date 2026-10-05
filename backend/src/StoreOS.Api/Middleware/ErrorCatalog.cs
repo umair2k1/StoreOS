@@ -21,6 +21,7 @@ public static class ErrorCatalog
         ["branch_context_required"] = HttpStatusCode.BadRequest,
         ["idempotency_key_required"] = HttpStatusCode.BadRequest,
         ["idempotency_key_invalid"] = HttpStatusCode.BadRequest,
+        ["invalid_permission_code"] = HttpStatusCode.BadRequest,
         // 409 - state conflicts
         ["branch_code_taken"] = HttpStatusCode.Conflict,
         ["imei_already_active"] = HttpStatusCode.Conflict,
