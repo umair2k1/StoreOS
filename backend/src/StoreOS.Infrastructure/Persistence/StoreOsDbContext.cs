@@ -42,6 +42,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<StoreOS.Domain.Sales.SaleItem> SaleItems => Set<StoreOS.Domain.Sales.SaleItem>();
     public DbSet<StoreOS.Domain.Customers.Customer> Customers => Set<StoreOS.Domain.Customers.Customer>();
     public DbSet<StoreOS.Domain.Customers.CustomerLedgerEntry> CustomerLedgerEntries => Set<StoreOS.Domain.Customers.CustomerLedgerEntry>();
+    public DbSet<StoreOS.Domain.Sales.CustomerPayment> CustomerPayments => Set<StoreOS.Domain.Sales.CustomerPayment>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
     protected override void OnModelCreating(ModelBuilder modelBuilder)

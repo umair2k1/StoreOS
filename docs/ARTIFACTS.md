@@ -2835,3 +2835,42 @@ var sgst = Money.Round2(totalGst - cgst);
   - `RecordRefundCreditAsync`: stages a credit row with `CustomerLedgerEntryType.Refund`.
   - Staged-write convention: none of the `Record*Async` methods call `SaveChangesAsync()`; atomic commit is owned by the calling request pipeline handler.
   - `GetConsolidatedBalanceAsync`: the sole sanctioned balance-computation path in the entire codebase (P-509, P-601, P-905). Explicitly uses `.IgnoreQueryFilters()` with `e.TenantId == _scope.TenantId && e.CustomerId == customerId` to sum debits and credits across all branches, returning `Math.Max(0m, sums.Debit - sums.Credit)`.
+
+## P-508
+### customer_payments Entity & Payment Composition Helper
+- Domain Entity (`StoreOS.Domain.Sales.CustomerPayment`):
+  ```csharp
+  namespace StoreOS.Domain.Sales;
+
+  public class CustomerPayment
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid SaleId { get; private set; }
+      public decimal Amount { get; private set; }
+      public string PaymentMode { get; private set; }
+      public DateOnly PaymentDate { get; private set; }
+      public Guid ReceivedBy { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+      public static CustomerPayment Create(Guid tenantId, Guid saleId, decimal amount,
+          string paymentMode, DateOnly paymentDate, Guid receivedBy);
+  }
+  ```
+  - **Permanent Immutability Rule (Invariant 5):** `CustomerPayment` exposes NO public mutation methods whatsoever. A payment transaction is an immutable record; corrections are modeled as new records, never updates.
+- Pure Composition Helper (`StoreOS.Application.Sales.Checkout.PaymentComposer`):
+  ```csharp
+  namespace StoreOS.Application.Sales.Checkout;
+
+  public static class PaymentComposer
+  {
+      public static (IReadOnlyList<CustomerPayment> Payments, decimal TotalPaid) Compose(
+          Guid tenantId, Guid saleId, IReadOnlyList<CheckoutPayment> requested, DateOnly paymentDate, Guid receivedBy);
+  }
+  ```
+- Database Tables & Constraints:
+  - Table `public.customer_payments`: PK `id`, FK `sale_id -> sales(id) RESTRICT`, `CHECK (amount > 0)`. Index `ix_custpay_sale (tenant_id, sale_id)`.
+  - Archetype A RLS: `tenant_isolation_policy` on `tenant_id`.
+- Migration:
+  - `20261005200108_020_CustomerPayments` applied via:
+    `dotnet ef migrations add 020_CustomerPayments --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

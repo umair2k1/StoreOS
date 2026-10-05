@@ -939,6 +939,55 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("purchases", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Sales.CustomerPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("PaymentMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_mode");
+
+                    b.Property<Guid>("ReceivedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("received_by");
+
+                    b.Property<Guid>("SaleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sale_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SaleId");
+
+                    b.HasIndex("TenantId", "SaleId")
+                        .HasDatabaseName("ix_custpay_sale");
+
+                    b.ToTable("customer_payments", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Sales.InvoiceSequence", b =>
                 {
                     b.Property<Guid>("TenantId")
@@ -1567,6 +1616,15 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasOne("StoreOS.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Sales.CustomerPayment", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Sales.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
