@@ -2114,3 +2114,59 @@ var sgst = Money.Round2(totalGst - cgst);
   - `GET /api/inventory/valuation` -> `Valuation([FromQuery] GetValuationQuery query)`
 - Infrastructure:
   - First production caller of `ReportingDbContext` via `IReportingRequest` with RepeatableRead and `transaction_read_only = on`.
+
+## P-405
+
+### Inventory Movements Append-Only Ledger Entity & Archetype B Policy
+- Movement Types (`StoreOS.Domain.Inventory.MovementType`):
+  ```csharp
+  public static class MovementType
+  {
+      public const string Purchase = "Purchase";
+      public const string Sale = "Sale";
+      public const string SaleVoid = "SaleVoid";
+      public const string SaleRefund = "SaleRefund";
+      public const string SupplierReturn = "SupplierReturn";
+      public const string RepairConsumed = "RepairConsumed";
+      public const string RepairPartReturned = "RepairPartReturned";
+      public const string Adjustment = "Adjustment";
+      public const string TransferOut = "TransferOut";
+      public const string TransferIn = "TransferIn";
+      public static readonly IReadOnlyList<string> All = new[]
+      {
+          Purchase, Sale, SaleVoid, SaleRefund, SupplierReturn, RepairConsumed,
+          RepairPartReturned, Adjustment, TransferOut, TransferIn
+      };
+  }
+  ```
+- Domain Entity (`StoreOS.Domain.Inventory.InventoryMovement`):
+  ```csharp
+  public class InventoryMovement
+  {
+      public long Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid BranchId { get; private set; }
+      public Guid ProductId { get; private set; }
+      public Guid? ImeiId { get; private set; }
+      public string MovementType { get; private set; }
+      public int QtyDelta { get; private set; }
+      public decimal UnitCost { get; private set; }
+      public string RefType { get; private set; }
+      public string RefId { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+      public Guid? CreatedBy { get; private set; }
+
+      public static InventoryMovement Create(Guid tenantId, Guid branchId, Guid productId, Guid? imeiId,
+          string movementType, int qtyDelta, decimal unitCost, string refType, string refId, Guid? createdBy);
+  }
+  ```
+- Append-Only Invariant:
+  - The `inventory_movements` table is strictly append-only. No UPDATE or DELETE operations are permitted at any layer. Every future stock mutation inserts a new row.
+  - `qty_delta <> 0` is strictly enforced at both domain level and database level (`ck_inventory_movements_qty_delta`).
+- Database Schema & Archetype B RLS:
+  - Table: `public.inventory_movements`
+    - Columns: `id` bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY, `tenant_id` uuid NOT NULL, `branch_id` uuid NOT NULL REFERENCES branches(id), `product_id` uuid NOT NULL REFERENCES products(id), `imei_id` uuid NULL, `movement_type` text NOT NULL, `qty_delta` int NOT NULL, `unit_cost` numeric(18,2) NOT NULL, `ref_type` text NOT NULL, `ref_id` text NOT NULL, `created_at` timestamptz NOT NULL DEFAULT now(), `created_by` uuid NULL.
+    - Constraints: `ck_inventory_movements_qty_delta` CHECK (`qty_delta <> 0`), `ix_movements_tenant_branch_product` on `(tenant_id, branch_id, product_id)`.
+    - RLS Policy (`tenant_branch_isolation_policy`): Archetype B enabled and forced.
+- Migration:
+  - `20261005182800_011_InventoryMovements` applied via `dotnet ef migrations add 011_InventoryMovements --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.

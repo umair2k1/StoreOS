@@ -357,6 +357,77 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("branch_inventory", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("ImeiId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("imei_id");
+
+                    b.Property<string>("MovementType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("movement_type");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("QtyDelta")
+                        .HasColumnType("integer")
+                        .HasColumnName("qty_delta");
+
+                    b.Property<string>("RefId")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ref_id");
+
+                    b.Property<string>("RefType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("ref_type");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantId", "BranchId", "ProductId")
+                        .HasDatabaseName("ix_movements_tenant_branch_product");
+
+                    b.ToTable("inventory_movements", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Platform.AuditLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -662,6 +733,21 @@ namespace StoreOS.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Inventory.BranchInventory", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Inventory.InventoryMovement", b =>
                 {
                     b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
                         .WithMany()

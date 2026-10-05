@@ -41,6 +41,7 @@ public static class QueryFilters
         ApplyFilter<IdempotencyRecord>(modelBuilder, scopeAccess, (i, s) => i.TenantId == s.TenantId);
         ApplyFilter<Product>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId);
         ApplyFilter<BranchInventory>(modelBuilder, scopeAccess, (bi, s) => bi.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(bi.BranchId)));
+        ApplyFilter<InventoryMovement>(modelBuilder, scopeAccess, (im, s) => im.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(im.BranchId)));
     }
 
     private static void ApplyFilter<TEntity>(
