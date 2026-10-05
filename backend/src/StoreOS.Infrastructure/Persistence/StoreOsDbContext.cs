@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Identity;
 
@@ -6,7 +7,12 @@ namespace StoreOS.Infrastructure.Persistence;
 
 public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IAppDbContext
 {
-    public StoreOsDbContext(DbContextOptions<StoreOsDbContext> options) : base(options) { }
+    private readonly IAccessScope _scope;
+
+    public StoreOsDbContext(DbContextOptions<StoreOsDbContext> options, IAccessScope scope) : base(options)
+    {
+        _scope = scope;
+    }
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Branch> Branches => Set<Branch>();
@@ -23,7 +29,10 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
         base.OnModelCreating(modelBuilder);
         modelBuilder.HasDefaultSchema("public");
         // Entity configurations are added via IEntityTypeConfiguration<T> classes applied
-        // from each module as entities are introduced in later prompts:
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(StoreOsDbContext).Assembly);
+
+        // Tenant-only filter archetype (Plan §9.1)
+        modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _scope.TenantId);
+        modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _scope.TenantId);
     }
 }

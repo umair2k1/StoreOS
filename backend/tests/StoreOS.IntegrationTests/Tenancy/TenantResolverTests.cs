@@ -22,7 +22,7 @@ public class TenantResolverTests : IAsyncLifetime
             .UseNpgsql(cs)
             .Options;
 
-        _dbContext = new StoreOsDbContext(options);
+        _dbContext = new StoreOsDbContext(options, new NullAccessScope());
 
         var config = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>

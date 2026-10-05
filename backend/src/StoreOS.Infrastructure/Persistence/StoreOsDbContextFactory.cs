@@ -15,6 +15,6 @@ public sealed class StoreOsDbContextFactory : IDesignTimeDbContextFactory<StoreO
         var cs = Environment.GetEnvironmentVariable("STOREOS_MIGRATIONS_CONNECTION")
                  ?? "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password";
         var options = new DbContextOptionsBuilder<StoreOsDbContext>().UseNpgsql(cs).Options;
-        return new StoreOsDbContext(options);
+        return new StoreOsDbContext(options, new NullAccessScope());
     }
 }

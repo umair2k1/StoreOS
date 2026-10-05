@@ -752,3 +752,41 @@ Fixed claim types consumed by `HttpAccessScope` and produced by token issuance:
   AuthenticationHandler registered under scheme `"TestScheme"`, reading `AsyncLocal<ClaimsPrincipal?> TestAuthHandler.CurrentPrincipal`.
 - In scoped tests with `WebApplicationFactory`:
   Set `scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = new DefaultHttpContext { User = principal }` prior to resolving `IAccessScope`.
+
+## P-107
+
+### DbContext Constructor Update
+- `StoreOsDbContext` constructor (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  public StoreOsDbContext(DbContextOptions<StoreOsDbContext> options, IAccessScope scope) : base(options)
+  {
+      _scope = scope;
+  }
+  ```
+- Design-time factory update (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContextFactory.cs`):
+  ```csharp
+  return new StoreOsDbContext(options, new NullAccessScope());
+  ```
+
+### Query Filters Applied
+- `Branch`: `modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _scope.TenantId);`
+- `Setting`: `modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _scope.TenantId);`
+
+## Query Filter Convention
+
+```text
+For every new entity E added in any later prompt:
+- If E has ONLY TenantId (no BranchId): add
+  modelBuilder.Entity<E>().HasQueryFilter(x => x.TenantId == _scope.TenantId);
+- If E has BOTH TenantId and BranchId (operational/branch-scoped data): add
+  modelBuilder.Entity<E>().HasQueryFilter(x =>
+      x.TenantId == _scope.TenantId &&
+      (_scope.AllBranches || _scope.BranchIds.Contains(x.BranchId)));
+- If E has a NULLABLE BranchId representing "head office / tenant-wide" (e.g. expenses,
+  supplier_transactions): add
+  modelBuilder.Entity<E>().HasQueryFilter(x =>
+      x.TenantId == _scope.TenantId &&
+      (x.BranchId == null || _scope.AllBranches || _scope.BranchIds.Contains(x.BranchId.Value)));
+- These EF filters are LAYER ONE of defense. Layer TWO is PostgreSQL RLS (P-108/P-110).
+  Both must independently enforce the same isolation — never rely on only one.
+```
