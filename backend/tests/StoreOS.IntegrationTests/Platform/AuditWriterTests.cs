@@ -1,10 +1,17 @@
+using System.Security.Claims;
 using System.Text.Json;
 using FluentAssertions;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using StoreOS.Application.Abstractions;
+using StoreOS.Domain.Platform;
 using StoreOS.Infrastructure.Persistence;
 using StoreOS.Infrastructure.Platform;
+using StoreOS.IntegrationTests.Fixtures;
+using StoreOS.IntegrationTests.Security;
 
 namespace StoreOS.IntegrationTests.Platform;
 
@@ -12,6 +19,7 @@ namespace StoreOS.IntegrationTests.Platform;
 public class AuditWriterTests : IAsyncLifetime
 {
     private readonly PostgresTestFixture _fixture;
+    private readonly StoreOsWebApplicationFactory _factory;
     private readonly Guid _tenantId = Guid.NewGuid();
     private readonly Guid _branchId = Guid.NewGuid();
     private readonly Guid _userId = Guid.NewGuid();
@@ -20,6 +28,7 @@ public class AuditWriterTests : IAsyncLifetime
     public AuditWriterTests(PostgresTestFixture fixture)
     {
         _fixture = fixture;
+        _factory = new StoreOsWebApplicationFactory();
     }
 
     public async Task InitializeAsync()
@@ -50,31 +59,8 @@ public class AuditWriterTests : IAsyncLifetime
         cmd.Parameters.AddWithValue("tId", _tenantId);
         cmd.Parameters.AddWithValue("bId", _branchId);
         await cmd.ExecuteNonQueryAsync();
-    }
 
-    private class TestAccessScope : IAccessScope
-    {
-        public TestAccessScope(Guid tenantId, Guid userId, Guid branchId)
-        {
-            TenantId = tenantId;
-            UserId = userId;
-            BranchIds = new HashSet<Guid> { branchId };
-            Permissions = new HashSet<string>();
-        }
-
-        public Guid TenantId { get; }
-        public bool HasTenantContext => TenantId != Guid.Empty;
-        public Guid UserId { get; }
-        public IReadOnlySet<Guid> BranchIds { get; }
-        public bool AllBranches => false;
-        public IReadOnlySet<string> Permissions { get; }
-        public int TokenVersion => 1;
-        public bool IsAuthenticated => true;
-
-        public bool HasBranchAccess(Guid branchId) => BranchIds.Contains(branchId);
-        public bool HasPermission(string permissionCode) => Permissions.Contains(permissionCode);
-        public void UseAnonymousTenant(Guid tenantId) => throw new InvalidOperationException("Not supported in test");
-        public void UseSystemContext(Guid tenantId) => throw new InvalidOperationException("Not supported in test");
+        _factory.Dispose();
     }
 
     private class TestCorrelationContext : ICorrelationContextAccessor
@@ -83,17 +69,51 @@ public class AuditWriterTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task WriteAsync_StagesEntry_AndPersistsOnSaveChanges()
+    public async Task WriteAsync_WithTestAuthHandler_StagesAndPersistsUnderAppRoleRls()
     {
-        var scope = new TestAccessScope(_tenantId, _userId, _branchId);
-        var correlation = new TestCorrelationContext();
+        // 1. Configure authenticated claims via TestAuthHandler
+        var claims = new List<Claim>
+        {
+            new("tenant_id", _tenantId.ToString()),
+            new("sub", _userId.ToString()),
+            new("all_branches", "false"),
+            new("branch_id", _branchId.ToString()),
+            new("perm", "settings:manage"),
+            new("token_version", "1")
+        };
+        var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, TestAuthHandler.SchemeName));
+        TestAuthHandler.CurrentPrincipal.Value = principal;
 
+        // 2. Set up DI scope with HttpContext and TestAuthHandler
+        using var serviceScope = _factory.Services.CreateScope();
+        var httpContextAccessor = serviceScope.ServiceProvider.GetRequiredService<IHttpContextAccessor>();
+        var authService = serviceScope.ServiceProvider.GetRequiredService<IAuthenticationService>();
+
+        var httpContext = new DefaultHttpContext
+        {
+            RequestServices = serviceScope.ServiceProvider
+        };
+        httpContextAccessor.HttpContext = httpContext;
+
+        var authResult = await authService.AuthenticateAsync(httpContext, TestAuthHandler.SchemeName);
+        authResult.Succeeded.Should().BeTrue();
+        httpContext.User = authResult.Principal!;
+
+        var accessScope = serviceScope.ServiceProvider.GetRequiredService<IAccessScope>();
+        accessScope.IsAuthenticated.Should().BeTrue();
+        accessScope.TenantId.Should().Be(_tenantId);
+        accessScope.UserId.Should().Be(_userId);
+
+        // 3. Connect using AppConnectionString under storeos_app role with RlsSessionInterceptor
+        var interceptor = new RlsSessionInterceptor(accessScope);
         var options = new DbContextOptionsBuilder<StoreOsDbContext>()
-            .UseNpgsql(_fixture.OwnerConnectionString)
+            .UseNpgsql(_fixture.AppConnectionString)
+            .AddInterceptors(interceptor)
             .Options;
 
-        await using var db = new StoreOsDbContext(options, scope);
-        var writer = new AuditWriter(db, scope, correlation);
+        var correlation = new TestCorrelationContext();
+        await using var appDb = new StoreOsDbContext(options, accessScope);
+        var writer = new AuditWriter(appDb, accessScope, correlation);
 
         var changes = new { Price = 100.50m, OldPrice = 80.00m, Note = "Price updated" };
 
@@ -108,10 +128,14 @@ public class AuditWriterTests : IAsyncLifetime
             initialCount.Should().Be(0, "WriteAsync must only stage the entity and not call SaveChangesAsync");
         }
 
-        // SaveChanges persists the staged entry
-        await db.SaveChangesAsync();
+        // 4. SaveChanges persists staged entry inside RLS transaction (interceptor sets session variables)
+        await using var tx = await appDb.Database.BeginTransactionAsync();
+        await appDb.SaveChangesAsync();
+        await tx.CommitAsync();
 
-        var persisted = await db.AuditLogEntries.FirstOrDefaultAsync(a => a.EntityId == "prod-999");
+        // 5. Query AuditLogEntries through appDb under RLS transaction
+        await using var queryTx = await appDb.Database.BeginTransactionAsync();
+        var persisted = await appDb.AuditLogEntries.FirstOrDefaultAsync(a => a.EntityId == "prod-999");
         persisted.Should().NotBeNull();
         persisted!.TenantId.Should().Be(_tenantId);
         persisted.BranchId.Should().Be(_branchId);
@@ -120,6 +144,7 @@ public class AuditWriterTests : IAsyncLifetime
         persisted.Action.Should().Be("product:price_update");
         persisted.EntityType.Should().Be("product");
         persisted.ChangesJson.Should().NotBeNull();
+        await queryTx.CommitAsync();
 
         using var jsonDoc = JsonDocument.Parse(persisted.ChangesJson!);
         jsonDoc.RootElement.GetProperty("Price").GetDecimal().Should().Be(100.50m);
