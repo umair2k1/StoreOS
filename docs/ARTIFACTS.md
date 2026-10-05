@@ -1274,3 +1274,32 @@ var cgst = Money.Round2(totalGst / 2m);
 var sgst = Money.Round2(totalGst - cgst);
 ```
 `sgst` is always computed as `totalGst - cgst` (never `totalGst / 2m` independently). This guarantees `cgst + sgst == totalGst` exactly without odd-paise drift across the entire product.
+
+## P-202
+
+### Exceptions Location (P-113 revised build)
+- Namespace: `StoreOS.Domain.Exceptions` (`backend/src/StoreOS.Domain/Exceptions/DomainException.cs`)
+  ```csharp
+  public class DomainException : Exception
+  {
+      public string Code { get; }
+      public DomainException(string code, string message) : base(message) => Code = code;
+  }
+
+  public class DomainValidationException : DomainException
+  {
+      public DomainValidationException(string code, string message) : base(code, message) { }
+  }
+  ```
+
+### Tax Engine: MarginSchemeGst
+- Method: `TaxEngine.MarginSchemeGst` (`backend/src/StoreOS.Domain/Tax/TaxEngine.cs`)
+  ```csharp
+  public static LineTax MarginSchemeGst(decimal sell, decimal cost, decimal gstRate);
+  ```
+- Error Code: `margin_scheme_invalid_cost_basis`
+  - Thrown when `cost <= 0` (strictly positive cost basis required).
+  - Silent fallback to cost = 0 is prohibited under CGST Rule 32(5).
+- Margin Rule:
+  - If `margin <= 0` (`sell <= cost`), returns `LineTax.Zero`.
+  - Taxable, CGST, and SGST halves calculated with `Money.Round2` (MidpointRounding.AwayFromZero) ensuring `cgst + sgst == totalGst`.
