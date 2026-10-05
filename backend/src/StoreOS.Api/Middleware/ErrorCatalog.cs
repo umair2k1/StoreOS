@@ -28,6 +28,8 @@ public static class ErrorCatalog
         ["idempotency_key_reuse"] = HttpStatusCode.Conflict,
         ["idempotency_in_progress"] = HttpStatusCode.Conflict,
         ["serialization_conflict"] = HttpStatusCode.Conflict,
+        // 422 - business-rule violation
+        ["current_password_incorrect"] = HttpStatusCode.UnprocessableEntity,
     };
 
     public static HttpStatusCode StatusFor(string code)

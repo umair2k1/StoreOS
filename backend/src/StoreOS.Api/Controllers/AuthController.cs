@@ -7,6 +7,7 @@ using StoreOS.Application.Identity.Login;
 using StoreOS.Application.Identity.Refresh;
 using StoreOS.Application.Identity;
 using StoreOS.Application.Identity.Logout;
+using StoreOS.Application.Identity.Password.ChangePassword;
 using StoreOS.Domain.Exceptions;
 
 namespace StoreOS.Api.Controllers;
@@ -132,5 +133,15 @@ public class AuthController : ControllerBase
             permissions = scope.Permissions,
             tokenVersion = scope.TokenVersion
         });
+    }
+
+    [HttpPost("change-password")]
+    [Authorize]
+    [EnableRateLimiting("login")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordCommand command, CancellationToken ct)
+    {
+        await _mediator.Send(command, ct);
+        Response.Cookies.Delete("storeos_refresh_token", new CookieOptions { Path = "/api/auth" });
+        return NoContent();
     }
 }

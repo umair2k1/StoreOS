@@ -5,6 +5,7 @@ using StoreOS.Application.Identity.Users.AssignRole;
 using StoreOS.Application.Identity.Users.CreateUser;
 using StoreOS.Application.Identity.Users.DeactivateUser;
 using StoreOS.Application.Identity.Users.GetUsers;
+using StoreOS.Application.Identity.Password.AdminResetPassword;
 
 namespace StoreOS.Api.Controllers;
 
@@ -46,7 +47,15 @@ public class UsersController : ControllerBase
         await _mediator.Send(new DeactivateUserCommand(id), ct);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/reset-password")]
+    public async Task<IActionResult> ResetPassword(Guid id, [FromBody] ResetPasswordBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new AdminResetPasswordCommand(id, body.NewTemporaryPassword), ct);
+        return NoContent();
+    }
 }
 
 public record AssignRoleBody(Guid RoleId, Guid? BranchId = null);
 public record AssignBranchBody(Guid BranchId, bool IsDefault = false);
+public record ResetPasswordBody(string NewTemporaryPassword);

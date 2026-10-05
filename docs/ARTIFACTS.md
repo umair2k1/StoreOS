@@ -1919,3 +1919,30 @@ var sgst = Money.Round2(totalGst - cgst);
       "code": "rate_limited"
     }
     ```
+
+## P-313
+
+### User Password Management & Admin Password Reset
+- Vertical Slices (`StoreOS.Application/Identity/Password/`):
+  - `ChangePassword/`:
+    - Command: `StoreOS.Application.Identity.Password.ChangePassword.ChangePasswordCommand(string CurrentPassword, string NewPassword)` (`IRequest`)
+    - Validator: `ChangePasswordValidator` (CurrentPassword not empty, NewPassword min 10 chars, at least one letter and digit, must differ from current)
+    - Handler: `ChangePasswordHandler` (verifies current password via `IPasswordHasher`, updates hash, bumps `TokenVersion`, evicts `IMemoryCache` entry, revokes all user refresh tokens, writes audit `user.password.changed`)
+  - `AdminResetPassword/`:
+    - Command: `StoreOS.Application.Identity.Password.AdminResetPassword.AdminResetPasswordCommand(Guid UserId, string NewTemporaryPassword)` (`IRequest`, `IHighImpactOperation`, `RequiredPermission => "users:manage"`)
+    - Validator: `AdminResetPasswordValidator` (UserId not empty, NewTemporaryPassword min 10 chars, letter and digit)
+    - Handler: `AdminResetPasswordHandler` (validates Owner hierarchy: Owner can only be reset by another tenant-wide Owner; updates hash, bumps `TokenVersion`, evicts `IMemoryCache`, revokes target user's refresh tokens, writes audit `user.password.reset`)
+- API Controller Routes:
+  - `POST /api/auth/change-password` (`AuthController`):
+    - `[Authorize]`, `[EnableRateLimiting("login")]`
+    - Clears `storeos_refresh_token` cookie and returns 204 `NoContent`.
+  - `POST /api/users/{id:guid}/reset-password` (`UsersController`):
+    - Requires `users:manage` permission via `LiveDbPermissionBehavior`.
+    - Returns 204 `NoContent`.
+- Audit Action Names:
+  - `"user.password.changed"` (for user self-change; `changes` JSON never contains password material)
+  - `"user.password.reset"` (for admin reset; `changes` JSON never contains password material)
+- Error Catalog Status Mapping:
+  - `current_password_incorrect` -> 422 Unprocessable Entity (`ErrorCatalog.cs`)
+- Security & Session Invalidation Invariant:
+  - Every password change or reset immediately bumps `users.token_version`, evicts the in-memory cache key (`token_version:{userId}`), and revokes all active refresh tokens in the database, ensuring all existing sessions are invalidated across devices.

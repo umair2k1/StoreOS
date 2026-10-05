@@ -26,6 +26,7 @@ public class ErrorCatalogTests
     [InlineData("idempotency_key_reuse", HttpStatusCode.Conflict)]
     [InlineData("idempotency_in_progress", HttpStatusCode.Conflict)]
     [InlineData("serialization_conflict", HttpStatusCode.Conflict)]
+    [InlineData("current_password_incorrect", HttpStatusCode.UnprocessableEntity)]
     public void StatusFor_ExplicitCodes_ReturnsConfiguredStatusCode(string code, HttpStatusCode expected)
     {
         ErrorCatalog.StatusFor(code).Should().Be(expected);
