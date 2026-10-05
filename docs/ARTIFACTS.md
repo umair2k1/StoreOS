@@ -1239,8 +1239,7 @@ CREATE INDEX ix_idempotency_created ON idempotency_keys (created_at);
   ```
 
 ### Query Filter Convention
-Every future entity-adding prompt must add its query filter line to `QueryFilters.ApplyAll`, never inline in either DbContext.
-
+Every later prompt that adds a new tenant-scoped or branch-scoped entity MUST add its HasQueryFilter(...) line HERE, in this single shared method, so both StoreOsDbContext and ReportingDbContext automatically stay consistent. Do not add query filters directly inside either DbContext's OnModelCreating from this point forward.
 ### DI Registration & Connection Strings (Program.cs)
 - `builder.Services.AddDbContext<ReportingDbContext>` mapped to `ConnectionStrings:Reporting` with `RlsSessionInterceptor`.
 - `builder.Services.AddScoped<IReportingDbContext, ReportingDbContext>()`.
