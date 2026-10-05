@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Inventory.Queries;
+using StoreOS.Application.Inventory.Adjustments;
 
 namespace StoreOS.Api.Controllers;
 
@@ -23,4 +24,8 @@ public class InventoryController : ControllerBase
     [HttpGet("valuation")]
     public async Task<IActionResult> Valuation([FromQuery] GetValuationQuery query, CancellationToken ct) =>
         Ok(await _mediator.Send(query, ct));
+
+    [HttpPost("adjustments")]
+    public async Task<IActionResult> AdjustStock([FromBody] AdjustStockCommand command, CancellationToken ct) =>
+        Ok(await _mediator.Send(command, ct));
 }

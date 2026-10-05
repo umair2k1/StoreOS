@@ -2432,3 +2432,27 @@ var sgst = Money.Round2(totalGst - cgst);
 - Migration:
   - `20261005185632_015_ImportBatches` applied via:
     `dotnet ef migrations add 015_ImportBatches --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-413
+
+### Inventory Adjustments Endpoint (Live-DB Gated)
+- Command & Result (`StoreOS.Application.Inventory.Adjustments`):
+  ```csharp
+  public record AdjustStockCommand(Guid ProductId, int QtyDelta, string Reason)
+      : IRequest<AdjustStockResult>, IHighImpactOperation
+  {
+      public string RequiredPermission => "inventory:adjustments";
+  }
+
+  public record AdjustStockResult(int NewStockQty);
+  ```
+- Validator (`StoreOS.Application.Inventory.Adjustments.AdjustStockValidator`):
+  - Enforces `QtyDelta != 0` and mandatory non-empty `Reason`.
+- Handler & Audit Behavior:
+  - Positive delta calls `IInventoryStockService.IncreaseStockAsync` with `MovementType.Adjustment`.
+  - Negative delta calls `IInventoryStockService.ReserveAndDecrementStockAsync` with `-QtyDelta` and `MovementType.Adjustment`.
+  - Stock can never go negative (throws `insufficient_stock`).
+  - Appends to `IAuditWriter` action `"inventory.adjusted"` preserving the `Reason` string permanently in the audit trail.
+  - Live DB check: implements `IHighImpactOperation`, bypassing memory cache to guarantee immediate authorization enforcement.
+- Controller:
+  - `POST /api/inventory/adjustments` (`StoreOS.Api.Controllers.InventoryController`)
