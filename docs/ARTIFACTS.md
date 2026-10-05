@@ -1484,3 +1484,48 @@ var sgst = Money.Round2(totalGst - cgst);
   5. `UseAuthentication` (with `JwtBearerDefaults.AuthenticationScheme` and `MapInboundClaims = false`)
   6. `UseAuthorization`
   7. `MapControllers` (MediatR behaviors handle `TransactionBehavior` and `IdempotencyBehavior` inside request scope per P-109, P-117)
+
+## P-303
+
+### Login Endpoint & Authentication Handler
+- Command: `StoreOS.Application.Identity.Login.LoginCommand` (`backend/src/StoreOS.Application/Identity/Login/LoginCommand.cs`)
+  ```csharp
+  namespace StoreOS.Application.Identity.Login;
+
+  public record LoginCommand(string Email, string Password, Guid TenantId)
+      : IRequest<LoginResult>, IAnonymousTenantRequest;
+
+  public record LoginResult(
+      string AccessToken,
+      DateTimeOffset ExpiresAt,
+      Guid UserId,
+      string DisplayName,
+      Guid TenantId,
+      bool AllBranches,
+      IReadOnlyList<Guid> BranchIds,
+      IReadOnlyList<string> Permissions);
+  ```
+- Validator: `StoreOS.Application.Identity.Login.LoginValidator` (`backend/src/StoreOS.Application/Identity/Login/LoginValidator.cs`)
+- Handler: `StoreOS.Application.Identity.Login.LoginHandler` (`backend/src/StoreOS.Application/Identity/Login/LoginHandler.cs`)
+  - Pre-auth tenant scoping: uses `IgnoreQueryFilters()` with `request.TenantId` since no `IAccessScope` exists yet.
+  - Tenant-wide branch resolution: resolves `allBranches = totalAssignments > branchSpecificCount` by joining `user_role_assignments` with `branches` (handling the null branch_id sentinel pattern).
+- Controller: `StoreOS.Api.Controllers.AuthController` (`backend/src/StoreOS.Api/Controllers/AuthController.cs`)
+  - Route: `POST /api/auth/login` (`[AllowAnonymous]`)
+  - Fallback Tenant Resolution: if `command.TenantId == Guid.Empty`, resolves via `ITenantResolver.ResolveFromHostAsync(Request.Host.Value)` or returns 422 `tenant_not_found`.
+  - Response 200 OK JSON:
+    ```json
+    {
+      "accessToken": "ey...",
+      "expiresAt": "2026-10-05T...",
+      "userId": "uuid",
+      "displayName": "string",
+      "tenantId": "uuid",
+      "allBranches": true,
+      "branchIds": ["uuid"],
+      "permissions": ["pos:checkout"]
+    }
+    ```
+- Security & Anti-Enumeration Rules:
+  - All credential failure conditions (wrong password, unknown email, inactive user) return identical generic error: 401 Unauthorized with code `"invalid_credentials"` and message `"Invalid email or password."`.
+  - Inactive tenant returns 403 Forbidden with code `"tenant_inactive"`.
+  - Error status mappings registered in `ErrorCatalog.cs`.
