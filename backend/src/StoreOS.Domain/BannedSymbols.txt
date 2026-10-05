@@ -1,0 +1,3 @@
+M:System.Math.Pow(System.Double,System.Double);Use decimal-based DecimalPow instead of Math.Pow for financial calculations (see FinanceEngine).
+T:System.Double;Do not use double for monetary values; use decimal.
+T:System.Single;Do not use float for monetary values; use decimal.

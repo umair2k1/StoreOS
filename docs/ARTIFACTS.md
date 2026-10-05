@@ -1186,3 +1186,30 @@ CREATE INDEX ix_idempotency_created ON idempotency_keys (created_at);
 
 ### MediatR Behavior Order (DECISIONS D-04, CONTRACTS §3)
 `ValidationBehavior` -> `SerializationRetryBehavior` (P-511) -> `TransactionBehavior` -> `TokenVersionBehavior` (P-307) -> `AuthorizationBehavior` -> `IdempotencyBehavior` -> handler
+
+## P-118
+
+### Package Allowlist Amendments (Directory.Packages.props)
+- Added package version:
+  ```xml
+  <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
+  ```
+  *Note: Analyzer-only reference restricted strictly to `StoreOS.Domain.csproj` via `<PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />` and `<AdditionalFiles Include="BannedSymbols.txt" />`.*
+
+### Money Utilities
+- Class: `StoreOS.Domain.Common.Money` (`backend/src/StoreOS.Domain/Common/Money.cs`)
+  ```csharp
+  public static class Money
+  {
+      public static decimal Round2(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
+  }
+  ```
+
+### Banned Symbols Configuration
+- File: `backend/src/StoreOS.Domain/BannedSymbols.txt`
+  ```text
+  M:System.Math.Pow(System.Double,System.Double);Use decimal-based DecimalPow instead of Math.Pow for financial calculations (see FinanceEngine).
+  T:System.Double;Do not use double for monetary values; use decimal.
+  T:System.Single;Do not use float for monetary values; use decimal.
+  ```
+- Analyzer Diagnostics: RS0030 active on `StoreOS.Domain`.

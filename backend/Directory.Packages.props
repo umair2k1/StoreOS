@@ -37,5 +37,6 @@
     <PackageVersion Include="NSwag.MSBuild" Version="14.1.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
   </ItemGroup>
 </Project>

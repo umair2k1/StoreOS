@@ -4,7 +4,14 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <WarningsAsErrors>$(WarningsAsErrors);RS0030</WarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="BannedSymbols.txt" />
+    <Analyzer Include="$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)\analyzers\dotnet\cs\Microsoft.CodeAnalysis.BannedApiAnalyzers.dll" />
+    <Analyzer Include="$(PkgMicrosoft_CodeAnalysis_BannedApiAnalyzers)\analyzers\dotnet\cs\Microsoft.CodeAnalysis.CSharp.BannedApiAnalyzers.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="StoreOS.Domain.Tests" />
