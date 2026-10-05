@@ -38,6 +38,8 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<ImportBatch> ImportBatches => Set<ImportBatch>();
     public DbSet<InventoryTransfer> InventoryTransfers => Set<InventoryTransfer>();
     public DbSet<StoreOS.Domain.Sales.InvoiceSequence> InvoiceSequences => Set<StoreOS.Domain.Sales.InvoiceSequence>();
+    public DbSet<StoreOS.Domain.Sales.Sale> Sales => Set<StoreOS.Domain.Sales.Sale>();
+    public DbSet<StoreOS.Domain.Sales.SaleItem> SaleItems => Set<StoreOS.Domain.Sales.SaleItem>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
     protected override void OnModelCreating(ModelBuilder modelBuilder)

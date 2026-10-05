@@ -2568,3 +2568,91 @@ var sgst = Money.Round2(totalGst - cgst);
   - `20261005193020_017_InvoiceSequences` applied via:
     `dotnet ef migrations add 017_InvoiceSequences --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
     `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-502
+### Sales & Sale Items Core Transactional Entities
+- Domain Constants:
+  - `StoreOS.Domain.Sales.InvoiceType`: `TaxInvoice = "TaxInvoice"`, `Estimate = "Estimate"`, `All`
+  - `StoreOS.Domain.Sales.SaleStatus`: `Active = "Active"`, `Voided = "Voided"`, `Refunded = "Refunded"`, `All`
+  - `StoreOS.Domain.Sales.PaymentMode`: `Cash = "Cash"`, `UPI = "UPI"`, `Card = "Card"`, `Credit = "Credit"`, `Finance = "Finance"`, `All`
+- Domain Entities:
+  - `StoreOS.Domain.Sales.SaleItem`:
+    ```csharp
+    public class SaleItem
+    {
+        public Guid Id { get; private set; }
+        public Guid TenantId { get; private set; }
+        public Guid SaleId { get; private set; }
+        public Guid? ProductId { get; private set; }
+        public string ItemName { get; private set; }
+        public string Category { get; private set; }
+        public int Qty { get; private set; }
+        public decimal PricePerUnit { get; private set; }
+        public decimal? PurchasePriceSnapshot { get; private set; }
+        public string? HsnSnapshot { get; private set; }
+        public bool IsMarginScheme { get; private set; }
+        public bool IsGift { get; private set; }
+        public decimal Taxable { get; private set; }
+        public decimal Cgst { get; private set; }
+        public decimal Sgst { get; private set; }
+        public string? Imei { get; private set; }
+        public static SaleItem Create(...);
+    }
+    ```
+    - **Snapshot Immutability Rule:** `item_name`, `category`, `hsn_snapshot`, and `purchase_price_snapshot` are written once at creation and never mutated afterward by any later prompt, maintaining historical accuracy even if underlying products change.
+  - `StoreOS.Domain.Sales.Sale`:
+    ```csharp
+    public class Sale
+    {
+        public Guid Id { get; private set; }
+        public Guid TenantId { get; private set; }
+        public Guid BranchId { get; private set; }
+        public string InvoiceNumber { get; private set; }
+        public string InvoiceType { get; private set; }
+        public DateTimeOffset SaleDate { get; private set; }
+        public Guid? CustomerId { get; private set; }
+        public string? CustomerName { get; private set; }
+        public string? CustomerGstin { get; private set; }
+        public decimal TotalTaxable { get; private set; }
+        public decimal TotalCgst { get; private set; }
+        public decimal TotalSgst { get; private set; }
+        public decimal GrandTotal { get; private set; }
+        public decimal Discount { get; private set; }
+        public decimal AmountPaid { get; private set; }
+        public string Status { get; private set; }
+        public string? PaymentMode { get; private set; }
+        public string? FinanceProvider { get; private set; }
+        public string? FinancerName { get; private set; }
+        public decimal? DownPayment { get; private set; }
+        public string? EmiDetailsJson { get; private set; }
+        public string? GiftDetailsJson { get; private set; }
+        public string? Description { get; private set; }
+        public Guid? RepairJobId { get; private set; }
+        public string? Irn { get; private set; }
+        public string? IrnAckNo { get; private set; }
+        public string? IrnQrData { get; private set; }
+        public Guid CreatedBy { get; private set; }
+        public DateTimeOffset CreatedAt { get; private set; }
+        public IReadOnlyList<SaleItem> Items { get; }
+        public static Sale CreateTaxInvoice(...);
+        public static Sale CreateEstimate(...);
+        public void AddItem(SaleItem item);
+        public void MarkVoided();
+        public void MarkRefunded();
+        public void ApplyPayment(decimal amount);
+        public void SetIrn(string irn, string irnAckNo, string irnQrData);
+    }
+    ```
+- Database Tables & Constraints:
+  - Table `public.sales`: PK `id`, FK `branch_id -> branches(id)`, `UNIQUE(tenant_id, invoice_number)`.
+    - Indexes: `ix_sales_tenant_branch_date (tenant_id, branch_id, sale_date)`, `ix_sales_tenant_status (tenant_id, status)`, partial `ix_sales_tenant_irn (tenant_id, irn) WHERE irn IS NOT NULL`.
+    - Check constraints: `ck_sales_invoice_type (TaxInvoice, Estimate)`, `ck_sales_status (Active, Voided, Refunded)`, `ck_sales_payment_mode (Cash, UPI, Card, Credit, Finance)`.
+    - Archetype B RLS: `tenant_branch_isolation_policy`.
+  - Table `public.sale_items`: PK `id`, FK `sale_id -> sales(id) ON DELETE CASCADE`, FK `product_id -> products(id) ON DELETE RESTRICT`.
+    - Indexes: `ix_sale_items_sale (tenant_id, sale_id)`, `ix_sale_items_imei (tenant_id, imei)`.
+    - Check constraint: `ck_sale_items_qty (qty > 0)`.
+    - Archetype A RLS: `tenant_isolation_policy` on `tenant_id`.
+- Migration:
+  - `20261005193528_018_Sales` applied via:
+    `dotnet ef migrations add 018_Sales --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

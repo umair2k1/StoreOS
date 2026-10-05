@@ -849,6 +849,257 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("invoice_sequences", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Sales.Sale", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("AmountPaid")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("amount_paid");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CustomerGstin")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_gstin");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_name");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<decimal>("Discount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("discount");
+
+                    b.Property<decimal?>("DownPayment")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("down_payment");
+
+                    b.Property<string>("EmiDetailsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("emi_details");
+
+                    b.Property<string>("FinanceProvider")
+                        .HasColumnType("text")
+                        .HasColumnName("finance_provider");
+
+                    b.Property<string>("FinancerName")
+                        .HasColumnType("text")
+                        .HasColumnName("financer_name");
+
+                    b.Property<string>("GiftDetailsJson")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("gift_details");
+
+                    b.Property<decimal>("GrandTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("grand_total");
+
+                    b.Property<string>("InvoiceNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<string>("InvoiceType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_type");
+
+                    b.Property<string>("Irn")
+                        .HasColumnType("text")
+                        .HasColumnName("irn");
+
+                    b.Property<string>("IrnAckNo")
+                        .HasColumnType("text")
+                        .HasColumnName("irn_ack_no");
+
+                    b.Property<string>("IrnQrData")
+                        .HasColumnType("text")
+                        .HasColumnName("irn_qr_data");
+
+                    b.Property<string>("PaymentMode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_mode");
+
+                    b.Property<Guid?>("RepairJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("repair_job_id");
+
+                    b.Property<DateTimeOffset>("SaleDate")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("sale_date");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("text")
+                        .HasDefaultValue("Active")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalCgst")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_cgst");
+
+                    b.Property<decimal>("TotalSgst")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_sgst");
+
+                    b.Property<decimal>("TotalTaxable")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_taxable");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("TenantId", "InvoiceNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_sales_tenant_invoice_number");
+
+                    b.HasIndex("TenantId", "Irn")
+                        .HasDatabaseName("ix_sales_tenant_irn")
+                        .HasFilter("irn IS NOT NULL");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_sales_tenant_status");
+
+                    b.HasIndex("TenantId", "BranchId", "SaleDate")
+                        .HasDatabaseName("ix_sales_tenant_branch_date");
+
+                    b.ToTable("sales", "public");
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Sales.SaleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("category");
+
+                    b.Property<decimal>("Cgst")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("cgst");
+
+                    b.Property<string>("HsnSnapshot")
+                        .HasColumnType("text")
+                        .HasColumnName("hsn_snapshot");
+
+                    b.Property<string>("Imei")
+                        .HasColumnType("text")
+                        .HasColumnName("imei");
+
+                    b.Property<bool>("IsGift")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_gift");
+
+                    b.Property<bool>("IsMarginScheme")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_margin_scheme");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("item_name");
+
+                    b.Property<decimal>("PricePerUnit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("price_per_unit");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<decimal?>("PurchasePriceSnapshot")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("purchase_price_snapshot");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("integer")
+                        .HasColumnName("qty");
+
+                    b.Property<Guid>("SaleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sale_id");
+
+                    b.Property<decimal>("Sgst")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("sgst");
+
+                    b.Property<decimal>("Taxable")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("taxable");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SaleId");
+
+                    b.HasIndex("TenantId", "Imei")
+                        .HasDatabaseName("ix_sale_items_imei");
+
+                    b.HasIndex("TenantId", "SaleId")
+                        .HasDatabaseName("ix_sale_items_sale");
+
+                    b.ToTable("sale_items", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Suppliers.Supplier", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1193,6 +1444,29 @@ namespace StoreOS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Sales.Sale", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Sales.SaleItem", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreOS.Domain.Sales.Sale", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Tenancy.Branch", b =>
                 {
                     b.HasOne("StoreOS.Domain.Tenancy.Tenant", null)
@@ -1209,6 +1483,11 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Sales.Sale", b =>
+                {
+                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }
