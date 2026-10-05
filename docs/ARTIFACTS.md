@@ -2170,3 +2170,25 @@ var sgst = Money.Round2(totalGst - cgst);
     - RLS Policy (`tenant_branch_isolation_policy`): Archetype B enabled and forced.
 - Migration:
   - `20261005182800_011_InventoryMovements` applied via `dotnet ef migrations add 011_InventoryMovements --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.
+
+## P-406
+
+### IInventoryStockService: Conditional Decrement / Increment Contract
+- Service Interface (`StoreOS.Application.Inventory.IInventoryStockService`):
+  ```csharp
+  public interface IInventoryStockService
+  {
+      Task ReserveAndDecrementStockAsync(Guid branchId, Guid productId, int qty, string movementType,
+          string refType, string refId, CancellationToken ct);
+
+      Task IncreaseStockAsync(Guid branchId, Guid productId, int qty, decimal? newCostPrice,
+          string movementType, string refType, string refId, CancellationToken ct);
+  }
+  ```
+- Service Implementation (`StoreOS.Infrastructure.Inventory.InventoryStockService`):
+  - Registered scoped in DI (`builder.Services.AddScoped<IInventoryStockService, InventoryStockService>()`).
+  - **Hard Invariant**: This conditional `UPDATE branch_inventory SET stock_qty = stock_qty - @qty WHERE tenant_id = @tenantId AND branch_id = @branchId AND product_id = @productId AND stock_qty >= @qty` pattern via `ExecuteSqlInterpolatedAsync` is the **ONLY** sanctioned way to decrement branch stock anywhere in the codebase.
+  - Every subsequent prompt modifying branch stock (P-410, P-510, P-524, P-525, P-608, P-705, P-414, P-413) MUST invoke `IInventoryStockService`.
+  - Neither method calls `SaveChangesAsync()`; operations are staged on the ambient `StoreOsDbContext` so callers commit atomically along with sale lines, audit logs, and payments.
+- Concurrency Verification:
+  - Verified via `StoreOS.ConcurrencyTests/InventoryStockConcurrencyTests.cs` that two simultaneous concurrent tasks decrementing stock of 1 produce exactly one successful winner and one `insufficient_stock` domain exception, with zero negative stock or double-decrement.

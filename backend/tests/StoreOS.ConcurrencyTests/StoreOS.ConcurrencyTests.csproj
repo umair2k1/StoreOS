@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StoreOS.Api\StoreOS.Api.csproj" />
+    <ProjectReference Include="..\StoreOS.IntegrationTests\StoreOS.IntegrationTests.csproj" />
   </ItemGroup>
 
 </Project>

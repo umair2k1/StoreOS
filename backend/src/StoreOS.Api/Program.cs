@@ -70,6 +70,7 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantJobRunner, StoreOS.Infrastructure.Persistence.TenantJobRunner>();
 builder.Services.AddScoped<StoreOS.Application.Platform.IAuditWriter, StoreOS.Infrastructure.Platform.AuditWriter>();
+builder.Services.AddScoped<StoreOS.Application.Inventory.IInventoryStockService, StoreOS.Infrastructure.Inventory.InventoryStockService>();
 builder.Services.AddHostedService<RlsRoleGuard>();
 
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
