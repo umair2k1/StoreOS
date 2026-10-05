@@ -896,3 +896,56 @@ All 8 tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`:
     - `code` (string error code)
     - `errors` (dictionary of string field name to string array of messages, present on validation errors)
   - Adds `Retry-After: 1` header on `serialization_conflict` errors.
+
+## P-109
+
+### Application Abstractions
+- `StoreOS.Application.Abstractions.IRequestMarkers` (`backend/src/StoreOS.Application/Abstractions/IRequestMarkers.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IReadOnlyRequest { }
+  public interface IReportingRequest { }
+  public interface ISerializableRequest { }
+  ```
+- `StoreOS.Application.Abstractions.ITenantJobRunner` (`backend/src/StoreOS.Application/Abstractions/ITenantJobRunner.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface ITenantJobRunner
+  {
+      Task RunAsync(Guid tenantId, Func<IServiceProvider, CancellationToken, Task> work, CancellationToken ct = default);
+  }
+  ```
+
+### Infrastructure Implementations
+- `StoreOS.Infrastructure.Persistence.RlsSessionInterceptor` (`backend/src/StoreOS.Infrastructure/Persistence/RlsSessionInterceptor.cs`):
+  - Inherits `DbTransactionInterceptor`.
+  - Intercepts `TransactionStartedAsync` to execute:
+    `SELECT set_config('app.tenant_id', @t, true), set_config('app.branch_ids', @b, true), set_config('app.all_branches', @a, true)`
+  - Registered as scoped and added to `StoreOsDbContext` interceptors.
+- `StoreOS.Infrastructure.Persistence.TransactionBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Infrastructure/Persistence/TransactionBehavior.cs`):
+  - MediatR `IPipelineBehavior<TRequest, TResponse>` handling `IAnonymousTenantRequest` and managing single database transaction per request.
+  - Executes `SET LOCAL transaction_read_only = on` for `IReadOnlyRequest`.
+- `StoreOS.Infrastructure.Persistence.TenantJobRunner` (`backend/src/StoreOS.Infrastructure/Persistence/TenantJobRunner.cs`):
+  - Scoped implementation creating an async scope, setting `UseSystemContext(tenantId)`, running work in a `ReadCommitted` transaction, committing on success, rolling back on failure.
+
+### Isolation Level Mapping Table
+| Request marker | DbContext | Isolation Level | Mode | Retry on 40001/40P01 (P-511) |
+|---|---|---|---|---|
+| `IReadOnlyRequest` | `StoreOsDbContext` | ReadCommitted | READ ONLY | no |
+| `IReportingRequest` | `ReportingDbContext` (P-119) | RepeatableRead | READ ONLY | no |
+| `ISerializableRequest` | `StoreOsDbContext` | Serializable | read-write | yes |
+| Any other request | `StoreOsDbContext` | RepeatableRead | read-write | yes |
+
+### MediatR Pipeline Behavior Order (DECISIONS D-04, P-114)
+1. `ValidationBehavior` (validation, 400)
+2. `SerializationRetryBehavior` (retries transaction on 40001/40P01, P-511)
+3. `TransactionBehavior` (opens transaction, RLS session variables, commits/rollbacks, P-109)
+4. `TokenVersionBehavior` (token revocation check, P-307)
+5. `AuthorizationBehavior` (permissions and high impact checks, P-308)
+6. `IdempotencyBehavior` (idempotency key inside transaction, P-117)
+7. Handler
+
+### HTTP Middleware Order (Program.cs)
+`CorrelationId` -> `ExceptionHandling` -> `Authentication` -> `AccessScope` -> `BranchContext` -> `Authorization` -> controllers

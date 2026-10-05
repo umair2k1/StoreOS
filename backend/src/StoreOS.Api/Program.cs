@@ -8,13 +8,25 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 
-// Database & EF Core
-builder.Services.AddDbContext<StoreOsDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
+// Database & EF Core (P-101, P-109)
+builder.Services.AddScoped<StoreOS.Infrastructure.Persistence.RlsSessionInterceptor>();
+builder.Services.AddDbContext<StoreOsDbContext>((sp, options) =>
+{
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default"));
+    options.AddInterceptors(sp.GetRequiredService<StoreOS.Infrastructure.Persistence.RlsSessionInterceptor>());
+});
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
+builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantJobRunner, StoreOS.Infrastructure.Persistence.TenantJobRunner>();
 builder.Services.AddHostedService<RlsRoleGuard>();
+
+// MediatR Pipeline & Behaviors (P-109)
+builder.Services.AddMediatR(cfg =>
+{
+    cfg.RegisterServicesFromAssembly(typeof(StoreOS.Application.Abstractions.IAppDbContext).Assembly);
+    cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.TransactionBehavior<,>));
+});
 
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
