@@ -1122,3 +1122,67 @@ CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
   - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
   - Migration HEAD: `20261005044244_007_AuditLog`
   - Table: `public.audit_log` with `GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, partial index `ix_audit_log_tenant_correlation`, RLS enabled and forced, policy `tenant_branch_isolation_policy` supporting nullable `branch_id`.
+
+## P-117
+
+### In-Transaction Idempotency Contracts & Behavior
+- Marker Interface: `StoreOS.Application.Abstractions.IIdempotentRequest` (`backend/src/StoreOS.Application/Abstractions/IIdempotentRequest.cs`)
+  ```csharp
+  public interface IIdempotentRequest
+  {
+      string? IdempotencyKey { get; }
+      string IdempotencyScope { get; }
+      bool IdempotencyRequired { get; }
+  }
+  ```
+- Store Interface: `StoreOS.Application.Abstractions.IIdempotencyStore` (`backend/src/StoreOS.Application/Abstractions/IIdempotentRequest.cs`)
+  ```csharp
+  public enum IdempotencyOutcome { Started, Replay, Mismatch, InProgress }
+  public sealed record IdempotencyBegin(IdempotencyOutcome Outcome, string? ResponseJson);
+  public interface IIdempotencyStore
+  {
+      Task<IdempotencyBegin> BeginAsync(string key, string scope, string requestHash, CancellationToken ct);
+      Task CompleteAsync(string key, string scope, string responseJson, CancellationToken ct);
+  }
+  ```
+- Pipeline Behavior: `StoreOS.Application.Behaviors.IdempotencyBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Application/Behaviors/IdempotencyBehavior.cs`)
+  ```csharp
+  public sealed class IdempotencyBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
+  ```
+- Replay Flag: `StoreOS.Application.Behaviors.IdempotencyReplayFlag` (`backend/src/StoreOS.Application/Behaviors/IdempotencyBehavior.cs`)
+  ```csharp
+  public sealed class IdempotencyReplayFlag { public bool Replayed { get; set; } }
+  ```
+- Store Implementation: `StoreOS.Infrastructure.Persistence.IdempotencyStore` (`backend/src/StoreOS.Infrastructure/Persistence/IdempotencyStore.cs`)
+  ```csharp
+  public class IdempotencyStore : IIdempotencyStore
+  ```
+
+### DDL & RLS Policies
+```sql
+CREATE TABLE idempotency_keys (
+  tenant_id  uuid NOT NULL,
+  user_id    uuid NOT NULL,
+  key        text NOT NULL,
+  endpoint   text NOT NULL,
+  request_hash text NOT NULL,
+  response_status int,
+  response_body  jsonb,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (tenant_id, user_id, endpoint, key)
+);
+ALTER TABLE idempotency_keys ENABLE ROW LEVEL SECURITY;
+ALTER TABLE idempotency_keys FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_policy ON idempotency_keys
+  USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid);
+CREATE INDEX ix_idempotency_created ON idempotency_keys (created_at);
+```
+
+### Database Migrations
+- Migration: `008_Idempotency` (`backend/src/StoreOS.Infrastructure/Migrations/20261005050329_008_Idempotency.cs`)
+  - Generation Command: `dotnet ef migrations add 008_Idempotency --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261005050329_008_Idempotency`
+
+### MediatR Behavior Order (DECISIONS D-04, CONTRACTS §3)
+`ValidationBehavior` -> `SerializationRetryBehavior` (P-511) -> `TransactionBehavior` -> `TokenVersionBehavior` (P-307) -> `AuthorizationBehavior` -> `IdempotencyBehavior` -> handler

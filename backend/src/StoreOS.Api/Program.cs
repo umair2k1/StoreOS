@@ -30,7 +30,10 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.ValidationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.TransactionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.IdempotencyBehavior<,>));
 });
+builder.Services.AddScoped<StoreOS.Application.Behaviors.IdempotencyReplayFlag>();
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IIdempotencyStore, StoreOS.Infrastructure.Persistence.IdempotencyStore>();
 builder.Services.AddValidatorsFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
 
 // Authentication & Authorization (P-106, P-114, P-302)
