@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Platform;
+using StoreOS.Domain.Suppliers;
 using StoreOS.Domain.Purchasing;
 using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Inventory;
@@ -45,6 +46,7 @@ public static class QueryFilters
         ApplyFilter<InventoryMovement>(modelBuilder, scopeAccess, (im, s) => im.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(im.BranchId)));
         ApplyFilter<InventoryImei>(modelBuilder, scopeAccess, (ii, s) => ii.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(ii.BranchId)));
         ApplyFilter<Purchase>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(p.BranchId)));
+        ApplyFilter<Supplier>(modelBuilder, scopeAccess, (su, s) => su.TenantId == s.TenantId);
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,

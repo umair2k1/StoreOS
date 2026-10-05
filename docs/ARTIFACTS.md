@@ -2346,3 +2346,44 @@ var sgst = Money.Round2(totalGst - cgst);
   - `GET /api/purchases` -> `List([FromQuery] GetPurchasesQuery query)`
 - Exception Translation:
   - Intercepts Postgres `23505` unique-violation on `ux_imei_active` and throws `DomainException("imei_already_active", ...)`, mapped to HTTP 409 Conflict by `ErrorCatalog`.
+
+## P-411
+
+### Suppliers Minimal Master Entity & FK Retrofit
+- Domain Entity (`StoreOS.Domain.Suppliers.Supplier`):
+  ```csharp
+  public class Supplier
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public string Name { get; private set; }
+      public string? Phone { get; private set; }
+      public string? Address { get; private set; }
+      public string? BrandOrCategory { get; private set; }
+      public string? Notes { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+
+      public static Supplier Create(Guid tenantId, string name, string? phone, string? address,
+          string? brandOrCategory, string? notes);
+      public void UpdateProfile(string name, string? phone, string? address, string? brandOrCategory, string? notes);
+  }
+  ```
+- Vertical Slices (`StoreOS.Application.Suppliers`):
+  - `CreateSupplierCommand(string Name, string? Phone, string? Address, string? BrandOrCategory, string? Notes) : IRequest<Guid>, IRequiresPermission` (`purchases:manage`)
+  - `GetSuppliersQuery(string? Search, int Page = 1, int PageSize = 50) : IRequest<PagedResult<SupplierDto>>, IReadOnlyRequest, IRequiresPermission` (`purchases:manage`)
+  - `GetSupplierByIdQuery(Guid Id) : IRequest<SupplierDto>, IReadOnlyRequest, IRequiresPermission` (`purchases:manage`)
+  - `UpdateSupplierCommand(Guid Id, string Name, string? Phone, string? Address, string? BrandOrCategory, string? Notes) : IRequest, IRequiresPermission` (`purchases:manage`)
+  - DTO: `SupplierDto(Guid Id, string Name, string? Phone, string? Address, string? BrandOrCategory, string? Notes, DateTimeOffset CreatedAt)`
+- Controller (`StoreOS.Api.Controllers.SuppliersController`):
+  - `GET /api/suppliers`
+  - `GET /api/suppliers/{id:guid}`
+  - `POST /api/suppliers`
+  - `PUT /api/suppliers/{id:guid}`
+- Database Schema & Invariants:
+  - Table: `public.suppliers` (`id` uuid PK, `tenant_id` uuid NOT NULL, `name` text NOT NULL, `phone` text, `address` text, `brand_or_category` text, `notes` text, `created_at` timestamptz DEFAULT now()).
+  - Index: `ix_suppliers_tenant_name` on `(tenant_id, name)`.
+  - RLS Policy: Tenant-only RLS policy (`tenant_isolation_policy`).
+  - Foreign Key Retrofit: `ALTER TABLE purchases ADD CONSTRAINT fk_purchases_supplier FOREIGN KEY (supplier_id) REFERENCES suppliers(id);`.
+- Migration:
+  - `20261005185105_014_SuppliersMaster` applied via:
+    `dotnet ef migrations add 014_SuppliersMaster --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

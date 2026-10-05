@@ -3,6 +3,7 @@ using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Identity;
 using StoreOS.Domain.Platform;
+using StoreOS.Domain.Suppliers;
 using StoreOS.Domain.Purchasing;
 using StoreOS.Domain.Inventory;
 using StoreOS.Domain.Catalog;
@@ -33,6 +34,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<InventoryImei> InventoryImeis => Set<InventoryImei>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
     protected override void OnModelCreating(ModelBuilder modelBuilder)

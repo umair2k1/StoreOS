@@ -36,8 +36,14 @@ public class StockInHandler : IRequestHandler<StockInCommand, StockInResult>
             request.PurchaseRate, request.SupplierId, request.SupplierName, request.SupplierPhone,
             request.SupplierAddress, request.PurchaseDate, _scope.UserId, request.SupplierInvoiceNo);
         await _db.Set<Purchase>().AddAsync(purchase, ct);
-        await _db.SaveChangesAsync(ct);
-
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException ex) when (IsForeignKeyViolation(ex))
+        {
+            throw new DomainValidationException("supplier_not_found", "The specified supplier was not found.");
+        }
         await _stockService.IncreaseStockAsync(branchId, request.ProductId, request.Qty,
             request.PurchaseRate, MovementType.Purchase, "Purchase", purchase.Id.ToString(), ct);
 
@@ -86,6 +92,28 @@ public class StockInHandler : IRequestHandler<StockInCommand, StockInResult>
 
             if (current.Message.Contains("ux_imei_active", StringComparison.OrdinalIgnoreCase) ||
                 current.Message.Contains("23505", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            current = current.InnerException;
+        }
+
+        return false;
+    }
+
+    private static bool IsForeignKeyViolation(DbUpdateException ex)
+    {
+        var current = ex.InnerException;
+        while (current != null)
+        {
+            if (current is DbException dbEx && string.Equals(dbEx.SqlState, "23503", StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (current.Message.Contains("fk_purchases_supplier", StringComparison.OrdinalIgnoreCase) ||
+                current.Message.Contains("23503", StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
