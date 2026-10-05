@@ -2387,3 +2387,48 @@ var sgst = Money.Round2(totalGst - cgst);
 - Migration:
   - `20261005185105_014_SuppliersMaster` applied via:
     `dotnet ef migrations add 014_SuppliersMaster --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-412
+
+### Supplier Invoice Import Pipeline (Deterministic & Deduped)
+- Domain Entity (`StoreOS.Domain.Platform.ImportBatch`):
+  ```csharp
+  public static class ImportSourceType { public const string SupplierInvoice = "SupplierInvoice"; public const string Excel = "Excel"; public const string JsonBackup = "JsonBackup"; }
+  public static class ImportStatus { public const string Pending = "Pending"; public const string Imported = "Imported"; public const string Failed = "Failed"; }
+  public class ImportBatch
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid? BranchId { get; private set; }
+      public string SourceType { get; private set; }
+      public string SourceRef { get; private set; }
+      public string Status { get; private set; }
+      public string? RecordCounts { get; private set; }
+      public Guid CreatedBy { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+      public static ImportBatch Create(Guid tenantId, Guid? branchId, string sourceType, string sourceRef, Guid createdBy);
+      public void MarkImported(string? recordCountsJson);
+      public void MarkFailed(string? reasonJson);
+      public void UpdateRecordCounts(string? recordCountsJson);
+  }
+  ```
+- Import Pipeline Contracts (`StoreOS.Application.Purchasing.ImportSupplierInvoice`):
+  ```csharp
+  public record SupplierInvoiceImportLine(string ProductNameRaw, string? HsnCode, int Qty, decimal Rate, string? Imei);
+  public record ImportSupplierInvoiceCommand(Guid SupplierId, string SupplierInvoiceNo, DateOnly InvoiceDate, string SourceRef, IReadOnlyList<SupplierInvoiceImportLine> Lines) : IRequest<ImportResult>, IRequiresPermission
+  {
+      public string RequiredPermission => "purchases:manage";
+  }
+  public record ImportResult(Guid ImportBatchId, string Status, int ProductsMatched, int ProductsAmbiguous, IReadOnlyList<AmbiguousLine> AmbiguousLines, int PurchasesCreated);
+  public record AmbiguousLine(string ProductNameRaw, IReadOnlyList<Guid> CandidateProductIds);
+  ```
+- Matching Rules:
+  - **Deterministic Rule**: Strict case-insensitive string equality on `products.name` ONLY. No fuzzy, Levenshtein, or AI/ML matching is permitted.
+  - Unambiguous lines are processed immediately via `StockInCommand`.
+  - 0 matches or >1 matches are added to `AmbiguousLines` (candidate IDs provided for >1 matches; empty list for 0 matches), batch status set to `Pending`.
+  - Deduplication: When `(tenant_id, source_ref)` exists with status `Imported`, the cached `ImportResult` is returned without reprocessing or creating duplicate stock.
+- Controller:
+  - `POST /api/imports/supplier-invoice` (`StoreOS.Api.Controllers.ImportsController`)
+- Migration:
+  - `20261005185632_015_ImportBatches` applied via:
+    `dotnet ef migrations add 015_ImportBatches --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

@@ -47,6 +47,7 @@ public static class QueryFilters
         ApplyFilter<InventoryImei>(modelBuilder, scopeAccess, (ii, s) => ii.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(ii.BranchId)));
         ApplyFilter<Purchase>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(p.BranchId)));
         ApplyFilter<Supplier>(modelBuilder, scopeAccess, (su, s) => su.TenantId == s.TenantId);
+        ApplyFilter<ImportBatch>(modelBuilder, scopeAccess, (ib, s) => ib.TenantId == s.TenantId && (ib.BranchId == null || s.AllBranches || s.BranchIds.Contains(ib.BranchId.Value)));
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,
