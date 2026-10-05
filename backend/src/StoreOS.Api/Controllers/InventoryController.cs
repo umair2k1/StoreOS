@@ -1,0 +1,26 @@
+using MediatR;
+using Microsoft.AspNetCore.Mvc;
+using StoreOS.Application.Inventory.Queries;
+
+namespace StoreOS.Api.Controllers;
+
+[ApiController]
+[Route("api/inventory")]
+public class InventoryController : ControllerBase
+{
+    private readonly IMediator _mediator;
+
+    public InventoryController(IMediator mediator) => _mediator = mediator;
+
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] GetInventoryQuery query, CancellationToken ct) =>
+        Ok(await _mediator.Send(query, ct));
+
+    [HttpGet("low-stock")]
+    public async Task<IActionResult> LowStock([FromQuery] GetLowStockQuery query, CancellationToken ct) =>
+        Ok(await _mediator.Send(query, ct));
+
+    [HttpGet("valuation")]
+    public async Task<IActionResult> Valuation([FromQuery] GetValuationQuery query, CancellationToken ct) =>
+        Ok(await _mediator.Send(query, ct));
+}

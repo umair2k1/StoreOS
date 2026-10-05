@@ -38,7 +38,8 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         // Requests without any tenant context never touch RLS-protected tables (e.g. tenant lookup by host).
         if (!_scope.HasTenantContext) return await next();
 
-        DbContext db = request is IReportingRequest
+        var isReporting = request is IReportingRequest;
+        DbContext db = isReporting
             ? _services.GetRequiredService<ReportingDbContext>()
             : _services.GetRequiredService<StoreOsDbContext>();
 
@@ -53,19 +54,39 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         };
 
         await using var tx = await db.Database.BeginTransactionAsync(isolation, ct); // interceptor sets app.* here
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? writeTx = null;
+        if (isReporting)
+        {
+            var writeDb = _services.GetService<StoreOsDbContext>();
+            if (writeDb != null && writeDb.Database.CurrentTransaction is null)
+            {
+                writeTx = await writeDb.Database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+            }
+        }
+
         try
         {
             if (readOnly) await db.Database.ExecuteSqlRawAsync("SET LOCAL transaction_read_only = on", ct);
             var response = await next();
+            if (writeTx != null) await writeTx.CommitAsync(ct);
             await tx.CommitAsync(ct);
             return response;
         }
         catch
         {
+            if (writeTx != null)
+            {
+                try { await writeTx.RollbackAsync(CancellationToken.None); }
+                catch { }
+            }
             try { await tx.RollbackAsync(CancellationToken.None); }
             catch (Exception rollbackEx) { _logger.LogDebug(rollbackEx, "Rollback after failure was not possible (transaction already aborted)."); }
             db.ChangeTracker.Clear(); // a retry (P-511) must never see entities from the failed attempt
             throw;
+        }
+        finally
+        {
+            if (writeTx != null) await writeTx.DisposeAsync();
         }
     }
 }

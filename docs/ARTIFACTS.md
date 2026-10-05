@@ -2092,3 +2092,25 @@ var sgst = Money.Round2(totalGst - cgst);
       ```
 - Migration:
   - `20261005181632_010_BranchInventory` applied via `dotnet ef migrations add 010_BranchInventory --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.
+## P-404
+
+### Inventory Reporting Queries & Valuation
+- Query Slices (`StoreOS.Application.Inventory.Queries`):
+  - `GetInventory`:
+    - Query: `GetInventoryQuery(string? Category = null, string? StockStatus = null, bool? IsMarginScheme = null, string? Search = null, Guid[]? BranchIds = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<InventoryLineDto>>, IReportingRequest`
+    - Handler: `GetInventoryHandler` (injects `IReportingDbContext`; translates `StockStatus` filter into SQL predicate before pagination; maps `EffectiveSellPrice` via `SellPriceOverride ?? ProductSellPrice`)
+  - `GetLowStock`:
+    - Query: `GetLowStockQuery(Guid[]? BranchIds = null) : IRequest<IReadOnlyList<InventoryLineDto>>, IReportingRequest`
+    - Handler: `GetLowStockHandler` (injects `IReportingDbContext`; returns low/out-of-stock items `stock_qty <= low_stock_threshold` across accessible branches; defensively filters out `RepairService`)
+  - `GetValuation`:
+    - Query: `GetValuationQuery(Guid[]? BranchIds = null) : IRequest<ValuationDto>, IReportingRequest`
+    - DTO: `ValuationDto(decimal CostValuation, decimal RetailValuation, decimal PotentialGrossValue)`
+    - Handler: `GetValuationHandler` (injects `IReportingDbContext`; first production caller of `ValuationCalculator.Calculate(...)` from P-205)
+- DTO:
+  - `InventoryLineDto(Guid ProductId, Guid BranchId, string ProductName, string Category, int StockQty, decimal CostPrice, decimal EffectiveSellPrice, decimal GstRate, bool IsMarginScheme, string? HsnCode, string StockStatus)`
+- API Controller (`StoreOS.Api.Controllers.InventoryController`):
+  - `GET /api/inventory` -> `List([FromQuery] GetInventoryQuery query)`
+  - `GET /api/inventory/low-stock` -> `LowStock([FromQuery] GetLowStockQuery query)`
+  - `GET /api/inventory/valuation` -> `Valuation([FromQuery] GetValuationQuery query)`
+- Infrastructure:
+  - First production caller of `ReportingDbContext` via `IReportingRequest` with RepeatableRead and `transaction_read_only = on`.
