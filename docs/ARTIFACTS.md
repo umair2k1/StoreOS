@@ -2192,3 +2192,58 @@ var sgst = Money.Round2(totalGst - cgst);
   - Neither method calls `SaveChangesAsync()`; operations are staged on the ambient `StoreOsDbContext` so callers commit atomically along with sale lines, audit logs, and payments.
 - Concurrency Verification:
   - Verified via `StoreOS.ConcurrencyTests/InventoryStockConcurrencyTests.cs` that two simultaneous concurrent tasks decrementing stock of 1 produce exactly one successful winner and one `insufficient_stock` domain exception, with zero negative stock or double-decrement.
+
+## P-407
+
+### Inventory IMEIs Entity, Migration & Tenant-Wide Active-Unique Index
+- Statuses (`StoreOS.Domain.Inventory.ImeiStatus`):
+  ```csharp
+  public static class ImeiStatus
+  {
+      public const string InStock = "InStock";
+      public const string Sold = "Sold";
+      public const string ReturnedToSupplier = "ReturnedToSupplier";
+      public const string InTransit = "InTransit";
+      public static readonly IReadOnlyList<string> All = new[] { InStock, Sold, ReturnedToSupplier, InTransit };
+  }
+  ```
+- Domain Entity (`StoreOS.Domain.Inventory.InventoryImei`):
+  ```csharp
+  public class InventoryImei
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid BranchId { get; private set; }
+      public Guid ProductId { get; private set; }
+      public Guid? PurchaseId { get; private set; }
+      public string Imei { get; private set; }
+      public string Status { get; private set; }
+      public Guid? SaleId { get; private set; }
+      public Guid? SaleItemId { get; private set; }
+      public Guid? ReturnId { get; private set; }
+      public DateOnly? PurchaseDate { get; private set; }
+      public decimal? PurchasePrice { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+
+      public static InventoryImei Create(Guid tenantId, Guid branchId, Guid productId, Guid? purchaseId,
+          string imei, DateOnly purchaseDate, decimal purchasePrice);
+      public void MarkSold(Guid saleId, Guid saleItemId);
+      public void RestoreToStock();
+      public void MarkReturnedToSupplier(Guid returnId);
+      public void MarkInTransit();
+      public void CompleteTransferIn(Guid newBranchId);
+  }
+  ```
+- Tenant-Wide Active-Unique Index & Constraints:
+  - Partial unique index:
+    ```sql
+    CREATE UNIQUE INDEX ux_imei_active ON public.inventory_imeis (tenant_id, imei)
+      WHERE status IN ('InStock','Sold','InTransit');
+    ```
+  - Lookup index: `ix_imei_lookup` on `(tenant_id, imei)`.
+  - CHECK constraint: `ck_inventory_imeis_status` CHECK (`status IN ('InStock','Sold','ReturnedToSupplier','InTransit')`).
+  - Invariant 1 Enforcement: Exactly one active physical device may exist per `(tenant_id, imei)` regardless of branch. Returned units are excluded, permitting valid re-stocking.
+  - RLS Policy: Archetype B branch-scoped isolation policy (`tenant_branch_isolation_policy`) enabled and forced.
+- Migration:
+  - `20261005183636_012_InventoryImeis` applied via:
+    `dotnet ef migrations add 012_InventoryImeis --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

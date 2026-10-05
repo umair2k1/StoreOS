@@ -29,6 +29,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<BranchInventory> BranchInventories => Set<BranchInventory>();
+    public DbSet<InventoryImei> InventoryImeis => Set<InventoryImei>();
     public DbSet<InventoryMovement> InventoryMovements => Set<InventoryMovement>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
