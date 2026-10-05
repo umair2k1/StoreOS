@@ -646,3 +646,55 @@ prompt-completion order and are never rewritten, only appended to.
     - PRIMARY KEY (`user_id`, `role_id`, `branch_id_key`)
     - INDEX `IX_user_role_assignments_branch_id` ON (`branch_id`)
     - INDEX `IX_user_role_assignments_role_id` ON (`role_id`)
+
+## P-105
+
+### Domain Entities
+- `StoreOS.Domain.Identity.RefreshToken` (`backend/src/StoreOS.Domain/Identity/RefreshToken.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Identity;
+
+  public class RefreshToken
+  {
+      public Guid Id { get; private set; }
+      public Guid UserId { get; private set; }
+      public string TokenHash { get; private set; } = default!;
+      public Guid FamilyId { get; private set; }
+      public bool IsRevoked { get; private set; }
+      public Guid? ReplacedByTokenId { get; private set; }
+      public DateTimeOffset ExpiresAt { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+
+      private RefreshToken() { }
+
+      public static RefreshToken IssueNew(Guid userId, string tokenHash, Guid familyId, DateTimeOffset expiresAt);
+      public void RotateTo(Guid newTokenId);
+      public void Revoke();
+      public bool IsExpired(DateTimeOffset now);
+  }
+  ```
+
+### DbContext Updates
+- `StoreOsDbContext` DbSet properties (`backend/src/StoreOS.Infrastructure/Persistence/StoreOsDbContext.cs`):
+  ```csharp
+  public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+  ```
+
+### Database Schema & Migrations
+- Migration: `004_RefreshTokens` (`backend/src/StoreOS.Infrastructure/Migrations/20261005024540_004_RefreshTokens.cs`)
+  - Generation Command: `dotnet ef migrations add 004_RefreshTokens --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261005024540_004_RefreshTokens`
+- Tables:
+  - `public.refresh_tokens`:
+    - `id` uuid PRIMARY KEY
+    - `user_id` uuid NOT NULL REFERENCES `users(id)`
+    - `token_hash` text NOT NULL
+    - `family_id` uuid NOT NULL
+    - `is_revoked` boolean NOT NULL DEFAULT false
+    - `replaced_by_token_id` uuid NULL REFERENCES `refresh_tokens(id)`
+    - `expires_at` timestamptz NOT NULL
+    - `created_at` timestamptz NOT NULL DEFAULT now()
+    - INDEX `ix_refresh_tokens_family` ON (`family_id`)
+    - INDEX `ix_refresh_tokens_lookup` ON (`user_id`, `token_hash`)
+    - INDEX `IX_refresh_tokens_replaced_by_token_id` ON (`replaced_by_token_id`)
