@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Identity;
-
+using StoreOS.Domain.Platform;
 namespace StoreOS.Infrastructure.Persistence;
 
 public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IAppDbContext
@@ -23,7 +23,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<UserBranch> UserBranches => Set<UserBranch>();
     public DbSet<UserRoleAssignment> UserRoleAssignments => Set<UserRoleAssignment>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-
+    public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -34,5 +34,6 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
         // Tenant-only filter archetype (Plan §9.1)
         modelBuilder.Entity<Branch>().HasQueryFilter(b => b.TenantId == _scope.TenantId);
         modelBuilder.Entity<Setting>().HasQueryFilter(s => s.TenantId == _scope.TenantId);
+        modelBuilder.Entity<AuditLogEntry>().HasQueryFilter(a => a.TenantId == _scope.TenantId && (a.BranchId == null || _scope.AllBranches || _scope.BranchIds.Contains(a.BranchId.Value)));
     }
 }

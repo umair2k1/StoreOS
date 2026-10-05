@@ -20,6 +20,7 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantJobRunner, StoreOS.Infrastructure.Persistence.TenantJobRunner>();
+builder.Services.AddScoped<StoreOS.Application.Platform.IAuditWriter, StoreOS.Infrastructure.Platform.AuditWriter>();
 builder.Services.AddHostedService<RlsRoleGuard>();
 
 // MediatR Pipeline & Behaviors (P-109, P-114)

@@ -1081,3 +1081,44 @@ CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
   public class PermissionChecker : IPermissionChecker
   ```
 - DI Registration: `builder.Services.AddSingleton<IPermissionChecker, PermissionChecker>();`
+
+## P-116
+
+### Audit Log Entity & Writer
+- Entity: `StoreOS.Domain.Platform.AuditLogEntry` (`backend/src/StoreOS.Domain/Platform/AuditLogEntry.cs`)
+  ```csharp
+  public class AuditLogEntry
+  {
+      public long Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid? BranchId { get; private set; }
+      public string? CorrelationId { get; private set; }
+      public DateTimeOffset OccurredAt { get; private set; }
+      public Guid? UserId { get; private set; }
+      public string Action { get; private set; }
+      public string EntityType { get; private set; }
+      public string EntityId { get; private set; }
+      public string? ChangesJson { get; private set; }
+      public static AuditLogEntry Create(Guid tenantId, Guid? branchId, string? correlationId, Guid? userId, string action, string entityType, string entityId, string? changesJson);
+  }
+  ```
+- Writer Interface: `StoreOS.Application.Platform.IAuditWriter` (`backend/src/StoreOS.Application/Platform/IAuditWriter.cs`)
+  ```csharp
+  public interface IAuditWriter
+  {
+      Task WriteAsync(Guid? branchId, string action, string entityType, string entityId, object? changes, CancellationToken ct = default);
+  }
+  ```
+  *Note: `WriteAsync` only stages the entry (`AddAsync`) to the ambient `StoreOsDbContext`; it does NOT call `SaveChangesAsync()` itself.*
+- Writer Implementation: `StoreOS.Infrastructure.Platform.AuditWriter` (`backend/src/StoreOS.Infrastructure/Platform/AuditWriter.cs`)
+  ```csharp
+  public class AuditWriter : IAuditWriter
+  ```
+- DI Registration: `builder.Services.AddScoped<IAuditWriter, AuditWriter>();`
+
+### Database Migrations
+- Migration: `007_AuditLog` (`backend/src/StoreOS.Infrastructure/Migrations/20261005044244_007_AuditLog.cs`)
+  - Generation Command: `dotnet ef migrations add 007_AuditLog --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261005044244_007_AuditLog`
+  - Table: `public.audit_log` with `GENERATED ALWAYS AS IDENTITY PRIMARY KEY`, partial index `ix_audit_log_tenant_correlation`, RLS enabled and forced, policy `tenant_branch_isolation_policy` supporting nullable `branch_id`.
