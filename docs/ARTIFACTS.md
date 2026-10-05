@@ -2000,3 +2000,47 @@ var sgst = Money.Round2(totalGst - cgst);
   - Inventory Invariant 3 Rule: `RepairService` products intentionally do NOT get `branch_inventory` rows (enforced from P-403 onward).
 - Migration:
   - `20261005180716_009_Products` applied via `dotnet ef migrations add 009_Products --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.
+## P-402
+
+### Reusable Pagination & Products Catalog CRUD
+- Reusable Paged Result (`StoreOS.Application.Abstractions`):
+  ```csharp
+  public record PagedResult<T>(IReadOnlyList<T> Items, int TotalCount, int Page, int PageSize);
+  ```
+- Product DTO (`StoreOS.Application.Catalog.Products`):
+  ```csharp
+  public record ProductDto(
+      Guid Id,
+      string Name,
+      string Category,
+      decimal SellPrice,
+      decimal PurchasePrice,
+      decimal GstRate,
+      bool IsTaxable,
+      bool IsMarginScheme,
+      string? HsnCode,
+      string? Description,
+      int? EstimatedDurationMinutes,
+      int? WarrantyDays,
+      bool IsActive);
+  ```
+- Vertical Slices (`StoreOS.Application.Catalog.Products`):
+  - `CreateProduct`:
+    - Command: `CreateProductCommand(string Name, string Category, decimal SellPrice, decimal PurchasePrice, decimal GstRate, string? HsnCode, string? Description = null, int? EstimatedDurationMinutes = null, int? WarrantyDays = null, bool IsMarginScheme = false) : IRequest<Guid>, IRequiresPermission` (`inventory:manage`)
+    - Validator: `CreateProductValidator` (validates Name not empty, Category valid via `ProductCategory.IsValid`, non-negative prices and GST)
+    - Handler: `CreateProductHandler`
+  - `UpdateProduct`:
+    - Command: `UpdateProductCommand(Guid Id, string? Name = null, decimal? SellPrice = null, decimal? PurchasePrice = null, decimal? GstRate = null, bool? IsMarginScheme = null, string? Description = null, int? EstimatedDurationMinutes = null, int? WarrantyDays = null, bool? IsActive = null) : IRequest, IRequiresPermission` (`inventory:manage`)
+    - Validator: `UpdateProductValidator` (validates Id not empty, non-empty Name if provided, non-negative prices and GST)
+    - Handler: `UpdateProductHandler`
+  - `GetProducts`:
+    - Query: `GetProductsQuery(string? Category = null, bool? IsActive = null, bool? IsMarginScheme = null, string? Search = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<ProductDto>>, IReadOnlyRequest` (no special permission required; POS-browsable)
+    - Handler: `GetProductsHandler`
+  - `GetProductById`:
+    - Query: `GetProductByIdQuery(Guid Id) : IRequest<ProductDto>, IReadOnlyRequest`
+    - Handler: `GetProductByIdHandler`
+- API Controller (`StoreOS.Api.Controllers.ProductsController`):
+  - `GET /api/products` -> `List([FromQuery] GetProductsQuery query)`
+  - `GET /api/products/{id:guid}` -> `GetById(Guid id)`
+  - `POST /api/products` -> `Create([FromBody] CreateProductCommand command)` (returns 201 CreatedAtAction)
+  - `PATCH /api/products/{id:guid}` -> `Update(Guid id, [FromBody] UpdateProductBody body)` (returns 204 NoContent)
