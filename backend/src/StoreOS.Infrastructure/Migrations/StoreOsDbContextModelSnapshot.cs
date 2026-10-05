@@ -604,6 +604,99 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("idempotency_keys", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Purchasing.Purchase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("ImportBatchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("import_batch_id");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<DateOnly>("PurchaseDate")
+                        .HasColumnType("date")
+                        .HasColumnName("purchase_date");
+
+                    b.Property<decimal>("PurchaseRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("purchase_rate");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("integer")
+                        .HasColumnName("qty");
+
+                    b.Property<string>("SellerAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("seller_address");
+
+                    b.Property<string>("SellerName")
+                        .HasColumnType("text")
+                        .HasColumnName("seller_name");
+
+                    b.Property<string>("SellerPhone")
+                        .HasColumnType("text")
+                        .HasColumnName("seller_phone");
+
+                    b.Property<string>("SupplierAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_address");
+
+                    b.Property<Guid?>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierInvoiceNo")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_invoice_no");
+
+                    b.Property<string>("SupplierName")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_name");
+
+                    b.Property<string>("SupplierPhone")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_phone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantId", "BranchId", "ProductId")
+                        .HasDatabaseName("ix_purchases_tenant_branch_product");
+
+                    b.HasIndex("TenantId", "BranchId", "PurchaseDate")
+                        .HasDatabaseName("ix_purchases_tenant_branch_date");
+
+                    b.ToTable("purchases", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Tenancy.Branch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -835,6 +928,21 @@ namespace StoreOS.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Inventory.InventoryMovement", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Purchasing.Purchase", b =>
                 {
                     b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
                         .WithMany()

@@ -2274,3 +2274,47 @@ var sgst = Money.Round2(totalGst - cgst);
 - Concurrency & Double-Sale Prevention:
   - `SellImeiAsync` executes `SELECT * FROM inventory_imeis WHERE id = @id AND tenant_id = @tenantId FOR UPDATE` row locking.
   - Empirically observed failure mode: in RepeatableRead isolation, when two concurrent requests execute `SellImeiAsync` for the same row, the second transaction is blocked by Postgres row-level lock and subsequently receives `PostgresException` (SqlState 40001: could not serialize access due to concurrent update). If the first transaction committed before the second started its row lock, `MarkSold` throws `DomainValidationException("imei_not_available")`. In both paths, exactly one sale commits and double-sale is mathematically impossible.
+
+## P-409
+
+### Purchases Entity & Migration
+- Domain Entity (`StoreOS.Domain.Purchasing.Purchase`):
+  ```csharp
+  public class Purchase
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid BranchId { get; private set; }
+      public Guid ProductId { get; private set; }
+      public int Qty { get; private set; }
+      public decimal PurchaseRate { get; private set; }
+      public Guid? SupplierId { get; private set; }
+      public string? SupplierName { get; private set; }
+      public string? SupplierPhone { get; private set; }
+      public string? SupplierAddress { get; private set; }
+      public string? SellerName { get; private set; }
+      public string? SellerPhone { get; private set; }
+      public string? SellerAddress { get; private set; }
+      public string? SupplierInvoiceNo { get; private set; }
+      public Guid? ImportBatchId { get; private set; }
+      public DateOnly PurchaseDate { get; private set; }
+      public Guid CreatedBy { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+
+      public static Purchase Create(Guid tenantId, Guid branchId, Guid productId, int qty,
+          decimal purchaseRate, Guid? supplierId, string? supplierName, string? supplierPhone,
+          string? supplierAddress, DateOnly purchaseDate, Guid createdBy,
+          string? supplierInvoiceNo = null, Guid? importBatchId = null,
+          string? sellerName = null, string? sellerPhone = null, string? sellerAddress = null);
+  }
+  ```
+- Database Schema & Invariants:
+  - Table: `public.purchases`
+    - Columns: `id` uuid PK, `tenant_id` uuid NOT NULL, `branch_id` uuid NOT NULL REFERENCES branches(id), `product_id` uuid NOT NULL REFERENCES products(id), `qty` int NOT NULL, `purchase_rate` numeric(18,2) NOT NULL, `supplier_id` uuid NULL, `supplier_name` text, `supplier_phone` text, `supplier_address` text, `seller_name` text, `seller_phone` text, `seller_address` text, `supplier_invoice_no` text, `import_batch_id` uuid, `purchase_date` date NOT NULL, `created_by` uuid NOT NULL, `created_at` timestamptz NOT NULL DEFAULT now().
+    - Constraints: `ck_purchases_qty` CHECK (`qty > 0`).
+    - Indexes: `ix_purchases_tenant_branch_product` on `(tenant_id, branch_id, product_id)`, `ix_purchases_tenant_branch_date` on `(tenant_id, branch_id, purchase_date)`.
+    - Foreign Keys: `supplier_id` is a bare nullable column in this migration; foreign-key constraint to `suppliers(id)` is deferred to P-411.
+    - RLS Policy: Archetype B branch-scoped isolation policy (`tenant_branch_isolation_policy`) enabled and forced.
+- Migration:
+  - `20261005184415_013_Purchases` applied via:
+    `dotnet ef migrations add 013_Purchases --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
