@@ -1,7 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
+using Serilog;
+using StoreOS.Api.Middleware;
 using StoreOS.Infrastructure.Persistence;
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -18,6 +19,9 @@ builder.Services.AddHostedService<RlsRoleGuard>();
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();
+
+// Correlation Context Accessor (P-112)
+builder.Services.AddScoped<StoreOS.Application.Abstractions.ICorrelationContextAccessor, StoreOS.Infrastructure.Observability.CorrelationContextAccessor>();
 
 // CORS Scaffolding (Plan §13.1: localhost:4200 for local frontend dev)
 builder.Services.AddCors(options =>
@@ -38,7 +42,16 @@ builder.Services.AddHealthChecks()
         name: "database",
         tags: ["ready"]);
 
+// Serilog Configuration (P-112)
+builder.Host.UseSerilog((context, services, configuration) => configuration
+    .ReadFrom.Configuration(context.Configuration)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(outputTemplate:
+        "[{Timestamp:HH:mm:ss} {Level:u3}] CorrelationId={CorrelationId} {Message:lj}{NewLine}{Exception}"));
+
 var app = builder.Build();
+app.UseMiddleware<CorrelationIdMiddleware>();
+
 
 app.UseHttpsRedirection();
 

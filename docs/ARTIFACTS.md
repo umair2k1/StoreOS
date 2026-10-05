@@ -831,3 +831,30 @@ All 8 tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`:
 
 ### RLS Exception Documentation
 - `public.tenants` is the **sole intentional exception** to the 100% RLS coverage rule. It has no parent tenant scope; it serves as the lookup table for tenant resolution and is queried before any `IAccessScope` or session context exists.
+
+## P-112
+
+### Application Abstractions
+- `StoreOS.Application.Abstractions.ICorrelationContextAccessor` (`backend/src/StoreOS.Application/Abstractions/ICorrelationContextAccessor.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface ICorrelationContextAccessor
+  {
+      string CorrelationId { get; set; }
+  }
+  ```
+
+### Infrastructure Implementations
+- `StoreOS.Infrastructure.Observability.CorrelationContextAccessor` (`backend/src/StoreOS.Infrastructure/Observability/CorrelationContextAccessor.cs`):
+  Scoped implementation holding `CorrelationId` property.
+
+### HTTP Middleware & Pipeline Position
+- `StoreOS.Api.Middleware.CorrelationIdMiddleware` (`backend/src/StoreOS.Api/Middleware/CorrelationIdMiddleware.cs`):
+  - Header Name Constant: `public const string HeaderName = "X-Correlation-ID";`
+  - Format: GUID string in `"D"` format (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`).
+  - Pipeline Position: **FIRST** HTTP middleware immediately following `var app = builder.Build();` and before any other `app.Use...` call (`app.UseMiddleware<CorrelationIdMiddleware>();`).
+  - Enriches Serilog `LogContext.PushProperty("CorrelationId", correlationId)`.
+
+### Serilog Host Configuration
+- Wired in `backend/src/StoreOS.Api/Program.cs` via `builder.Host.UseSerilog(...)` with console output template including `CorrelationId={CorrelationId}`.
