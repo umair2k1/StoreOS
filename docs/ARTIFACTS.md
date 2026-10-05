@@ -1792,3 +1792,44 @@ var sgst = Money.Round2(totalGst - cgst);
 - Conceptual Invariant & Separation of Concerns (Plan §9.3):
   - `IBranchContext.CurrentBranchId`: The **single, explicit branch** that this specific request/mutation is operating against. All new records stamped with `branch_id` use this value. There is no branchless write.
   - `IAccessScope.BranchIds` / `AllBranches`: The user's **full accessible set of branches** across the tenant, used exclusively for session-level PostgreSQL RLS policies (`app.branch_ids`, `app.all_branches`).
+
+## P-310
+
+### Branches CRUD Endpoints & Vertical Slice Architecture
+- Data Transfer Object: `StoreOS.Application.Tenancy.Branches.BranchDto` (`backend/src/StoreOS.Application/Tenancy/Branches/BranchDto.cs`)
+  ```csharp
+  namespace StoreOS.Application.Tenancy.Branches;
+
+  public record BranchDto(
+      Guid Id,
+      string Code,
+      string Name,
+      string? Address,
+      string? Phone,
+      string? Email,
+      string? Gstin,
+      bool IsActive);
+  ```
+- Vertical Slices (`StoreOS.Application/Tenancy/Branches/`):
+  - `CreateBranch/`:
+    - Command: `CreateBranchCommand(string Code, string Name, string? Address, string? Phone, string? Email, string? Gstin)` (`IRequest<Guid>`, `IHighImpactOperation`, `RequiredPermission => "branches:manage"`)
+    - Validator: `CreateBranchValidator` (Code regex `^[A-Z1-9][A-Z0-9]{0,2}$` max 3 chars Rule 46(b) budget, Name required, optional Email)
+    - Handler: `CreateBranchHandler` (checks code uniqueness, creates entity, updates profile, saves)
+  - `GetBranches/`:
+    - Query: `GetBranchesQuery()` (`IRequest<IReadOnlyList<BranchDto>>`, `IReadOnlyRequest`)
+    - Handler: `GetBranchesHandler` (filters by tenant and `_scope.BranchIds` when `!_scope.AllBranches`)
+  - `GetBranchById/`:
+    - Query: `GetBranchByIdQuery(Guid Id)` (`IRequest<BranchDto>`, `IReadOnlyRequest`)
+    - Handler: `GetBranchByIdHandler` (validates `_scope.HasBranchAccess`, returns `BranchDto` or throws `branch_not_found`)
+  - `UpdateBranch/`:
+    - Command: `UpdateBranchCommand(Guid Id, string Name, string? Address, string? Phone, string? Email, string? Gstin, bool IsActive)` (`IRequest`, `IHighImpactOperation`, `RequiredPermission => "branches:manage"`)
+    - Validator: `UpdateBranchValidator`
+    - Handler: `UpdateBranchHandler` (updates profile, toggles `Activate`/`Deactivate` based on `IsActive`)
+- API Controller: `StoreOS.Api.Controllers.BranchesController` (`backend/src/StoreOS.Api/Controllers/BranchesController.cs`)
+  - Routes:
+    - `GET /api/branches` -> List (returns `IReadOnlyList<BranchDto>`)
+    - `POST /api/branches` -> Create (returns 201 `CreatedAtAction` with `new { id }`)
+    - `GET /api/branches/{id:guid}` -> GetById (returns `BranchDto` or 404)
+    - `PATCH /api/branches/{id:guid}` -> Update with `UpdateBranchBody` (returns 204 `NoContent`)
+- Error Catalog Status Mapping:
+  - `branch_code_taken` -> 409 Conflict (`ErrorCatalog.cs`)
