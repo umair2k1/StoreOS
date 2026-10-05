@@ -1346,3 +1346,28 @@ var sgst = Money.Round2(totalGst - cgst);
   - `finance_principal_not_positive`: Thrown by `CalculatePrincipal` when `principal <= 0`, and by `CalculateEmi` when `principal <= 0`.
   - `finance_invalid_tenure`: Thrown by `CalculateEmi` when `months <= 0`.
   - `finance_invalid_rate`: Thrown by `CalculateEmi` when `annualRatePercent < 0`.
+
+## P-205
+
+### Inventory Valuation (Plan / Requirements §11.5)
+- Struct: `StoreOS.Domain.Inventory.StockValuationLine` (`backend/src/StoreOS.Domain/Inventory/StockValuationLine.cs`)
+  ```csharp
+  public readonly record struct StockValuationLine(string Category, int Qty, decimal PurchasePrice, decimal SellPrice);
+  ```
+- Struct: `StoreOS.Domain.Inventory.ValuationResult` (`backend/src/StoreOS.Domain/Inventory/ValuationResult.cs`)
+  ```csharp
+  public readonly record struct ValuationResult(decimal CostValuation, decimal RetailValuation, decimal PotentialGrossValue);
+  ```
+- Calculator: `StoreOS.Domain.Inventory.ValuationCalculator` (`backend/src/StoreOS.Domain/Inventory/ValuationCalculator.cs`)
+  ```csharp
+  public static class ValuationCalculator
+  {
+      public static ValuationResult Calculate(IEnumerable<StockValuationLine> lines);
+      public static bool IsLowStock(int qty, int threshold);
+      public static bool IsOutOfStock(int qty);
+  }
+  ```
+- Invariants:
+  - `"RepairService"` category string literal is excluded from stock valuation (services never count as stock, Invariant 3). Must match `products.category` CHECK constraint exactly (`'NewPhone','UsedPhone','Accessory','RepairService'`).
+  - Low stock boundary: `qty <= threshold` (inclusive per Requirements §5.3).
+  - Out of stock boundary: `qty <= 0` (inclusive).
