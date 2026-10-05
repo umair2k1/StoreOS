@@ -19,3 +19,8 @@ dist/
 # Environment and logs
 *.log
 .env
+
+# Agent skills and IDE metadata
+.agents/
+.claude/
+skills-lock.json

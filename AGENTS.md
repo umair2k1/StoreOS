@@ -44,6 +44,7 @@ python3 tools/vibe.py next --print
   - Mandatory RLS expression: `NULLIF(current_setting('app.tenant_id', true), '')::uuid`.
 - **Anti-Stub Policy**:
   - No `TODO`, `FIXME`, `NotImplementedException`, `// rest omitted`, `for brevity`, or `of(mockData)`.
+- **Coding Standards**: See [CODING_STANDARDS.md](CODING_STANDARDS.md) for MediatR open-behavior constraints, session cache invalidation, and EF Core composite key conventions.
 
 ### Step 4: Verification
 After implementing the prompt:

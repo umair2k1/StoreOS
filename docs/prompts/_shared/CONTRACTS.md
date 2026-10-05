@@ -48,14 +48,16 @@ StoreOS.Modules         -> all                            per-module DI registra
 ## 3. Request pipeline (MediatR), outermost first
 
 ```
-ValidationBehavior            pure validation, no DB (400)
-SerializationRetryBehavior    retries the WHOLE transaction on 40001/40P01 (read-write requests only)   [Infrastructure, P-511]
-TransactionBehavior           opens THE transaction, RLS session variables via interceptor, commits     [Infrastructure, P-109]
-TokenVersionBehavior          JWT token_version vs cache/DB (P-307)
-AuthorizationBehavior         IRequiresPermission (claims) and IHighImpactOperation (live DB check, P-308)
-IdempotencyBehavior           IIdempotentRequest, INSIDE the transaction (P-117)
+ValidationBehavior            pure validation, no DB (400 Bad Request)
+SerializationRetryBehavior    retries the WHOLE transaction on 40001/40P01 (read-write requests only) [Infrastructure, P-511]
+AuthorizationBehavior         claims-based IRequiresPermission check, fails fast with 401/403, no DB [P-114]
+TransactionBehavior           opens THE transaction, RLS session variables via interceptor, commits [Infrastructure, P-109]
+LiveDbPermissionBehavior      uncached live DB permission check for IHighImpactOperation under RLS [P-308]
+TokenVersionBehavior          JWT token_version vs 30s cache/DB under RLS transaction [P-307]
+IdempotencyBehavior           IIdempotentRequest, INSIDE the transaction [P-117]
 handler
 ```
+* Rule: Any behavior querying database tables protected by RLS must be registered AFTER TransactionBehavior.
 Isolation is chosen by the request marker:
 
 | Request | Context | Isolation | Mode |
@@ -70,9 +72,9 @@ and contain no non-database side effects (they may be re-executed by the retry b
 
 ## 4. HTTP middleware order (Program.cs)
 
-`CorrelationId -> ExceptionHandling -> Authentication -> AccessScope -> BranchContext -> Authorization -> controllers`
+`CorrelationId -> ExceptionHandling -> RateLimiter -> UseHttpsRedirection -> UseCors -> Authentication -> Authorization -> BranchContext -> controllers`
 (there is NO transaction or idempotency HTTP middleware). Rate limiting sits before authentication for `/api/auth/*`.
-
+`BranchContextMiddleware` enforces branch context on mutations (`POST`, `PUT`, `PATCH`, `DELETE`), but explicitly bypasses `/api/auth/*` authentication endpoints.
 ## 5. Database roles
 
 | Role | Attributes | Used by |
