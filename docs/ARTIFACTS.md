@@ -1707,3 +1707,44 @@ var sgst = Money.Round2(totalGst - cgst);
 - Architectural Note & Documented Gap:
   - This check runs strictly within the MediatR request pipeline.
   - Plain controller actions that read `IAccessScope` directly without dispatching a MediatR command or query (e.g. `GET /api/auth/me`) bypass this staleness check. All application domain logic and business operations must be routed via MediatR to ensure uniform revocation enforcement.
+
+## P-308
+
+### High-Impact Operation Live-DB Permission Re-Check Behavior
+- Marker Interface: `StoreOS.Application.Abstractions.IHighImpactOperation` (`backend/src/StoreOS.Application/Abstractions/IHighImpactOperation.cs`)
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IHighImpactOperation
+  {
+      string RequiredPermission { get; }
+  }
+  ```
+- Pipeline Behavior: `StoreOS.Application.Behaviors.LiveDbPermissionBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Application/Behaviors/LiveDbPermissionBehavior.cs`)
+  ```csharp
+  namespace StoreOS.Application.Behaviors;
+
+  public class LiveDbPermissionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+      where TRequest : IRequest<TResponse>
+  {
+      public LiveDbPermissionBehavior(IAccessScope scope, IAppDbContext db);
+      public Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken);
+  }
+  ```
+- Full MediatR Behavior Pipeline Registration Order (`Program.cs`):
+  1. `AuthorizationBehavior<,>` (claims-based check on JWT, no DB)
+  2. `ValidationBehavior<,>` (field validation, 400 Bad Request, no DB)
+  3. `TransactionBehavior<,>` (opens transaction and establishes RLS `app.tenant_id`)
+  4. `LiveDbPermissionBehavior<,>` (zero-cache live DB permission & user activity re-check under RLS transaction)
+  5. `TokenVersionBehavior<,>` (30s cached token version revocation check under RLS transaction)
+  6. `IdempotencyBehavior<,>` (idempotency key verification inside transaction)
+  7. Request Handler
+- Critical Design Rules:
+  - **At Most One Rule**: A request command must implement at most ONE of `IRequiresPermission` or `IHighImpactOperation`, never both.
+  - **Zero-Cache Guarantee**: `LiveDbPermissionBehavior` intentionally bypasses all caching layers (`IMemoryCache`, distributed caches, and JWT claim cache), querying `user_role_assignments`, `role_permissions`, and `users.is_active` fresh from the database on every single invocation.
+  - **Target High-Impact Commands**: The following sensitive domain operations MUST implement `IHighImpactOperation`:
+    - `sales:void` (`VoidSaleCommand`, P-524)
+    - `sales:refund` (`RefundSaleCommand`, P-525)
+    - `inventory:adjustments` (`InventoryAdjustmentCommand`, P-413)
+    - `settings:manage` (Settings management commands, P-1120)
+    - `branches:manage` (Branch management commands, P-310)
