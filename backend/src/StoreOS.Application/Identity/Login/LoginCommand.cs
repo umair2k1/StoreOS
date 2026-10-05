@@ -14,4 +14,5 @@ public record LoginResult(
     Guid TenantId,
     bool AllBranches,
     IReadOnlyList<Guid> BranchIds,
-    IReadOnlyList<string> Permissions);
+    IReadOnlyList<string> Permissions,
+    string RawRefreshToken);

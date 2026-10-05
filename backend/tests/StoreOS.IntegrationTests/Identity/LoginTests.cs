@@ -107,6 +107,7 @@ public class LoginTests : IAsyncLifetime
         await conn.OpenAsync();
 
         await using var cmd = new NpgsqlCommand(
+            "DELETE FROM refresh_tokens WHERE user_id IN (@u1, @u2, @u3); " +
             "DELETE FROM user_role_assignments WHERE user_id IN (@u1, @u2, @u3); " +
             "DELETE FROM role_permissions WHERE role_id = @r1; " +
             "DELETE FROM roles WHERE tenant_id IN (@t1, @t2); " +

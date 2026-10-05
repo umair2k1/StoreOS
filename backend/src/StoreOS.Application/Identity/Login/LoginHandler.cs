@@ -10,12 +10,14 @@ public class LoginHandler : IRequestHandler<LoginCommand, LoginResult>
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _hasher;
     private readonly IJwtTokenService _jwt;
+    private readonly IRefreshTokenService _refreshTokenService;
 
-    public LoginHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt)
+    public LoginHandler(IAppDbContext db, IPasswordHasher hasher, IJwtTokenService jwt, IRefreshTokenService refreshTokenService)
     {
         _db = db;
         _hasher = hasher;
         _jwt = jwt;
+        _refreshTokenService = refreshTokenService;
     }
 
     public async Task<LoginResult> Handle(LoginCommand request, CancellationToken ct)
@@ -65,6 +67,10 @@ public class LoginHandler : IRequestHandler<LoginCommand, LoginResult>
         var (token, expiresAt) = _jwt.IssueAccessToken(
             user.Id, user.TenantId, allBranches, userBranchIds, permissions, user.TokenVersion);
 
+        var familyId = Guid.NewGuid();
+        var (rawRefreshToken, _) = await _refreshTokenService.IssueAsync(user.TenantId, user.Id, familyId, ct);
+        await _db.SaveChangesAsync(ct);
+
         return new LoginResult(
             token,
             expiresAt,
@@ -73,6 +79,7 @@ public class LoginHandler : IRequestHandler<LoginCommand, LoginResult>
             user.TenantId,
             allBranches,
             userBranchIds,
-            permissions);
+            permissions,
+            rawRefreshToken);
     }
 }

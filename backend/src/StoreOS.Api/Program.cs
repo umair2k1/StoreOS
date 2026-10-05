@@ -70,6 +70,7 @@ builder.Services.AddSingleton<StoreOS.Application.Identity.IPermissionChecker, S
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPasswordHasher, StoreOS.Infrastructure.Identity.Argon2PasswordHasher>();
 builder.Services.AddSingleton<StoreOS.Application.Abstractions.IJwtTokenService, StoreOS.Infrastructure.Identity.JwtTokenService>();
 builder.Services.AddSingleton<StoreOS.Infrastructure.Identity.JwtTokenService>(sp => (StoreOS.Infrastructure.Identity.JwtTokenService)sp.GetRequiredService<StoreOS.Application.Abstractions.IJwtTokenService>());
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IRefreshTokenService, StoreOS.Infrastructure.Identity.RefreshTokenService>();
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();

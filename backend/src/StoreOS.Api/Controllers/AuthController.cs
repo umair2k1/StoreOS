@@ -36,6 +36,16 @@ public class AuthController : ControllerBase
         }
 
         var result = await _mediator.Send(command, ct);
+
+        Response.Cookies.Append("storeos_refresh_token", result.RawRefreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Strict,
+            Path = "/api/auth",
+            Expires = DateTimeOffset.UtcNow.AddDays(30)
+        });
+
         return Ok(new
         {
             accessToken = result.AccessToken,

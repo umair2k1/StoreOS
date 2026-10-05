@@ -1529,3 +1529,63 @@ var sgst = Money.Round2(totalGst - cgst);
   - All credential failure conditions (wrong password, unknown email, inactive user) return identical generic error: 401 Unauthorized with code `"invalid_credentials"` and message `"Invalid email or password."`.
   - Inactive tenant returns 403 Forbidden with code `"tenant_inactive"`.
   - Error status mappings registered in `ErrorCatalog.cs`.
+
+## P-304
+
+### Refresh Token Issuance & Cookie Handling on Login
+- Token Formatting & Hashing: `StoreOS.Application.Identity.RefreshTokenFormat` (`backend/src/StoreOS.Application/Identity/RefreshTokenFormat.cs`)
+  ```csharp
+  namespace StoreOS.Application.Identity;
+
+  public static class RefreshTokenFormat
+  {
+      public static string Compose(Guid tenantId, byte[] secret);
+      public static bool TryParseTenantId(string? raw, out Guid tenantId);
+      public static string Hash(string raw);
+  }
+  ```
+- Contract: `StoreOS.Application.Abstractions.IRefreshTokenService` (`backend/src/StoreOS.Application/Abstractions/IRefreshTokenService.cs`)
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IRefreshTokenService
+  {
+      Task<(string rawToken, RefreshToken record)> IssueAsync(
+          Guid tenantId, Guid userId, Guid familyId, CancellationToken ct);
+  }
+  ```
+- Implementation: `StoreOS.Infrastructure.Identity.RefreshTokenService` (`backend/src/StoreOS.Infrastructure/Identity/RefreshTokenService.cs`)
+  ```csharp
+  namespace StoreOS.Infrastructure.Identity;
+
+  public class RefreshTokenService : IRefreshTokenService
+  {
+      public RefreshTokenService(StoreOsDbContext db);
+      public Task<(string rawToken, RefreshToken record)> IssueAsync(
+          Guid tenantId, Guid userId, Guid familyId, CancellationToken ct);
+  }
+  ```
+- Internal Login Result Extension: `StoreOS.Application.Identity.Login.LoginResult`
+  ```csharp
+  public record LoginResult(
+      string AccessToken,
+      DateTimeOffset ExpiresAt,
+      Guid UserId,
+      string DisplayName,
+      Guid TenantId,
+      bool AllBranches,
+      IReadOnlyList<Guid> BranchIds,
+      IReadOnlyList<string> Permissions,
+      string RawRefreshToken);
+  ```
+- Refresh Token Cookie Configuration (`AuthController.Login`):
+  - Cookie Name: `storeos_refresh_token`
+  - Path: `/api/auth`
+  - HttpOnly: `true`
+  - Secure: `true` (HTTPS only)
+  - SameSite: `SameSiteMode.Strict`
+  - Lifetime: 30 days (`DateTimeOffset.UtcNow.AddDays(30)`)
+- Security & Anti-Leak Invariants:
+  - Raw token format: `"{tenantId:N}.{base64url(32 random bytes)}"`.
+  - Database stores ONLY SHA-256 hex hash (`RefreshTokenFormat.Hash(rawToken)`), never raw token.
+  - `RawRefreshToken` is transmitted exclusively through the `HttpOnly` cookie and is NEVER included in response JSON, logs, or audit records.
