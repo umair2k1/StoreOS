@@ -2318,3 +2318,31 @@ var sgst = Money.Round2(totalGst - cgst);
 - Migration:
   - `20261005184415_013_Purchases` applied via:
     `dotnet ef migrations add 013_Purchases --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-410
+
+### Stock-In Endpoint with Optional IMEIs
+- Command & Result (`StoreOS.Application.Purchasing.StockIn`):
+  ```csharp
+  public record StockInCommand(Guid ProductId, int Qty, decimal PurchaseRate,
+      Guid? SupplierId, string? SupplierName, string? SupplierPhone, string? SupplierAddress,
+      DateOnly PurchaseDate, string? SupplierInvoiceNo, IReadOnlyList<string>? Imeis)
+      : IRequest<StockInResult>, IRequiresPermission
+  {
+      public string RequiredPermission => "purchases:manage";
+  }
+
+  public record StockInResult(Guid PurchaseId, int NewStockQty, IReadOnlyList<Guid> CreatedImeiIds);
+  ```
+- Validator (`StoreOS.Application.Purchasing.StockIn.StockInValidator`):
+  - Validates `Qty > 0`, `PurchaseRate >= 0`.
+  - If `Imeis` is provided, enforces `Imeis.Count == Qty` exactly.
+  - Rejects empty and duplicate IMEIs submitted in the same request payload.
+- Query & DTO (`StoreOS.Application.Purchasing.GetPurchases`):
+  - `GetPurchasesQuery(Guid? ProductId = null, Guid? BranchId = null, DateOnly? FromDate = null, DateOnly? ToDate = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<PurchaseDto>>, IReadOnlyRequest`
+  - `PurchaseDto(Guid Id, Guid BranchId, Guid ProductId, int Qty, decimal PurchaseRate, Guid? SupplierId, string? SupplierName, string? SupplierPhone, string? SupplierAddress, string? SellerName, string? SellerPhone, string? SellerAddress, string? SupplierInvoiceNo, DateOnly PurchaseDate, Guid CreatedBy, DateTimeOffset CreatedAt)`
+- Controller (`StoreOS.Api.Controllers.PurchasesController`):
+  - `POST /api/purchases` -> `StockIn([FromBody] StockInCommand command)`
+  - `GET /api/purchases` -> `List([FromQuery] GetPurchasesQuery query)`
+- Exception Translation:
+  - Intercepts Postgres `23505` unique-violation on `ux_imei_active` and throws `DomainException("imei_already_active", ...)`, mapped to HTTP 409 Conflict by `ErrorCatalog`.
