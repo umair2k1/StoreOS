@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Authorization;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -36,6 +37,7 @@ public class TestCommandHandler : IRequestHandler<TestCommand, string>
 
 [ApiController]
 [Route("test/pipeline")]
+[AllowAnonymous]
 public class TestPipelineController : ControllerBase
 {
     private readonly IMediator _mediator;

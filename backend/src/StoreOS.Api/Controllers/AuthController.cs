@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Identity.Login;
 using StoreOS.Application.Identity.Refresh;
+using StoreOS.Application.Identity;
+using StoreOS.Application.Identity.Logout;
 using StoreOS.Domain.Exceptions;
 
 namespace StoreOS.Api.Controllers;
@@ -98,6 +100,35 @@ public class AuthController : ControllerBase
             allBranches = result.AllBranches,
             branchIds = result.BranchIds,
             permissions = result.Permissions
+        });
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken ct)
+    {
+        if (Request.Cookies.TryGetValue("storeos_refresh_token", out var rawToken)
+            && !string.IsNullOrEmpty(rawToken)
+            && RefreshTokenFormat.TryParseTenantId(rawToken, out _))
+        {
+            await _mediator.Send(new LogoutCommand(rawToken), ct);
+        }
+
+        Response.Cookies.Delete("storeos_refresh_token", new CookieOptions { Path = "/api/auth" });
+        return NoContent();
+    }
+
+    [HttpGet("me")]
+    public IActionResult Me([FromServices] IAccessScope scope)
+    {
+        if (!scope.IsAuthenticated) return Unauthorized();
+        return Ok(new
+        {
+            userId = scope.UserId,
+            tenantId = scope.TenantId,
+            allBranches = scope.AllBranches,
+            branchIds = scope.BranchIds,
+            permissions = scope.Permissions,
+            tokenVersion = scope.TokenVersion
         });
     }
 }

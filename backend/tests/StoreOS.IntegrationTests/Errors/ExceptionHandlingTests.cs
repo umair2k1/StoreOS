@@ -5,6 +5,7 @@ using FluentAssertions;
 using FluentValidation;
 using FluentValidation.Results;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +15,7 @@ namespace StoreOS.IntegrationTests.Errors;
 
 [ApiController]
 [Route("test/errors")]
+[AllowAnonymous]
 public class TestErrorsController : ControllerBase
 {
     [HttpGet("validation")]

@@ -1630,3 +1630,51 @@ var sgst = Money.Round2(totalGst - cgst);
   - Token rotation maintains the SAME `FamilyId` across valid rotations, linking `replaced_by_token_id`.
   - Expired tokens throw `DomainException("refresh_token_expired")` (mapped to 401).
   - Invalid tokens or tokens for wrong tenant throw `DomainException("invalid_refresh_token")` (mapped to 401).
+
+## P-306
+
+### Logout Endpoint & Current Identity ("Me") Endpoint
+- Command: `StoreOS.Application.Identity.Logout.LogoutCommand` (`backend/src/StoreOS.Application/Identity/Logout/LogoutCommand.cs`)
+  ```csharp
+  namespace StoreOS.Application.Identity.Logout;
+
+  public record LogoutCommand(string RawRefreshToken) : IRequest, IAnonymousTenantRequest
+  {
+      public Guid TenantId => RefreshTokenFormat.TryParseTenantId(RawRefreshToken, out var t) ? t : Guid.Empty;
+  }
+  ```
+- Handler: `StoreOS.Application.Identity.Logout.LogoutHandler` (`backend/src/StoreOS.Application/Identity/Logout/LogoutHandler.cs`)
+  - Revokes only the presented refresh token by hash (`token?.Revoke()`), preserving the rest of the family.
+  - Idempotent: non-existent or already revoked tokens still succeed without error.
+- Controller Routes (`StoreOS.Api.Controllers.AuthController`):
+  - `POST /api/auth/logout`:
+    - Requires authentication by default (inherits FallbackPolicy).
+    - Checks `RefreshTokenFormat.TryParseTenantId(rawToken, out _)` before sending `LogoutCommand` to ensure safe anonymous/fallback handling.
+    - Deletes `storeos_refresh_token` cookie (path `/api/auth`).
+    - Returns 204 NoContent.
+  - `GET /api/auth/me`:
+    - Requires authentication by default (inherits FallbackPolicy).
+    - Response 200 OK JSON:
+      ```json
+      {
+        "userId": "uuid",
+        "tenantId": "uuid",
+        "allBranches": true,
+        "branchIds": ["uuid"],
+        "permissions": ["string"],
+        "tokenVersion": 1
+      }
+      ```
+- Global Authorization Baseline (Fallback Policy):
+  - Configured in `Program.cs`:
+    ```csharp
+    builder.Services.AddAuthorization(options =>
+    {
+        options.FallbackPolicy = new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build();
+    });
+    ```
+  - By default, ALL controller endpoints require an authenticated user unless explicitly annotated with `[AllowAnonymous]`.
+- TransactionBehavior Tenant Switch Fix:
+  - `TransactionBehavior` checks `if (!_scope.IsAuthenticated)` before calling `_scope.UseAnonymousTenant(anon.TenantId)`, allowing authenticated commands implementing `IAnonymousTenantRequest` (such as `LogoutCommand`) to execute safely without throwing `InvalidOperationException`.

@@ -65,7 +65,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "sub"
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPermissionChecker, StoreOS.Infrastructure.Identity.PermissionChecker>();
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPasswordHasher, StoreOS.Infrastructure.Identity.Argon2PasswordHasher>();
 builder.Services.AddSingleton<StoreOS.Application.Abstractions.IJwtTokenService, StoreOS.Infrastructure.Identity.JwtTokenService>();

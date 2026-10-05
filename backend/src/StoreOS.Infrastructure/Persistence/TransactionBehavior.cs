@@ -27,9 +27,12 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
     {
         if (request is IAnonymousTenantRequest anon)
         {
-            if (anon.TenantId == Guid.Empty)
-                throw new DomainException("tenant_required", "The tenant could not be determined for this request.");
-            _scope.UseAnonymousTenant(anon.TenantId);
+            if (!_scope.IsAuthenticated)
+            {
+                if (anon.TenantId == Guid.Empty)
+                    throw new DomainException("tenant_required", "The tenant could not be determined for this request.");
+                _scope.UseAnonymousTenant(anon.TenantId);
+            }
         }
 
         // Requests without any tenant context never touch RLS-protected tables (e.g. tenant lookup by host).
