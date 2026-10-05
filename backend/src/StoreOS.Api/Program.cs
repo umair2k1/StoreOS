@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -21,12 +22,19 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, Sto
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantJobRunner, StoreOS.Infrastructure.Persistence.TenantJobRunner>();
 builder.Services.AddHostedService<RlsRoleGuard>();
 
-// MediatR Pipeline & Behaviors (P-109)
+// MediatR Pipeline & Behaviors (P-109, P-114)
 builder.Services.AddMediatR(cfg =>
 {
-    cfg.RegisterServicesFromAssembly(typeof(StoreOS.Application.Abstractions.IAppDbContext).Assembly);
+    cfg.RegisterServicesFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.ValidationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.TransactionBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
 });
+builder.Services.AddValidatorsFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
+
+// Authentication & Authorization (P-106, P-114, P-302)
+builder.Services.AddAuthentication();
+builder.Services.AddAuthorization();
 
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
@@ -65,11 +73,9 @@ var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
-
 app.UseCors("Default");
-
+app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 // Health check endpoints: /health/live (always 200), /health/ready (verifies DB)

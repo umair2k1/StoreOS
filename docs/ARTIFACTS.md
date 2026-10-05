@@ -1003,3 +1003,43 @@ CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
 
 ### CI Integration Stage Requirement
 - Reminder: P-1203 MUST include `RlsCoverageTests` (`dotnet test --filter RlsCoverageTests`) in the CI integration-test stage with Testcontainers / Docker support.
+
+## P-114
+
+### MediatR Pipeline Behaviors & Markers
+- Marker Assembly Class: `StoreOS.Application.AssemblyMarker` (`backend/src/StoreOS.Application/AssemblyMarker.cs`)
+  ```csharp
+  public sealed class AssemblyMarker { private AssemblyMarker() { } }
+  ```
+- Marker Interface: `StoreOS.Application.Abstractions.IRequiresPermission` (`backend/src/StoreOS.Application/Abstractions/IRequiresPermission.cs`)
+  ```csharp
+  public interface IRequiresPermission
+  {
+      string RequiredPermission { get; }
+  }
+  ```
+- Validation Pipeline Behavior: `StoreOS.Application.Behaviors.ValidationBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Application/Behaviors/ValidationBehavior.cs`)
+  ```csharp
+  public class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>
+  ```
+- Authorization Pipeline Behavior: `StoreOS.Application.Behaviors.AuthorizationBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Application/Behaviors/AuthorizationBehavior.cs`)
+  ```csharp
+  public class AuthorizationBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse> where TRequest : IRequest<TResponse>
+  ```
+
+### MediatR Behavior Pipeline Registration Order (Program.cs / CONTRACTS §3 / DECISIONS D-04)
+1. `ValidationBehavior` (pure validation, 400, outermost)
+2. `SerializationRetryBehavior` (retries whole transaction on 40001/40P01, P-511)
+3. `TransactionBehavior` (opens transaction, RLS session variables, commits/rollbacks, P-109)
+4. `TokenVersionBehavior` (token version revocation check, P-307)
+5. `AuthorizationBehavior` (claims permission check + live DB check, P-114 / P-308)
+6. `IdempotencyBehavior` (idempotency key inside transaction, P-117)
+7. Handler
+
+### Status Code Mapping Table (ErrorCatalog / ExceptionHandlingMiddleware)
+| Code | HTTP Status | Description |
+|---|---|---|
+| `unauthenticated` | 401 Unauthorized | Missing or invalid authentication |
+| `forbidden` | 403 Forbidden | Authenticated principal lacks required permission |
+| Any other DomainException | 422 Unprocessable Entity | Domain/business rule violation (or 404 for `*_not_found`, 409 for conflicts) |
+| `ValidationException` | 400 Bad Request | Field-level validation error dictionary |

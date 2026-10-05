@@ -22,7 +22,26 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         var principal = CurrentPrincipal.Value;
-        if (principal == null || principal.Identity?.IsAuthenticated != true)
+
+        if (principal == null && Request.Headers.TryGetValue("X-Test-Auth", out var testAuthHeader) && testAuthHeader == "true")
+        {
+            var claims = new List<Claim>();
+            if (Request.Headers.TryGetValue("X-Test-Tenant-Id", out var tenantId))
+                claims.Add(new Claim("tenant_id", tenantId.ToString()));
+            if (Request.Headers.TryGetValue("X-Test-User-Id", out var userId))
+                claims.Add(new Claim("sub", userId.ToString()));
+            if (Request.Headers.TryGetValue("X-Test-Perms", out var perms))
+            {
+                foreach (var p in perms.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    claims.Add(new Claim("perm", p));
+            }
+            if (Request.Headers.TryGetValue("X-Test-Token-Version", out var tv))
+                claims.Add(new Claim("token_version", tv.ToString()));
+
+            principal = new ClaimsPrincipal(new ClaimsIdentity(claims, SchemeName));
+        }
+
+        if (principal == null)
         {
             return Task.FromResult(AuthenticateResult.NoResult());
         }
