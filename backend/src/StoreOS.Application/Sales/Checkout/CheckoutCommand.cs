@@ -31,7 +31,7 @@ public record CheckoutCommand(
     IReadOnlyList<CheckoutPayment> Payments,
     CheckoutFinanceDetails? Finance,
     string? Description
-) : IRequest<CheckoutResult>, IRequiresPermission
+) : IRequest<CheckoutResult>, IRequiresPermission, ISerializableRequest
 {
     public string RequiredPermission => "pos:checkout";
 }
