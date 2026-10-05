@@ -40,3 +40,4 @@ P-202 | DONE | backend/src/StoreOS.Domain/Tax/TaxEngine.cs, backend/tests/StoreO
 P-203 | DONE | backend/src/StoreOS.Domain/Tax/DiscountEngine.cs, backend/tests/StoreOS.Domain.Tests/Tax/DiscountEngineTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-204 | DONE | backend/src/StoreOS.Domain/Finance/FinanceEngine.cs, backend/tests/StoreOS.Domain.Tests/Finance/FinanceEngineTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-205 | DONE | backend/src/StoreOS.Domain/Inventory/StockValuationLine.cs, backend/src/StoreOS.Domain/Inventory/ValuationResult.cs, backend/src/StoreOS.Domain/Inventory/ValuationCalculator.cs, backend/tests/StoreOS.Domain.Tests/Inventory/ValuationCalculatorTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
+P-206 | DONE | backend/src/StoreOS.Domain/Sales/InvoiceSeriesFormat.cs, backend/src/StoreOS.Domain/Sales/InvoiceNumberFormatter.cs, backend/tests/StoreOS.Domain.Tests/Sales/InvoiceNumberFormatterTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md

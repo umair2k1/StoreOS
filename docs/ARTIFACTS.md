@@ -1371,3 +1371,35 @@ var sgst = Money.Round2(totalGst - cgst);
   - `"RepairService"` category string literal is excluded from stock valuation (services never count as stock, Invariant 3). Must match `products.category` CHECK constraint exactly (`'NewPhone','UsedPhone','Accessory','RepairService'`).
   - Low stock boundary: `qty <= threshold` (inclusive per Requirements §5.3).
   - Out of stock boundary: `qty <= 0` (inclusive).
+
+## P-206
+
+### Invoice Series & Formatting (Plan §8.5, DECISIONS D-07, DECISIONS O-01)
+- Enum: `StoreOS.Domain.Sales.InvoiceSeriesFormat` (`backend/src/StoreOS.Domain/Sales/InvoiceSeriesFormat.cs`)
+  ```csharp
+  public enum InvoiceSeriesFormat
+  {
+      FyConsecutive,
+      DailyTimestamp
+  }
+  ```
+- Formatter: `StoreOS.Domain.Sales.InvoiceNumberFormatter` (`backend/src/StoreOS.Domain/Sales/InvoiceNumberFormatter.cs`)
+  ```csharp
+  public static class InvoiceNumberFormatter
+  {
+      public static string FormatFyConsecutive(string branchCode, string financialYearLabel, int sequence);
+      public static string FormatEstimate(string branchCode, string financialYearLabel, int sequence);
+      public static string FormatDailyTimestamp(string branchCode, DateTimeOffset businessDateTime, int dailySequence);
+      public static string FinancialYearLabel(DateOnly businessDate);
+  }
+  ```
+- Reference Character Count & Rule 46(b):
+  - Reference format: `FormatFyConsecutive("B01", "26-27", 42)` -> `"B01/26-27/000042"`.
+  - Confirmed exact length: 16 characters (`"B01"` [3] + `"/"` [1] + `"26-27"` [5] + `"/"` [1] + `"000042"` [6] = 16), strictly compliant with CGST Rule 46(b) max 16 chars.
+  - Long branch codes resulting in formatted string length > 16 throw `DomainValidationException("invoice_number_exceeds_rule46b")`.
+  - Estimates use format `$"{branchCode}/E/{financialYearLabel}/{sequence:D6}"` (e.g. `B01/E/26-27/000007`, 18 chars) and are exempt from the Rule 46(b) 16-character limit (DECISIONS D-07).
+  - Daily timestamp format (23 chars) is an explicit legacy option carrying audit risk, exempt from in-code length enforcement (DECISIONS O-01).
+- Financial Year Rollover:
+  - Indian fiscal year runs April 1 through March 31.
+  - Months >= 4 belong to fiscal start year; months < 4 belong to prior year.
+  - Rollover occurs exactly on April 1 (e.g. 2027-04-01 -> "27-28", while 2027-02-10 -> "26-27").
