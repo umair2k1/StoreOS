@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Identity.Login;
+using StoreOS.Application.Identity.Refresh;
 using StoreOS.Domain.Exceptions;
 
 namespace StoreOS.Api.Controllers;
@@ -38,6 +39,47 @@ public class AuthController : ControllerBase
         var result = await _mediator.Send(command, ct);
 
         Response.Cookies.Append("storeos_refresh_token", result.RawRefreshToken, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Strict,
+            Path = "/api/auth",
+            Expires = DateTimeOffset.UtcNow.AddDays(30)
+        });
+
+        return Ok(new
+        {
+            accessToken = result.AccessToken,
+            expiresAt = result.ExpiresAt,
+            userId = result.UserId,
+            displayName = result.DisplayName,
+            tenantId = result.TenantId,
+            allBranches = result.AllBranches,
+            branchIds = result.BranchIds,
+            permissions = result.Permissions
+        });
+    }
+
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh(CancellationToken ct)
+    {
+        if (!Request.Cookies.TryGetValue("storeos_refresh_token", out var rawToken) || string.IsNullOrEmpty(rawToken))
+            return Unauthorized(new { code = "missing_refresh_token", message = "No refresh token cookie present." });
+
+        var result = await _mediator.Send(new RefreshCommand(rawToken), ct);
+
+        if (result.ReuseDetected)
+        {
+            Response.Cookies.Delete("storeos_refresh_token", new CookieOptions { Path = "/api/auth" });
+            return Unauthorized(new
+            {
+                code = "refresh_token_reuse_detected",
+                message = "This refresh token has already been used. All sessions have been revoked for security. Please log in again."
+            });
+        }
+
+        Response.Cookies.Append("storeos_refresh_token", result.NewRawRefreshToken, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,

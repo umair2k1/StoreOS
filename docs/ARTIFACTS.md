@@ -1589,3 +1589,44 @@ var sgst = Money.Round2(totalGst - cgst);
   - Raw token format: `"{tenantId:N}.{base64url(32 random bytes)}"`.
   - Database stores ONLY SHA-256 hex hash (`RefreshTokenFormat.Hash(rawToken)`), never raw token.
   - `RawRefreshToken` is transmitted exclusively through the `HttpOnly` cookie and is NEVER included in response JSON, logs, or audit records.
+
+## P-305
+
+### Refresh Endpoint & Token Family Theft/Replay Detection
+- Command: `StoreOS.Application.Identity.Refresh.RefreshCommand` (`backend/src/StoreOS.Application/Identity/Refresh/RefreshCommand.cs`)
+  ```csharp
+  namespace StoreOS.Application.Identity.Refresh;
+
+  public record RefreshCommand(string RawRefreshToken) : IRequest<RefreshResult>, IAnonymousTenantRequest
+  {
+      public Guid TenantId => RefreshTokenFormat.TryParseTenantId(RawRefreshToken, out var t) ? t : Guid.Empty;
+  }
+  ```
+- Result: `StoreOS.Application.Identity.Refresh.RefreshResult` (`backend/src/StoreOS.Application/Identity/Refresh/RefreshCommand.cs`)
+  ```csharp
+  public record RefreshResult(
+      string AccessToken,
+      DateTimeOffset ExpiresAt,
+      string NewRawRefreshToken,
+      Guid UserId,
+      string DisplayName,
+      Guid TenantId,
+      bool AllBranches,
+      IReadOnlyList<Guid> BranchIds,
+      IReadOnlyList<string> Permissions,
+      bool ReuseDetected = false);
+  ```
+- Handler: `StoreOS.Application.Identity.Refresh.RefreshHandler` (`backend/src/StoreOS.Application/Identity/Refresh/RefreshHandler.cs`)
+- Controller Route: `POST /api/auth/refresh` (`[AllowAnonymous]`) in `StoreOS.Api.Controllers.AuthController`
+  - Input: Cookie `storeos_refresh_token`
+  - Output on Success: 200 OK with refreshed `accessToken`, `expiresAt`, `userId`, `displayName`, `tenantId`, `allBranches`, `branchIds`, `permissions`, and updated `storeos_refresh_token` cookie.
+- Replay / Theft Detection Protocol (Plan §8.3):
+  - When a presented token has `IsRevoked == true` (it was previously rotated into a successor token):
+    1. Replay is detected: all tokens sharing the same `FamilyId` are immediately marked `IsRevoked = true`.
+    2. The user's `TokenVersion` is incremented (`affectedUser.BumpTokenVersion()`), invalidating all active JWTs upon stale check.
+    3. Changes are committed to the DB via `await _db.SaveChangesAsync(ct);`.
+    4. `RefreshResult` is returned with `ReuseDetected = true`.
+    5. Controller deletes `storeos_refresh_token` cookie and returns 401 Unauthorized with code `"refresh_token_reuse_detected"`.
+  - Token rotation maintains the SAME `FamilyId` across valid rotations, linking `replaced_by_token_id`.
+  - Expired tokens throw `DomainException("refresh_token_expired")` (mapped to 401).
+  - Invalid tokens or tokens for wrong tenant throw `DomainException("invalid_refresh_token")` (mapped to 401).
