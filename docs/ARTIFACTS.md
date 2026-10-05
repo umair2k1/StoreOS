@@ -1247,3 +1247,30 @@ Every later prompt that adds a new tenant-scoped or branch-scoped entity MUST ad
 ### Transaction Behavior Resolution (P-109 / P-119)
 - When `request is IReportingRequest`: resolves `ReportingDbContext`, opens `RepeatableRead` transaction, and issues `SET LOCAL transaction_read_only = on`.
 - Otherwise: resolves `StoreOsDbContext` as before.
+
+## P-201
+
+### Tax Engine & Line Tax
+- Struct: `StoreOS.Domain.Tax.LineTax` (`backend/src/StoreOS.Domain/Tax/LineTax.cs`)
+  ```csharp
+  public readonly record struct LineTax(decimal Taxable, decimal Cgst, decimal Sgst)
+  {
+      public decimal TotalGst => Cgst + Sgst;
+      public static LineTax Zero => new(0m, 0m, 0m);
+  }
+  ```
+- Engine: `StoreOS.Domain.Tax.TaxEngine` (`backend/src/StoreOS.Domain/Tax/TaxEngine.cs`)
+  ```csharp
+  public static class TaxEngine
+  {
+      public static LineTax StandardGst(decimal lineTotal, decimal gstRate);
+  }
+  ```
+
+### GST Halves-Reconciliation Rule (Plan §7.1)
+When splitting `totalGst` into CGST and SGST:
+```csharp
+var cgst = Money.Round2(totalGst / 2m);
+var sgst = Money.Round2(totalGst - cgst);
+```
+`sgst` is always computed as `totalGst - cgst` (never `totalGst / 2m` independently). This guarantees `cgst + sgst == totalGst` exactly without odd-paise drift across the entire product.
