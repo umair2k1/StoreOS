@@ -3,6 +3,7 @@ using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Identity;
 using StoreOS.Domain.Platform;
+using StoreOS.Domain.Inventory;
 using StoreOS.Domain.Catalog;
 namespace StoreOS.Infrastructure.Persistence;
 
@@ -27,6 +28,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<AuditLogEntry> AuditLogEntries => Set<AuditLogEntry>();
     public DbSet<IdempotencyRecord> IdempotencyRecords => Set<IdempotencyRecord>();
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<BranchInventory> BranchInventories => Set<BranchInventory>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
     protected override void OnModelCreating(ModelBuilder modelBuilder)

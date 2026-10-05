@@ -2044,3 +2044,51 @@ var sgst = Money.Round2(totalGst - cgst);
   - `GET /api/products/{id:guid}` -> `GetById(Guid id)`
   - `POST /api/products` -> `Create([FromBody] CreateProductCommand command)` (returns 201 CreatedAtAction)
   - `PATCH /api/products/{id:guid}` -> `Update(Guid id, [FromBody] UpdateProductBody body)` (returns 204 NoContent)
+
+## P-403
+
+### Branch Inventory Entity & Archetype B Policy
+- Domain Entity (`StoreOS.Domain.Inventory.BranchInventory`):
+  ```csharp
+  public class BranchInventory
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid BranchId { get; private set; }
+      public Guid ProductId { get; private set; }
+      public int StockQty { get; private set; }
+      public decimal CostPrice { get; private set; }
+      public decimal? SellPriceOverride { get; private set; }
+      public int LowStockThreshold { get; private set; }
+
+      public static BranchInventory Create(Guid tenantId, Guid branchId, Guid productId);
+      public void IncreaseStock(int qty, decimal? newCostPrice = null);
+      public void DecreaseStock(int qty);
+      public void SetSellPriceOverride(decimal? price);
+      public void SetLowStockThreshold(int threshold);
+      public decimal ResolveSellPrice(decimal productSellPrice);
+  }
+  ```
+- Concurrency & Stock Mutation Invariant:
+  - `IncreaseStock`/`DecreaseStock` entity methods are for in-memory operations and invariant protection (`StockQty >= 0`).
+  - Production stock mutations MUST go through `IInventoryStockService` (introduced in P-406) via atomic conditional SQL (`WHERE stock_qty >= @qty`) to prevent concurrency races.
+- RepairService Invariant 3:
+  - `RepairService` products intentionally NEVER get `branch_inventory` rows. Enforced across catalog/inventory flows and asserted by P-905 nightly reconciliation.
+- Database Schema & Archetype B RLS:
+  - Table: `public.branch_inventory`
+    - Columns: `id` uuid PK, `tenant_id` uuid NOT NULL, `branch_id` uuid NOT NULL REFERENCES branches(id), `product_id` uuid NOT NULL REFERENCES products(id), `stock_qty` int NOT NULL DEFAULT 0, `cost_price` numeric(18,2) NOT NULL DEFAULT 0, `sell_price_override` numeric(18,2) NULL, `low_stock_threshold` int NOT NULL DEFAULT 3.
+    - Constraints: `ck_branch_inventory_stock_qty` CHECK (`stock_qty >= 0`), `ix_branch_inventory_tenant_branch_product` UNIQUE (`tenant_id`, `branch_id`, `product_id`).
+    - RLS Policy (`tenant_branch_isolation_policy`):
+      ```sql
+      ALTER TABLE public.branch_inventory ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.branch_inventory FORCE ROW LEVEL SECURITY;
+      CREATE POLICY tenant_branch_isolation_policy ON public.branch_inventory USING (
+        tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+        AND (
+          COALESCE(NULLIF(current_setting('app.all_branches', true), ''), 'false') = 'true'
+          OR branch_id = ANY (string_to_array(NULLIF(current_setting('app.branch_ids', true), ''), ',')::uuid[])
+        )
+      );
+      ```
+- Migration:
+  - `20261005181632_010_BranchInventory` applied via `dotnet ef migrations add 010_BranchInventory --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.

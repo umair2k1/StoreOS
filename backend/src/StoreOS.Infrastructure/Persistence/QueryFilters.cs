@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using StoreOS.Application.Abstractions;
 using StoreOS.Domain.Platform;
 using StoreOS.Domain.Tenancy;
+using StoreOS.Domain.Inventory;
 using StoreOS.Domain.Catalog;
 
 namespace StoreOS.Infrastructure.Persistence;
@@ -39,6 +40,7 @@ public static class QueryFilters
         ApplyFilter<AuditLogEntry>(modelBuilder, scopeAccess, (a, s) => a.TenantId == s.TenantId && (a.BranchId == null || s.AllBranches || s.BranchIds.Contains(a.BranchId.Value)));
         ApplyFilter<IdempotencyRecord>(modelBuilder, scopeAccess, (i, s) => i.TenantId == s.TenantId);
         ApplyFilter<Product>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId);
+        ApplyFilter<BranchInventory>(modelBuilder, scopeAccess, (bi, s) => bi.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(bi.BranchId)));
     }
 
     private static void ApplyFilter<TEntity>(

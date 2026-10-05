@@ -301,6 +301,62 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("user_role_assignments", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Inventory.BranchInventory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<decimal>("CostPrice")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("cost_price");
+
+                    b.Property<int>("LowStockThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3)
+                        .HasColumnName("low_stock_threshold");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<decimal?>("SellPriceOverride")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("sell_price_override");
+
+                    b.Property<int>("StockQty")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("stock_qty");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantId", "BranchId", "ProductId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_branch_inventory_tenant_branch_product");
+
+                    b.ToTable("branch_inventory", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Platform.AuditLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -602,6 +658,21 @@ namespace StoreOS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Inventory.BranchInventory", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
