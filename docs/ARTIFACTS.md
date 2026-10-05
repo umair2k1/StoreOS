@@ -790,3 +790,44 @@ For every new entity E added in any later prompt:
 - These EF filters are LAYER ONE of defense. Layer TWO is PostgreSQL RLS (P-108/P-110).
   Both must independently enforce the same isolation — never rely on only one.
 ```
+
+## P-108
+
+### Infrastructure Services
+- `StoreOS.Infrastructure.Persistence.RlsRoleGuard` (`backend/src/StoreOS.Infrastructure/Persistence/RlsRoleGuard.cs`):
+  `IHostedService` executing `SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user` on startup. Throws `InvalidOperationException` if either is true.
+
+### Shared Test Fixture
+- `StoreOS.IntegrationTests.PostgresTestFixture` (`backend/tests/StoreOS.IntegrationTests/PostgresTestFixture.cs`):
+  Shared container test fixture with `OwnerConnectionString` (superuser/owner) and `AppConnectionString` (role `storeos_app` with `NOSUPERUSER NOBYPASSRLS`).
+- `[CollectionDefinition("postgres")] public class PostgresCollection : ICollectionFixture<PostgresTestFixture>`
+
+### Database Schema & Migrations
+- Migration: `005_RlsTenantOnlyPolicies` (`backend/src/StoreOS.Infrastructure/Migrations/20261005031649_005_RlsTenantOnlyPolicies.cs`)
+  - Generation Command: `dotnet ef migrations add 005_RlsTenantOnlyPolicies --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261005031649_005_RlsTenantOnlyPolicies`
+
+### Row-Level Security Policies (8 Protected Tables)
+All 8 tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`:
+1. Direct `tenant_id` tables (`branches`, `users`, `roles`, `settings`):
+   ```sql
+   CREATE POLICY tenant_isolation_policy ON <table> USING (
+       tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+   );
+   ```
+2. Subquery on `roles` (`role_permissions`):
+   ```sql
+   CREATE POLICY tenant_isolation_policy ON role_permissions USING (
+       role_id IN (SELECT id FROM roles WHERE tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+   );
+   ```
+3. Subquery on `users` (`user_branches`, `user_role_assignments`, `refresh_tokens`):
+   ```sql
+   CREATE POLICY tenant_isolation_policy ON <table> USING (
+       user_id IN (SELECT id FROM users WHERE tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)
+   );
+   ```
+
+### RLS Exception Documentation
+- `public.tenants` is the **sole intentional exception** to the 100% RLS coverage rule. It has no parent tenant scope; it serves as the lookup table for tenant resolution and is queried before any `IAccessScope` or session context exists.

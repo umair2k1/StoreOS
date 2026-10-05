@@ -13,6 +13,7 @@ builder.Services.AddDbContext<StoreOsDbContext>(options =>
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
+builder.Services.AddHostedService<RlsRoleGuard>();
 
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
