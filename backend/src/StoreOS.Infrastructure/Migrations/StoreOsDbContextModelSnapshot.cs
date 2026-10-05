@@ -500,6 +500,77 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("inventory_movements", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Inventory.InventoryTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("FromBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("from_branch_id");
+
+                    b.PrimitiveCollection<Guid[]>("ImeiIds")
+                        .HasColumnType("uuid[]")
+                        .HasColumnName("imei_ids");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("integer")
+                        .HasColumnName("qty");
+
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid?>("ReceivedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("received_by");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<Guid>("ToBranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("to_branch_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromBranchId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ToBranchId");
+
+                    b.HasIndex("TenantId", "FromBranchId")
+                        .HasDatabaseName("ix_transfers_tenant_from_branch");
+
+                    b.HasIndex("TenantId", "ToBranchId")
+                        .HasDatabaseName("ix_transfers_tenant_to_branch");
+
+                    b.ToTable("inventory_transfers", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Platform.AuditLogEntry", b =>
                 {
                     b.Property<long>("Id")
@@ -1038,6 +1109,27 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasOne("StoreOS.Domain.Catalog.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Inventory.InventoryTransfer", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("FromBranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("ToBranchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

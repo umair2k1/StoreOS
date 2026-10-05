@@ -2456,3 +2456,56 @@ var sgst = Money.Round2(totalGst - cgst);
   - Live DB check: implements `IHighImpactOperation`, bypassing memory cache to guarantee immediate authorization enforcement.
 - Controller:
   - `POST /api/inventory/adjustments` (`StoreOS.Api.Controllers.InventoryController`)
+
+## P-414
+
+### Branch Transfers Out/In Endpoints & Archetype C Policy
+- Domain Entity (`StoreOS.Domain.Inventory.InventoryTransfer`):
+  ```csharp
+  public static class TransferStatus { public const string Pending = "Pending"; public const string Received = "Received"; }
+  public class InventoryTransfer
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public Guid FromBranchId { get; private set; }
+      public Guid ToBranchId { get; private set; }
+      public Guid ProductId { get; private set; }
+      public int Qty { get; private set; }
+      public string Status { get; private set; }
+      public Guid[]? ImeiIds { get; private set; }
+      public Guid CreatedBy { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+      public Guid? ReceivedBy { get; private set; }
+      public DateTimeOffset? ReceivedAt { get; private set; }
+      public static InventoryTransfer CreatePending(Guid tenantId, Guid fromBranchId, Guid toBranchId, Guid productId, int qty, Guid[]? imeiIds, Guid createdBy);
+      public void MarkReceived(Guid receivedBy);
+  }
+  ```
+- Vertical Slices (`StoreOS.Application.Inventory.Transfers`):
+  - `TransferOutCommand(Guid ToBranchId, Guid ProductId, int Qty, IReadOnlyList<string>? ImeiStrings = null) : IRequest<Guid>, IRequiresPermission` (`inventory:manage`)
+  - `ReceiveTransferCommand(Guid TransferId) : IRequest, IRequiresPermission` (`inventory:manage`)
+- Two-Step Workflow & Concurrency Rules:
+  - Step 1: `TransferOut` validates `ToBranchId != CurrentBranchId`, sets IMEI rows to `InTransit`, decrements source branch stock via conditional decrement `ReserveAndDecrementStockAsync`, and creates header with `Status = Pending`.
+  - Step 2: `ReceiveTransfer` verifies receiving staff branch matches `ToBranchId`, increases destination branch stock via `IncreaseStockAsync`, updates IMEIs to `InStock` at destination branch, and marks transfer `Received`.
+  - InTransit IMEIs are unsellable at both origin and destination branches.
+  - Double-receipt is rejected with `DomainValidationException("transfer_already_received")`.
+  - Tenant-level total stock is invariant across the entire lifecycle.
+- Archetype C — Dual-Branch Visibility Query Filter & RLS Policy:
+  - Filter: `(s.AllBranches || s.BranchIds.Contains(it.FromBranchId) || s.BranchIds.Contains(it.ToBranchId))`
+  - RLS Policy:
+    ```sql
+    CREATE POLICY tenant_branch_dual_isolation_policy ON public.inventory_transfers USING (
+      tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+      AND (
+        COALESCE(NULLIF(current_setting('app.all_branches', true), ''), 'false') = 'true'
+        OR from_branch_id = ANY (string_to_array(NULLIF(current_setting('app.branch_ids', true), ''), ',')::uuid[])
+        OR to_branch_id = ANY (string_to_array(NULLIF(current_setting('app.branch_ids', true), ''), ',')::uuid[])
+      )
+    );
+    ```
+- Controller:
+  - `POST /api/inventory/transfers`
+  - `POST /api/inventory/transfers/{id}/receive`
+- Migration:
+  - `20261005190340_016_Transfers` applied via:
+    `dotnet ef migrations add 016_Transfers --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

@@ -44,10 +44,11 @@ public static class QueryFilters
         ApplyFilter<Product>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId);
         ApplyFilter<BranchInventory>(modelBuilder, scopeAccess, (bi, s) => bi.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(bi.BranchId)));
         ApplyFilter<InventoryMovement>(modelBuilder, scopeAccess, (im, s) => im.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(im.BranchId)));
-        ApplyFilter<InventoryImei>(modelBuilder, scopeAccess, (ii, s) => ii.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(ii.BranchId)));
+        ApplyFilter<InventoryImei>(modelBuilder, scopeAccess, (ii, s) => ii.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(ii.BranchId) || ii.Status == "InTransit"));
         ApplyFilter<Purchase>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(p.BranchId)));
         ApplyFilter<Supplier>(modelBuilder, scopeAccess, (su, s) => su.TenantId == s.TenantId);
         ApplyFilter<ImportBatch>(modelBuilder, scopeAccess, (ib, s) => ib.TenantId == s.TenantId && (ib.BranchId == null || s.AllBranches || s.BranchIds.Contains(ib.BranchId.Value)));
+        ApplyFilter<InventoryTransfer>(modelBuilder, scopeAccess, (it, s) => it.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(it.FromBranchId) || s.BranchIds.Contains(it.ToBranchId)));
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,
