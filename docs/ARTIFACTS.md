@@ -1437,3 +1437,50 @@ var sgst = Money.Round2(totalGst - cgst);
     - `HashSize`: 32 bytes (Base64-encoded)
   - Verification: constant-time byte comparison via `CryptographicOperations.FixedTimeEquals`, returns `false` on any malformed/invalid input or format mismatch without throwing exceptions.
   - DI Registration: registered as singleton in `Program.cs`: `builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();`.
+
+## P-302
+
+### JWT Issuance Service & Bearer Authentication
+- Contract: `StoreOS.Application.Abstractions.IJwtTokenService` (`backend/src/StoreOS.Application/Abstractions/IJwtTokenService.cs`)
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IJwtTokenService
+  {
+      (string token, DateTimeOffset expiresAt) IssueAccessToken(
+          Guid userId, Guid tenantId, bool allBranches, IEnumerable<Guid> branchIds,
+          IEnumerable<string> permissions, int tokenVersion);
+  }
+  ```
+- Implementation: `StoreOS.Infrastructure.Identity.JwtTokenService` (`backend/src/StoreOS.Infrastructure/Identity/JwtTokenService.cs`)
+  ```csharp
+  namespace StoreOS.Infrastructure.Identity;
+
+  public class JwtTokenService : IJwtTokenService
+  {
+      public JwtTokenService(IConfiguration config);
+      public (string token, DateTimeOffset expiresAt) IssueAccessToken(
+          Guid userId, Guid tenantId, bool allBranches, IEnumerable<Guid> branchIds,
+          IEnumerable<string> permissions, int tokenVersion);
+  }
+  ```
+- Configuration Keys (`appsettings.json`):
+  - `Jwt:SigningKey`: `"dev-only-signing-key-change-in-production-min-32-bytes-long!!"` (dev placeholder; production deployment must source from cloud secret manager per Plan §14.4)
+  - `Jwt:Issuer`: `"storeos-cloud"`
+  - `Jwt:Audience`: `"storeos-cloud-clients"`
+  - `Jwt:AccessTokenMinutes`: `15`
+- Claims Match P-106 `HttpAccessScope` Exactly:
+  - `sub`: user ID Guid string
+  - `tenant_id`: tenant ID Guid string
+  - `all_branches`: `"true"` or `"false"`
+  - `branch_id`: branch ID Guid string (repeated claim when `all_branches` is false)
+  - `perm`: permission string code (repeated claim)
+  - `token_version`: integer token version string
+- Confirmed Final Middleware Pipeline Order:
+  1. `CorrelationIdMiddleware`
+  2. `ExceptionHandlingMiddleware`
+  3. `UseHttpsRedirection`
+  4. `UseCors`
+  5. `UseAuthentication` (with `JwtBearerDefaults.AuthenticationScheme` and `MapInboundClaims = false`)
+  6. `UseAuthorization`
+  7. `MapControllers` (MediatR behaviors handle `TransactionBehavior` and `IdempotencyBehavior` inside request scope per P-109, P-117)

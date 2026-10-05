@@ -4,6 +4,9 @@ using Microsoft.EntityFrameworkCore;
 using Serilog;
 using StoreOS.Api.Middleware;
 using StoreOS.Infrastructure.Persistence;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -44,10 +47,29 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.IIdempotencyStore, S
 builder.Services.AddValidatorsFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
 
 // Authentication & Authorization (P-106, P-114, P-302)
-builder.Services.AddAuthentication();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SigningKey"]!)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = "sub"
+        };
+    });
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPermissionChecker, StoreOS.Infrastructure.Identity.PermissionChecker>();
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPasswordHasher, StoreOS.Infrastructure.Identity.Argon2PasswordHasher>();
+builder.Services.AddSingleton<StoreOS.Application.Abstractions.IJwtTokenService, StoreOS.Infrastructure.Identity.JwtTokenService>();
+builder.Services.AddSingleton<StoreOS.Infrastructure.Identity.JwtTokenService>(sp => (StoreOS.Infrastructure.Identity.JwtTokenService)sp.GetRequiredService<StoreOS.Application.Abstractions.IJwtTokenService>());
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();
