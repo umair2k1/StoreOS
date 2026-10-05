@@ -1403,3 +1403,37 @@ var sgst = Money.Round2(totalGst - cgst);
   - Indian fiscal year runs April 1 through March 31.
   - Months >= 4 belong to fiscal start year; months < 4 belong to prior year.
   - Rollover occurs exactly on April 1 (e.g. 2027-04-01 -> "27-28", while 2027-02-10 -> "26-27").
+
+## P-301
+
+### Password Hashing (Argon2id)
+- Interface: `StoreOS.Application.Identity.IPasswordHasher` (`backend/src/StoreOS.Application/Identity/IPasswordHasher.cs`)
+  ```csharp
+  namespace StoreOS.Application.Identity;
+
+  public interface IPasswordHasher
+  {
+      string Hash(string plainTextPassword);
+      bool Verify(string plainTextPassword, string storedHash);
+  }
+  ```
+- Implementation: `StoreOS.Infrastructure.Identity.Argon2PasswordHasher` (`backend/src/StoreOS.Infrastructure/Identity/Argon2PasswordHasher.cs`)
+  ```csharp
+  namespace StoreOS.Infrastructure.Identity;
+
+  public class Argon2PasswordHasher : IPasswordHasher
+  {
+      public string Hash(string plainTextPassword);
+      public bool Verify(string plainTextPassword, string storedHash);
+  }
+  ```
+- Stored-Hash String Format:
+  - Format: `argon2id$<iterations>$<memoryKb>$<parallelism>$<base64salt>$<base64hash>`
+  - Default Parameters:
+    - `Iterations`: 3
+    - `MemorySizeKb`: 65536 (64 MB)
+    - `DegreeOfParallelism`: 4
+    - `SaltSize`: 16 bytes (Base64-encoded)
+    - `HashSize`: 32 bytes (Base64-encoded)
+  - Verification: constant-time byte comparison via `CryptographicOperations.FixedTimeEquals`, returns `false` on any malformed/invalid input or format mismatch without throwing exceptions.
+  - DI Registration: registered as singleton in `Program.cs`: `builder.Services.AddSingleton<IPasswordHasher, Argon2PasswordHasher>();`.

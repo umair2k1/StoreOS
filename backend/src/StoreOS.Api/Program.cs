@@ -47,6 +47,7 @@ builder.Services.AddValidatorsFromAssembly(typeof(StoreOS.Application.AssemblyMa
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<StoreOS.Application.Identity.IPermissionChecker, StoreOS.Infrastructure.Identity.PermissionChecker>();
+builder.Services.AddSingleton<StoreOS.Application.Identity.IPasswordHasher, StoreOS.Infrastructure.Identity.Argon2PasswordHasher>();
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();
