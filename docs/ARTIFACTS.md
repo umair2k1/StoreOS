@@ -2656,3 +2656,17 @@ var sgst = Money.Round2(totalGst - cgst);
   - `20261005193528_018_Sales` applied via:
     `dotnet ef migrations add 018_Sales --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
     `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-503
+### POS Product Search & Single Product Detail Endpoints
+- Application Queries & DTOs (`StoreOS.Application.Sales.Search`):
+  - `PosSearchQuery(string Q) : IRequest<IReadOnlyList<PosSearchResultDto>>, IReadOnlyRequest`
+  - `PosSearchResultDto(Guid ProductId, string Name, string Category, decimal SellPrice, decimal GstRate, string? HsnCode, bool IsMarginScheme, int StockQty, string StockStatus)`
+  - `GetPosProductQuery(Guid Id) : IRequest<PosProductDetailDto>, IReadOnlyRequest`
+  - `PosProductDetailDto(Guid ProductId, string Name, string Category, decimal SellPrice, decimal GstRate, string? HsnCode, bool IsMarginScheme, int StockQty, string StockStatus, IReadOnlyList<string> AvailableImeis)`
+- Handlers:
+  - `PosSearchHandler`: searches products matching query case-insensitively by name, plus exact IMEI match for 14-16 digit numbers via `inventory_imeis` join. Computes branch-scoped stock qty and stock status (`InStock`, `LowStock`, `OutOfStock`). For `RepairService` products, always returns `StockQty = 0` and `StockStatus = "N/A"`.
+  - `GetPosProductHandler`: returns detailed product info with branch-scoped stock qty, status, and sorted list of available `InStock` IMEIs at current branch.
+- Endpoints (`StoreOS.Api.Controllers.PosController`):
+  - `GET /api/pos/search?q={query}`
+  - `GET /api/pos/product/{id:guid}`
