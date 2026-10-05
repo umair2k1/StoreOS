@@ -698,3 +698,57 @@ prompt-completion order and are never rewritten, only appended to.
     - INDEX `ix_refresh_tokens_family` ON (`family_id`)
     - INDEX `ix_refresh_tokens_lookup` ON (`user_id`, `token_hash`)
     - INDEX `IX_refresh_tokens_replaced_by_token_id` ON (`replaced_by_token_id`)
+
+## P-106
+
+### Application Abstractions
+- `StoreOS.Application.Abstractions.IAccessScope` (`backend/src/StoreOS.Application/Abstractions/IAccessScope.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IAccessScope
+  {
+      Guid TenantId { get; }
+      Guid UserId { get; }
+      IReadOnlySet<Guid> BranchIds { get; }
+      bool AllBranches { get; }
+      IReadOnlySet<string> Permissions { get; }
+      int TokenVersion { get; }
+      bool IsAuthenticated { get; }
+      bool HasTenantContext { get; }
+      void UseAnonymousTenant(Guid tenantId);
+      void UseSystemContext(Guid tenantId);
+      bool HasBranchAccess(Guid branchId);
+      bool HasPermission(string permissionCode);
+  }
+  ```
+- `StoreOS.Application.Abstractions.IAnonymousTenantRequest` (`backend/src/StoreOS.Application/Abstractions/IAnonymousTenantRequest.cs`):
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IAnonymousTenantRequest
+  {
+      Guid TenantId { get; }
+  }
+  ```
+
+### Infrastructure Implementations
+- `StoreOS.Infrastructure.Security.HttpAccessScope` (`backend/src/StoreOS.Infrastructure/Security/HttpAccessScope.cs`):
+  Scoped implementation extracting claims from `IHttpContextAccessor.HttpContext.User`.
+- `StoreOS.Infrastructure.Persistence.NullAccessScope` (`backend/src/StoreOS.Infrastructure/Persistence/NullAccessScope.cs`):
+  Sealed implementation for design-time factory and schema-only tests with empty collections and throwing context switchers.
+
+### JWT Claim Types Convention
+Fixed claim types consumed by `HttpAccessScope` and produced by token issuance:
+- `sub`: user ID (`Guid`)
+- `tenant_id`: tenant ID (`Guid`)
+- `all_branches`: `"true"` or `"false"`
+- `branch_id`: repeated claim, one per accessible branch (omitted when `all_branches="true"`)
+- `perm`: repeated claim, one per granted permission code
+- `token_version`: integer user token version string
+
+### Integration Test Auth Injection Pattern
+- `TestAuthHandler` (`backend/tests/StoreOS.IntegrationTests/Security/TestAuthHandler.cs`):
+  AuthenticationHandler registered under scheme `"TestScheme"`, reading `AsyncLocal<ClaimsPrincipal?> TestAuthHandler.CurrentPrincipal`.
+- In scoped tests with `WebApplicationFactory`:
+  Set `scope.ServiceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = new DefaultHttpContext { User = principal }` prior to resolving `IAccessScope`.

@@ -14,6 +14,10 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.IAppDbContext>(
     sp => sp.GetRequiredService<StoreOsDbContext>());
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantResolver, StoreOS.Infrastructure.Tenancy.TenantResolver>();
 
+// Access Scope & HttpContext (P-106)
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();
+
 // CORS Scaffolding (Plan §13.1: localhost:4200 for local frontend dev)
 builder.Services.AddCors(options =>
 {
