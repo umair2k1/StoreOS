@@ -1303,3 +1303,26 @@ var sgst = Money.Round2(totalGst - cgst);
 - Margin Rule:
   - If `margin <= 0` (`sell <= cost`), returns `LineTax.Zero`.
   - Taxable, CGST, and SGST halves calculated with `Money.Round2` (MidpointRounding.AwayFromZero) ensuring `cgst + sgst == totalGst`.
+
+## P-203
+
+### Discount Engine: ApplyProportionalDiscount (Plan §7.3)
+- Class: `StoreOS.Domain.Tax.DiscountEngine` (`backend/src/StoreOS.Domain/Tax/DiscountEngine.cs`)
+  ```csharp
+  public static class DiscountEngine
+  {
+      /// <summary>
+      /// Applies a proportional invoice-level discount to a line's tax components.
+      /// subtotal represents the GROSS pre-discount invoice subtotal (sum of line totals),
+      /// consistent with CheckoutHandler (P-510).
+      /// </summary>
+      public static LineTax ApplyProportionalDiscount(LineTax before, decimal subtotal, decimal discount);
+  }
+  ```
+- Error Codes:
+  - `discount_negative`: Thrown when `discount < 0`. Evaluated before the `subtotal == 0m` guard.
+  - `discount_exceeds_subtotal`: Thrown when `discount > subtotal`.
+- Invariants & Edge Cases:
+  - `subtotal < 0` throws `ArgumentOutOfRangeException`.
+  - `subtotal == 0m && discount == 0m` returns `before` unchanged (no-op, avoids divide-by-zero).
+  - Proportional scaling factor `factor = (subtotal - discount) / subtotal` is applied to `Taxable`, `Cgst`, and `Sgst` using `Money.Round2`.
