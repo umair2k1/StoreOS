@@ -987,3 +987,19 @@ CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
   )
 );
 ```
+
+## P-111
+
+### CI RLS Coverage Tests
+- Class: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (`backend/tests/StoreOS.IntegrationTests/Schema/RlsCoverageTests.cs`)
+  - `[Collection("postgres")]`
+  - Reuses `PostgresTestFixture` (`backend/tests/StoreOS.IntegrationTests/PostgresTestFixture.cs`) and `NullAccessScope` (`backend/src/StoreOS.Infrastructure/Persistence/NullAccessScope.cs`)
+  - Test methods:
+    - `Every_table_with_tenant_id_column_has_rls_enabled_and_forced()`
+    - `No_policy_contains_forbidden_null_bypass()`
+    - `Every_table_with_tenant_id_has_at_least_one_policy()`
+    - `Every_policy_using_current_setting_contains_nullif()`
+    - `Consecutive_transactions_on_single_connection_do_not_leak_tenant_context()`
+
+### CI Integration Stage Requirement
+- Reminder: P-1203 MUST include `RlsCoverageTests` (`dotnet test --filter RlsCoverageTests`) in the CI integration-test stage with Testcontainers / Docker support.
