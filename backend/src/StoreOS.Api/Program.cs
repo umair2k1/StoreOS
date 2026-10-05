@@ -82,6 +82,9 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.IRefreshTokenService
 // Access Scope & HttpContext (P-106)
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IAccessScope, StoreOS.Infrastructure.Security.HttpAccessScope>();
+builder.Services.AddScoped<StoreOS.Infrastructure.Security.MutableBranchContext>();
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IBranchContext>(
+    sp => sp.GetRequiredService<StoreOS.Infrastructure.Security.MutableBranchContext>());
 
 // Correlation Context Accessor (P-112)
 builder.Services.AddScoped<StoreOS.Application.Abstractions.ICorrelationContextAccessor, StoreOS.Infrastructure.Observability.CorrelationContextAccessor>();
@@ -119,6 +122,7 @@ app.UseHttpsRedirection();
 app.UseCors("Default");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<BranchContextMiddleware>();
 app.MapControllers();
 
 // Health check endpoints: /health/live (always 200), /health/ready (verifies DB)

@@ -37,6 +37,10 @@ public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions
             }
             if (Request.Headers.TryGetValue("X-Test-Token-Version", out var tv))
                 claims.Add(new Claim("token_version", tv.ToString()));
+            if (Request.Headers.TryGetValue("X-Test-All-Branches", out var allBranches))
+                claims.Add(new Claim("all_branches", allBranches.ToString()));
+            else
+                claims.Add(new Claim("all_branches", "true"));
 
             principal = new ClaimsPrincipal(new ClaimsIdentity(claims, SchemeName));
         }

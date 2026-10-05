@@ -105,6 +105,7 @@ public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
         request.Headers.Add("X-Test-Tenant-Id", tenantId.ToString());
         request.Headers.Add("X-Test-User-Id", userId.ToString());
         request.Headers.Add("X-Test-Perms", "different:permission");
+        request.Headers.Add("X-Branch-Id", Guid.NewGuid().ToString());
 
         var response = await _client.SendAsync(request);
 
@@ -132,6 +133,7 @@ public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
         request.Headers.Add("X-Test-User-Id", userId.ToString());
         request.Headers.Add("X-Test-Perms", "test:permission");
 
+        request.Headers.Add("X-Branch-Id", Guid.NewGuid().ToString());
         var response = await _client.SendAsync(request);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -161,6 +163,7 @@ public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
         request.Headers.Add("X-Test-User-Id", userId.ToString());
         request.Headers.Add("X-Test-Perms", "test:permission");
 
+        request.Headers.Add("X-Branch-Id", Guid.NewGuid().ToString());
         var response = await _client.SendAsync(request);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -1748,3 +1748,47 @@ var sgst = Money.Round2(totalGst - cgst);
     - `inventory:adjustments` (`InventoryAdjustmentCommand`, P-413)
     - `settings:manage` (Settings management commands, P-1120)
     - `branches:manage` (Branch management commands, P-310)
+
+## P-309
+
+### X-Branch-Id Middleware & Branch Access Enforcement
+- Interface Contract: `StoreOS.Application.Abstractions.IBranchContext` (`backend/src/StoreOS.Application/Abstractions/IBranchContext.cs`)
+  ```csharp
+  namespace StoreOS.Application.Abstractions;
+
+  public interface IBranchContext
+  {
+      Guid? CurrentBranchId { get; }
+      bool HasBranchContext { get; }
+  }
+  ```
+- Scoped Implementation: `StoreOS.Infrastructure.Security.MutableBranchContext` (`backend/src/StoreOS.Infrastructure/Security/MutableBranchContext.cs`)
+  ```csharp
+  namespace StoreOS.Infrastructure.Security;
+
+  public class MutableBranchContext : IBranchContext
+  {
+      public Guid? CurrentBranchId { get; set; }
+      public bool HasBranchContext => CurrentBranchId.HasValue;
+  }
+  ```
+- Middleware: `StoreOS.Api.Middleware.BranchContextMiddleware` (`backend/src/StoreOS.Api/Middleware/BranchContextMiddleware.cs`)
+  - Header Constant: `public const string HeaderName = "X-Branch-Id";`
+  - HTTP Pipeline Order:
+    1. `CorrelationIdMiddleware`
+    2. `ExceptionHandlingMiddleware`
+    3. `UseHttpsRedirection`
+    4. `UseCors`
+    5. `UseAuthentication`
+    6. `UseAuthorization`
+    7. `BranchContextMiddleware` (runs after auth/scope resolution and before `MapControllers`)
+    8. `MapControllers`
+  - Enforcement Rules:
+    - Bypasses non-authenticated requests and `/api/auth/*` authentication endpoints (login, refresh, logout).
+    - Reads `X-Branch-Id` header if present.
+    - If header is absent: falls back to user's default branch via `user_branches.is_default` inside a read transaction.
+    - If branch is null AND request is a mutation (`POST`, `PUT`, `PATCH`, `DELETE`): throws `DomainException("branch_context_required")` (400 Bad Request). Non-mutation reads (`GET`, `HEAD`) allow `null` branch context.
+    - If branch is non-null: validates `IAccessScope.HasBranchAccess(branchId.Value)` and throws `DomainException("forbidden")` (403 Forbidden) if unauthorized.
+- Conceptual Invariant & Separation of Concerns (Plan §9.3):
+  - `IBranchContext.CurrentBranchId`: The **single, explicit branch** that this specific request/mutation is operating against. All new records stamped with `branch_id` use this value. There is no branchless write.
+  - `IAccessScope.BranchIds` / `AllBranches`: The user's **full accessible set of branches** across the tenant, used exclusively for session-level PostgreSQL RLS policies (`app.branch_ids`, `app.all_branches`).

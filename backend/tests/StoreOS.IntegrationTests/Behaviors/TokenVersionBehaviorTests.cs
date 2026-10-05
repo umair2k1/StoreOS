@@ -85,9 +85,15 @@ public class TokenVersionBehaviorTests : IAsyncLifetime
         typeof(Tenant).GetProperty(nameof(Tenant.Id))!.SetValue(tenant, _tenantId);
         db.Tenants.Add(tenant);
 
+        var branch = Branch.Create(_tenantId, "B01", "TV Branch");
+        db.Branches.Add(branch);
+
         var user = User.Create(_tenantId, "tv-user@test.com", "hash", "TV User");
         typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, _userId);
         db.Users.Add(user);
+
+        var userBranch = UserBranch.Create(_userId, branch.Id, isDefault: true);
+        db.UserBranches.Add(userBranch);
 
         await db.SaveChangesAsync();
     }
@@ -98,7 +104,9 @@ public class TokenVersionBehaviorTests : IAsyncLifetime
         await conn.OpenAsync();
 
         await using var cmd = new NpgsqlCommand(
+            "DELETE FROM user_branches WHERE user_id = @uId; " +
             "DELETE FROM users WHERE id = @uId; " +
+            "DELETE FROM branches WHERE tenant_id = @tId; " +
             "DELETE FROM tenants WHERE id = @tId;", conn);
         cmd.Parameters.AddWithValue("uId", _userId);
         cmd.Parameters.AddWithValue("tId", _tenantId);

@@ -100,10 +100,15 @@ public class LiveDbPermissionBehaviorTests : IAsyncLifetime
         var perm = RolePermission.Create(_roleId, "sales:void");
         db.RolePermissions.Add(perm);
 
+        var branch = Branch.Create(_tenantId, "B01", "Branch");
+        db.Branches.Add(branch);
+
         var user = User.Create(_tenantId, "manager@test.com", passwordHash, "Manager User");
         typeof(User).GetProperty(nameof(User.Id))!.SetValue(user, _userId);
         db.Users.Add(user);
 
+        var userBranch = UserBranch.Create(_userId, branch.Id, isDefault: true);
+        db.UserBranches.Add(userBranch);
         await db.SaveChangesAsync();
 
         await using var conn = new NpgsqlConnection(_fixture.OwnerConnectionString);
@@ -121,10 +126,12 @@ public class LiveDbPermissionBehaviorTests : IAsyncLifetime
         await conn.OpenAsync();
 
         await using var cmd = new NpgsqlCommand(
+            "DELETE FROM user_branches WHERE user_id = @uId; " +
             "DELETE FROM user_role_assignments WHERE user_id = @uId; " +
             "DELETE FROM role_permissions WHERE role_id = @rId; " +
             "DELETE FROM roles WHERE tenant_id = @tId; " +
             "DELETE FROM users WHERE tenant_id = @tId; " +
+            "DELETE FROM branches WHERE tenant_id = @tId; " +
             "DELETE FROM tenants WHERE id = @tId;", conn);
         cmd.Parameters.AddWithValue("uId", _userId);
         cmd.Parameters.AddWithValue("rId", _roleId);
