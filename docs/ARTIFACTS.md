@@ -2670,3 +2670,52 @@ var sgst = Money.Round2(totalGst - cgst);
 - Endpoints (`StoreOS.Api.Controllers.PosController`):
   - `GET /api/pos/search?q={query}`
   - `GET /api/pos/product/{id:guid}`
+
+## P-504
+### CheckoutCommand & Full Structural Request Shape Validation
+- Application Commands & DTOs (`StoreOS.Application.Sales.Checkout`):
+  ```csharp
+  public record CheckoutCartLine(
+      Guid ProductId,
+      int Qty,
+      string? Imei,
+      bool UseMarginScheme,
+      bool IsGift,
+      decimal? OverridePricePerUnit);
+
+  public record CheckoutPayment(
+      string PaymentMode,
+      decimal Amount);
+
+  public record CheckoutFinanceDetails(
+      string FinanceProvider,
+      string? FinancerName,
+      decimal DownPayment,
+      int TenureMonths,
+      decimal AnnualInterestRate);
+
+  public record CheckoutCommand(
+      IReadOnlyList<CheckoutCartLine> Lines,
+      Guid? CustomerId,
+      string? WalkInCustomerName,
+      decimal InvoiceDiscount,
+      string InvoiceType,
+      IReadOnlyList<CheckoutPayment> Payments,
+      CheckoutFinanceDetails? Finance,
+      string? Description
+  ) : IRequest<CheckoutResult>, IRequiresPermission
+  {
+      public string RequiredPermission => "pos:checkout";
+  }
+
+  public record CheckoutResult(
+      Guid SaleId,
+      string InvoiceNumber,
+      decimal GrandTotal,
+      decimal AmountPaid,
+      decimal Balance,
+      DateTimeOffset SaleDate);
+  ```
+- Validators (`StoreOS.Application.Sales.Checkout`):
+  - `CheckoutValidator : AbstractValidator<CheckoutCommand>`: enforces non-empty cart, line `Qty > 0`, non-negative line override price, non-negative discount, valid invoice type (`TaxInvoice` or `Estimate`), non-empty payments collection with positive amounts and valid payment modes (`Cash`, `UPI`, `Card`, `Credit`, `Finance`), optional finance details validation.
+  - `CheckoutFinanceDetailsValidator : AbstractValidator<CheckoutFinanceDetails>`: enforces non-empty finance provider, non-negative down payment, `TenureMonths > 0`, non-negative annual interest rate.
