@@ -8,6 +8,7 @@ using StoreOS.Domain.Tenancy;
 using StoreOS.Domain.Inventory;
 using StoreOS.Domain.Catalog;
 using StoreOS.Domain.Sales;
+using StoreOS.Domain.Customers;
 
 namespace StoreOS.Infrastructure.Persistence;
 
@@ -52,6 +53,8 @@ public static class QueryFilters
         ApplyFilter<InventoryTransfer>(modelBuilder, scopeAccess, (it, s) => it.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(it.FromBranchId) || s.BranchIds.Contains(it.ToBranchId)));
         ApplyFilter<Sale>(modelBuilder, scopeAccess, (sale, s) => sale.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(sale.BranchId)));
         ApplyFilter<SaleItem>(modelBuilder, scopeAccess, (item, s) => item.TenantId == s.TenantId);
+        ApplyFilter<Customer>(modelBuilder, scopeAccess, (c, s) => c.TenantId == s.TenantId);
+        ApplyFilter<CustomerLedgerEntry>(modelBuilder, scopeAccess, (cle, s) => cle.TenantId == s.TenantId && (cle.BranchId == null || s.AllBranches || s.BranchIds.Contains(cle.BranchId.Value)));
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,

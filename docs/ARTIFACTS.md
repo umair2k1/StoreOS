@@ -2756,3 +2756,54 @@ var sgst = Money.Round2(totalGst - cgst);
   - **Gift & Tax Rules:**
     - Gift lines resolve base pricing for informational and stock purposes, but assign `LineTax.Zero` (`LineTaxable = 0`, `LineCgst = 0`, `LineSgst = 0`).
     - Non-gift lines compute standard GST or margin-scheme GST via `TaxEngine`.
+
+## P-506
+### Minimal Customer Master & Customer Ledger Entities
+- Domain Entities (`StoreOS.Domain.Customers`):
+  - `Customer`:
+    ```csharp
+    public class Customer
+    {
+        public Guid Id { get; private set; }
+        public Guid TenantId { get; private set; }
+        public string Name { get; private set; }
+        public string? Phone { get; private set; }
+        public string? Gstin { get; private set; }
+        public decimal TotalPurchases { get; private set; }
+        public DateTimeOffset CreatedAt { get; private set; }
+        public static Customer Create(Guid tenantId, string name, string? phone, string? gstin);
+        public void UpdateProfile(string name, string? phone, string? gstin);
+        public void AddToTotalPurchases(decimal amount);
+        public void SubtractFromTotalPurchases(decimal amount);
+    }
+    ```
+  - `CustomerLedgerEntryType`: `Invoice = "Invoice"`, `Payment = "Payment"`, `InvoiceVoid = "InvoiceVoid"`, `Refund = "Refund"`, `OpeningBalance = "OpeningBalance"`, `All`
+  - `CustomerLedgerEntry`:
+    ```csharp
+    public class CustomerLedgerEntry
+    {
+        public long Id { get; private set; }
+        public Guid TenantId { get; private set; }
+        public Guid CustomerId { get; private set; }
+        public Guid? SaleId { get; private set; }
+        public string EntryType { get; private set; }
+        public decimal Debit { get; private set; }
+        public decimal Credit { get; private set; }
+        public Guid? BranchId { get; private set; }
+        public DateOnly EntryDate { get; private set; }
+        public string? RefId { get; private set; }
+        public DateTimeOffset CreatedAt { get; private set; }
+        public static CustomerLedgerEntry CreateDebit(...);
+        public static CustomerLedgerEntry CreateCredit(...);
+    }
+    ```
+- Database Tables & Constraints:
+  - `public.customers`: PK `id`, `name text NOT NULL`, `phone text`, `gstin text`, `total_purchases numeric(18,2) DEFAULT 0`, `created_at timestamptz DEFAULT now()`. Index: `ix_customers_tenant_phone (tenant_id, phone)`. Archetype A RLS: `tenant_isolation_policy` on `tenant_id`.
+  - `public.customer_ledger_entries`: PK `id bigint GENERATED ALWAYS AS IDENTITY`, FK `customer_id -> customers(id) RESTRICT`, FK `sale_id -> sales(id) RESTRICT`, FK `branch_id -> branches(id) RESTRICT`. Index: `ix_custledger_customer (tenant_id, customer_id)`. Archetype A RLS: `tenant_isolation_policy` on `tenant_id`.
+- Two Query Patterns (Critical Architecture Rule):
+  1. **Branch-Scoped Detail View:** Queries run through EF Core's standard global query filter `cle => cle.TenantId == s.TenantId && (cle.BranchId == null || s.AllBranches || s.BranchIds.Contains(cle.BranchId.Value))` so branch-scoped cashiers only see ledger rows stamped for their branch (or tenant-unscoped entries).
+  2. **Tenant-Global Balance Calculation (Documented Exception):** Per Requirements §17.5, customer credit is tenant-global. Balance aggregation queries explicitly use `.IgnoreQueryFilters()` filtered strictly by `tenant_id` (and `customer_id`) to sum debits and credits across all branches.
+- Migration:
+  - `20261005194733_019_CustomersLedger` applied via:
+    `dotnet ef migrations add 019_CustomersLedger --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
