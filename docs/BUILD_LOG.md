@@ -38,3 +38,4 @@ P-119 | DONE | backend/src/StoreOS.Application/Abstractions/IReportingDbContext.
 P-201 | DONE | backend/src/StoreOS.Domain/Tax/LineTax.cs, backend/src/StoreOS.Domain/Tax/TaxEngine.cs, backend/tests/StoreOS.Domain.Tests/Tax/StandardGstTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-202 | DONE | backend/src/StoreOS.Domain/Tax/TaxEngine.cs, backend/tests/StoreOS.Domain.Tests/Tax/MarginSchemeGstTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-203 | DONE | backend/src/StoreOS.Domain/Tax/DiscountEngine.cs, backend/tests/StoreOS.Domain.Tests/Tax/DiscountEngineTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
+P-204 | DONE | backend/src/StoreOS.Domain/Finance/FinanceEngine.cs, backend/tests/StoreOS.Domain.Tests/Finance/FinanceEngineTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md

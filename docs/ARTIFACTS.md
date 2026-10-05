@@ -1326,3 +1326,23 @@ var sgst = Money.Round2(totalGst - cgst);
   - `subtotal < 0` throws `ArgumentOutOfRangeException`.
   - `subtotal == 0m && discount == 0m` returns `before` unchanged (no-op, avoids divide-by-zero).
   - Proportional scaling factor `factor = (subtotal - discount) / subtotal` is applied to `Taxable`, `Cgst`, and `Sgst` using `Money.Round2`.
+
+## P-204
+
+### Finance Engine: CalculatePrincipal & CalculateEmi (Plan §7.4)
+- Class: `StoreOS.Domain.Finance.FinanceEngine` (`backend/src/StoreOS.Domain/Finance/FinanceEngine.cs`)
+  ```csharp
+  public static class FinanceEngine
+  {
+      public static decimal CalculatePrincipal(decimal grandTotal, decimal downPayment);
+      public static decimal CalculateEmi(decimal principal, decimal annualRatePercent, int months);
+  }
+  ```
+- Invariant:
+  - `DecimalPow` uses pure integer exponentiation via loop over `decimal`. `Math.Pow` is strictly banned (enforced via RS0030 diagnostic in `BannedSymbols.txt`).
+- Error Codes:
+  - `finance_down_payment_negative`: Thrown by `CalculatePrincipal` when `downPayment < 0`.
+  - `finance_down_payment_exceeds_total`: Thrown by `CalculatePrincipal` when `downPayment > grandTotal`.
+  - `finance_principal_not_positive`: Thrown by `CalculatePrincipal` when `principal <= 0`, and by `CalculateEmi` when `principal <= 0`.
+  - `finance_invalid_tenure`: Thrown by `CalculateEmi` when `months <= 0`.
+  - `finance_invalid_rate`: Thrown by `CalculateEmi` when `annualRatePercent < 0`.
