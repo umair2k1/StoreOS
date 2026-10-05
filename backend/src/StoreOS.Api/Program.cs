@@ -33,13 +33,15 @@ builder.Services.AddScoped<StoreOS.Application.Abstractions.ITenantJobRunner, St
 builder.Services.AddScoped<StoreOS.Application.Platform.IAuditWriter, StoreOS.Infrastructure.Platform.AuditWriter>();
 builder.Services.AddHostedService<RlsRoleGuard>();
 
-// MediatR Pipeline & Behaviors (P-109, P-114)
+// MediatR Pipeline & Behaviors (P-109, P-114, P-307)
+builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.ValidationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.TransactionBehavior<,>));
-    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.TokenVersionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.IdempotencyBehavior<,>));
 });
 builder.Services.AddScoped<StoreOS.Application.Behaviors.IdempotencyReplayFlag>();

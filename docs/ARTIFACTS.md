@@ -1678,3 +1678,32 @@ var sgst = Money.Round2(totalGst - cgst);
   - By default, ALL controller endpoints require an authenticated user unless explicitly annotated with `[AllowAnonymous]`.
 - TransactionBehavior Tenant Switch Fix:
   - `TransactionBehavior` checks `if (!_scope.IsAuthenticated)` before calling `_scope.UseAnonymousTenant(anon.TenantId)`, allowing authenticated commands implementing `IAnonymousTenantRequest` (such as `LogoutCommand`) to execute safely without throwing `InvalidOperationException`.
+
+## P-307
+
+### Token Version Revocation Check (30s Cached Stale-JWT Invalidation)
+- Pipeline Behavior: `StoreOS.Application.Behaviors.TokenVersionBehavior<TRequest, TResponse>` (`backend/src/StoreOS.Application/Behaviors/TokenVersionBehavior.cs`)
+  ```csharp
+  namespace StoreOS.Application.Behaviors;
+
+  public class TokenVersionBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+      where TRequest : IRequest<TResponse>
+  {
+      public TokenVersionBehavior(IAccessScope scope, IAppDbContext db, IMemoryCache cache);
+      public Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken cancellationToken);
+  }
+  ```
+- Cache Configuration & TTL:
+  - Caching Provider: `IMemoryCache` (registered via `builder.Services.AddMemoryCache();` in `Program.cs`).
+  - Cache Key Format: `"token_version:{userId}"`
+  - Cache TTL: 30 seconds (`CacheTtl = TimeSpan.FromSeconds(30)`).
+  - Tradeoff Guarantee (Plan §8.3): Bumping `users.token_version` in the database immediately invalidates sessions upon cache expiration (up to 30-second window). High-impact critical operations utilize live database checks (P-308).
+- Pipeline Execution Position in `Program.cs`:
+  1. `AuthorizationBehavior<,>`
+  2. `ValidationBehavior<,>`
+  3. `TransactionBehavior<,>` (opens transaction and establishes RLS `app.tenant_id`)
+  4. `TokenVersionBehavior<,>` (runs inside transaction scope to query user under tenant RLS)
+  5. `IdempotencyBehavior<,>`
+- Architectural Note & Documented Gap:
+  - This check runs strictly within the MediatR request pipeline.
+  - Plain controller actions that read `IAccessScope` directly without dispatching a MediatR command or query (e.g. `GET /api/auth/me`) bypass this staleness check. All application domain logic and business operations must be routed via MediatR to ensure uniform revocation enforcement.

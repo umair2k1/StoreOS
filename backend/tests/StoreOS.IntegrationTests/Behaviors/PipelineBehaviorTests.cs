@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Memory;
 using System.Net.Http.Json;
 using System.Text.Json;
 using FluentAssertions;
@@ -54,6 +55,7 @@ public class TestPipelineController : ControllerBase
 
 public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
 {
+    private static readonly MemoryCache TestCache = new(new MemoryCacheOptions());
     private readonly StoreOsWebApplicationFactory _factory;
     private readonly HttpClient _client;
 
@@ -67,6 +69,7 @@ public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
                 services.AddControllers()
                     .AddApplicationPart(typeof(TestPipelineController).Assembly);
                 services.AddValidatorsFromAssemblyContaining<TestCommandValidator>();
+                services.AddSingleton<IMemoryCache>(TestCache);
                 services.AddTransient<IRequestHandler<TestCommand, string>, TestCommandHandler>();
             });
         }).CreateClient();
@@ -146,6 +149,8 @@ public class PipelineBehaviorTests : IClassFixture<StoreOsWebApplicationFactory>
     {
         var tenantId = Guid.NewGuid();
         var userId = Guid.NewGuid();
+
+        TestCache.Set($"token_version:{userId}", (int?)0);
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/test/pipeline")
         {
