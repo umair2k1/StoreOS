@@ -858,3 +858,41 @@ All 8 tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`:
 
 ### Serilog Host Configuration
 - Wired in `backend/src/StoreOS.Api/Program.cs` via `builder.Host.UseSerilog(...)` with console output template including `CorrelationId={CorrelationId}`.
+
+## P-113
+
+### Domain Exceptions
+- `StoreOS.Domain.Exceptions.DomainException` (`backend/src/StoreOS.Domain/Exceptions/DomainException.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Exceptions;
+
+  public class DomainException : Exception
+  {
+      public string Code { get; }
+      public DomainException(string code, string message) : base(message) => Code = code;
+  }
+  ```
+- `StoreOS.Domain.Exceptions.DomainValidationException` (`backend/src/StoreOS.Domain/Exceptions/DomainException.cs`):
+  ```csharp
+  namespace StoreOS.Domain.Exceptions;
+
+  public class DomainValidationException : DomainException
+  {
+      public DomainValidationException(string code, string message) : base(code, message) { }
+  }
+  ```
+
+### API Error Catalog & HTTP Middleware
+- `StoreOS.Api.Middleware.ErrorCatalog` (`backend/src/StoreOS.Api/Middleware/ErrorCatalog.cs`):
+  Central mapping of error code strings to `HttpStatusCode`.
+  - Explicit mappings: 401 (`unauthenticated`, `invalid_credentials`, `token_version_stale`, `invalid_refresh_token`, `refresh_token_expired`, `refresh_token_reuse_detected`, `tenant_required`), 403 (`forbidden`, `tenant_inactive`), 400 (`branch_context_required`, `idempotency_key_required`, `idempotency_key_invalid`), 409 (`branch_code_taken`, `imei_already_active`, `idempotency_key_reuse`, `idempotency_in_progress`, `serialization_conflict`).
+  - Wildcard mapping: codes ending with `_not_found` map to 404 (`HttpStatusCode.NotFound`).
+  - Default fallback: 422 (`HttpStatusCode.UnprocessableEntity`).
+- `StoreOS.Api.Middleware.ExceptionHandlingMiddleware` (`backend/src/StoreOS.Api/Middleware/ExceptionHandlingMiddleware.cs`):
+  - Pipeline Position: **SECOND** HTTP middleware immediately following `CorrelationIdMiddleware` and before all other middleware (`app.UseMiddleware<ExceptionHandlingMiddleware>();`).
+  - Formats errors as RFC 7807 `ProblemDetails` with `application/problem+json` content type.
+  - Exact `ProblemDetails` extension key names:
+    - `correlationId` (string, GUID in "D" format)
+    - `code` (string error code)
+    - `errors` (dictionary of string field name to string array of messages, present on validation errors)
+  - Adds `Retry-After: 1` header on `serialization_conflict` errors.

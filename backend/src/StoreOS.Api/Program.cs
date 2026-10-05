@@ -51,8 +51,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 var app = builder.Build();
 app.UseMiddleware<CorrelationIdMiddleware>();
-
-
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseHttpsRedirection();
 
 app.UseCors("Default");
