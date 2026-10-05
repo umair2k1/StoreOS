@@ -2719,3 +2719,40 @@ var sgst = Money.Round2(totalGst - cgst);
 - Validators (`StoreOS.Application.Sales.Checkout`):
   - `CheckoutValidator : AbstractValidator<CheckoutCommand>`: enforces non-empty cart, line `Qty > 0`, non-negative line override price, non-negative discount, valid invoice type (`TaxInvoice` or `Estimate`), non-empty payments collection with positive amounts and valid payment modes (`Cash`, `UPI`, `Card`, `Credit`, `Finance`), optional finance details validation.
   - `CheckoutFinanceDetailsValidator : AbstractValidator<CheckoutFinanceDetails>`: enforces non-empty finance provider, non-negative down payment, `TenureMonths > 0`, non-negative annual interest rate.
+
+## P-505
+### Server-Side Pricing Resolution & Margin Scheme Cost Cascade
+- Application Domain Records (`StoreOS.Application.Sales.Checkout`):
+  ```csharp
+  public record ResolvedCartLine(
+      Guid ProductId,
+      string ProductName,
+      string Category,
+      int Qty,
+      decimal PricePerUnit,
+      decimal? PurchasePriceSnapshot,
+      string? HsnCode,
+      decimal GstRate,
+      bool IsMarginScheme,
+      bool IsGift,
+      string? Imei,
+      Guid? ImeiRowId,
+      decimal LineTaxable,
+      decimal LineCgst,
+      decimal LineSgst);
+  ```
+- Pricing Resolver Service (`StoreOS.Application.Sales.Checkout.PricingResolver`):
+  - Registered scoped: `AddScoped<PricingResolver>()`.
+  - `Task<ResolvedCartLine> ResolveAsync(Guid branchId, CheckoutCartLine line, CancellationToken ct)`
+  - **Price Resolution:**
+    - Base sell price resolves from `branch_inventory.sell_price_override` if set, else `products.sell_price`.
+    - If `line.OverridePricePerUnit` is provided, it is applied directly.
+  - **Fixed Cost-Basis Cascade Order (Invariant):**
+    1. IMEI row's own `purchase_price` (loaded via `IInventoryStockService.LoadImeiForSaleAsync`) when `line.Imei` is specified.
+    2. Branch inventory's `cost_price` if `> 0` when margin scheme is requested without an IMEI.
+    3. Product master's `purchase_price` as the final fallback.
+    - Throws `margin_scheme_invalid_cost_basis` (422) if cost basis $\le 0$ when margin scheme is evaluated.
+    - Throws `margin_scheme_invalid_category` (422) if margin scheme is requested on any category other than `UsedPhone`.
+  - **Gift & Tax Rules:**
+    - Gift lines resolve base pricing for informational and stock purposes, but assign `LineTax.Zero` (`LineTaxable = 0`, `LineCgst = 0`, `LineSgst = 0`).
+    - Non-gift lines compute standard GST or margin-scheme GST via `TaxEngine`.
