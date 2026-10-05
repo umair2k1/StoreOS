@@ -949,3 +949,41 @@ All 8 tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`:
 
 ### HTTP Middleware Order (Program.cs)
 `CorrelationId` -> `ExceptionHandling` -> `Authentication` -> `AccessScope` -> `BranchContext` -> `Authorization` -> controllers
+
+## P-110
+
+### Regression Fixture Table
+- Table `public.rls_probe_branch_scoped` (permanent regression fixture):
+  - `id uuid PRIMARY KEY`
+  - `tenant_id uuid NOT NULL`
+  - `branch_id uuid NOT NULL`
+  - `label text NOT NULL`
+  - `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`
+  - Policy `tenant_branch_isolation_policy`
+
+### Database Schema & Migrations
+- Migration: `006_RlsBranchScopedPolicies` (`backend/src/StoreOS.Infrastructure/Migrations/20261005035212_006_RlsBranchScopedPolicies.cs`)
+  - Generation Command: `dotnet ef migrations add 006_RlsBranchScopedPolicies --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Database Update Command: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Migration HEAD: `20261005035212_006_RlsBranchScopedPolicies`
+
+### Empty Branch-List Sentinel Convention
+When `_scope.BranchIds` is empty and `_scope.AllBranches` is false, `RlsSessionInterceptor` emits the nil-GUID sentinel:
+`00000000-0000-0000-0000-000000000000`
+into `app.branch_ids` instead of an empty string, preventing PostgreSQL syntax/type-cast errors on `string_to_array(...)` while matching zero real branches.
+
+## RLS Archetype B (copy verbatim for every branch-scoped table)
+
+Every future branch-scoped operational entity (`sales`, `branch_inventory`, `purchases`, `inventory_imeis`, `inventory_movements`, `customer_payments`, `customer_ledger_entries`, `supplier_ledger_entries`, `expenses`, `repair_jobs`, etc.) copies this exact `USING` clause verbatim, substituting only the table name:
+
+```sql
+ALTER TABLE <table> ENABLE ROW LEVEL SECURITY;
+ALTER TABLE <table> FORCE ROW LEVEL SECURITY;
+CREATE POLICY tenant_branch_isolation_policy ON <table> USING (
+  tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid
+  AND (
+    COALESCE(NULLIF(current_setting('app.all_branches', true), ''), 'false') = 'true'
+    OR branch_id = ANY (string_to_array(NULLIF(current_setting('app.branch_ids', true), ''), ',')::uuid[])
+  )
+);
+```
