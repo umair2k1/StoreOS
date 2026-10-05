@@ -1881,3 +1881,41 @@ var sgst = Money.Round2(totalGst - cgst);
   - `invalid_permission_code` -> 400 Bad Request (`ErrorCatalog.cs`)
 - Abstraction Contract Extension:
   - `IAppDbContext.ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)` implemented in `StoreOsDbContext` for raw SQL commands.
+
+## P-312
+
+### Rate Limiting Policies & Rejection Handling
+- Rate Limiting Middleware (`Program.cs`):
+  - Service Registration: `builder.Services.AddRateLimiter(...)`
+  - Pipeline Position:
+    1. `CorrelationIdMiddleware`
+    2. `ExceptionHandlingMiddleware`
+    3. `app.UseRateLimiter();` (enforces rate limits prior to authentication & handler execution)
+    4. `UseHttpsRedirection`
+    5. `UseCors`
+    6. `UseAuthentication`
+    7. `UseAuthorization`
+    8. `BranchContextMiddleware`
+    9. `MapControllers`
+- Rate Limiting Policies:
+  1. Named Policy `"login"`:
+     - Target: `AuthController.Login` via `[EnableRateLimiting("login")]`
+     - Partition Key: `context.Connection.RemoteIpAddress?.ToString() ?? "unknown"` (IP-based)
+     - Algorithm: Fixed Window
+     - Limit: 5 requests per 1-minute window (`PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0`)
+  2. Global Limiter (`options.GlobalLimiter`):
+     - Target: All incoming HTTP endpoints
+     - Partition Key: `context.User?.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "anonymous"` (User ID when authenticated, IP fallback when anonymous)
+     - Algorithm: Fixed Window
+     - Limit: 200 requests per 1-minute window (`PermitLimit = 200, Window = TimeSpan.FromMinutes(1), QueueLimit = 0`)
+- Rejection Response Shape (`options.OnRejected`):
+  - Status Code: 429 Too Many Requests (`StatusCodes.Status429TooManyRequests`)
+  - Content-Type: `application/problem+json`
+  - JSON Payload:
+    ```json
+    {
+      "status": 429,
+      "title": "Too many requests. Please slow down.",
+      "code": "rate_limited"
+    }
+    ```

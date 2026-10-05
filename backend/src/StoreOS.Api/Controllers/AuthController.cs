@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Identity.Login;
@@ -25,6 +26,7 @@ public class AuthController : ControllerBase
 
     [HttpPost("login")]
     [AllowAnonymous]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginCommand command, CancellationToken ct)
     {
         if (command.TenantId == Guid.Empty)
