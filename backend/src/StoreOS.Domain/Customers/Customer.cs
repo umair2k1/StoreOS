@@ -10,6 +10,7 @@ public class Customer
     public string? Phone { get; private set; }
     public string? Gstin { get; private set; }
     public decimal TotalPurchases { get; private set; }
+    public decimal? CreditLimit { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
 
     private Customer() { }
@@ -46,5 +47,12 @@ public class Customer
     {
         if (amount < 0) throw new DomainValidationException("invalid_amount", "Amount cannot be negative.");
         TotalPurchases = Math.Max(0, TotalPurchases - amount);
+    }
+
+    public void SetCreditLimit(decimal? limit)
+    {
+        if (limit is not null && limit < 0)
+            throw new DomainValidationException("invalid_credit_limit", "Credit limit cannot be negative.");
+        CreditLimit = limit;
     }
 }

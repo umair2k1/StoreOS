@@ -2874,3 +2874,37 @@ var sgst = Money.Round2(totalGst - cgst);
   - `20261005200108_020_CustomerPayments` applied via:
     `dotnet ef migrations add 020_CustomerPayments --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
     `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-509
+### Credit Limit Check & Tenant-Global Consolidated Balance
+- Schema & Entity Changes:
+  - Column: `customers.credit_limit numeric(18,2) NULL`.
+  - Domain Methods on `StoreOS.Domain.Customers.Customer`:
+    - `public decimal? CreditLimit { get; private set; }`
+    - `public void SetCreditLimit(decimal? limit)` (throws `invalid_credit_limit` if `limit < 0`).
+- Credit Limit Checker (`StoreOS.Application.Sales.Checkout.CreditLimitChecker`):
+  - Registered scoped: `AddScoped<CreditLimitChecker>()`.
+  - Signature:
+    ```csharp
+    public class CreditLimitChecker
+    {
+        public CreditLimitChecker(
+            IAppDbContext db,
+            ICustomerLedgerService ledgerService,
+            IAccessScope scope,
+            IAuditWriter auditWriter);
+
+        public async Task CheckAsync(Guid customerId, decimal newCreditAmount, CancellationToken ct);
+    }
+    ```
+  - **Logic & Invariants:**
+    - Early return when `newCreditAmount <= 0` without DB lookup.
+    - Early return when `customer.CreditLimit is null` (unlimited credit).
+    - Calls `_ledgerService.GetConsolidatedBalanceAsync(customerId, ct)` (reusing P-507's tenant-global cross-branch summation).
+    - If `projectedBalance > customer.CreditLimit.Value`:
+      - If caller has permission `sales:credit:override`: logs audit event (`sales.credit_limit_overridden` with projected balance, limit, customer info) and allows execution to proceed.
+      - Otherwise throws `DomainValidationException("credit_limit_exceeded", ...)`.
+- Migration:
+  - `20261005200502_021_CreditLimit` applied via:
+    `dotnet ef migrations add 021_CreditLimit --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`

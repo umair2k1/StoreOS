@@ -73,6 +73,7 @@ builder.Services.AddScoped<StoreOS.Application.Platform.IAuditWriter, StoreOS.In
 builder.Services.AddScoped<StoreOS.Application.Inventory.IInventoryStockService, StoreOS.Infrastructure.Inventory.InventoryStockService>();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IInvoiceSequenceAllocator, StoreOS.Infrastructure.Sales.InvoiceSequenceAllocator>();
 builder.Services.AddScoped<StoreOS.Application.Sales.Checkout.PricingResolver>();
+builder.Services.AddScoped<StoreOS.Application.Sales.Checkout.CreditLimitChecker>();
 builder.Services.AddHostedService<RlsRoleGuard>();
 builder.Services.AddScoped<StoreOS.Application.Customers.ICustomerLedgerService, StoreOS.Infrastructure.Customers.CustomerLedgerService>();
 

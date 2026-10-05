@@ -35,6 +35,10 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasDefaultValue(0m)
             .IsRequired();
 
+        builder.Property(c => c.CreditLimit)
+            .HasColumnName("credit_limit")
+            .HasPrecision(18, 2);
+
         builder.Property(c => c.CreatedAt)
             .HasColumnName("created_at")
             .HasDefaultValueSql("now()")

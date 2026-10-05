@@ -127,6 +127,11 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<decimal?>("CreditLimit")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("credit_limit");
+
                     b.Property<string>("Gstin")
                         .HasColumnType("text")
                         .HasColumnName("gstin");
