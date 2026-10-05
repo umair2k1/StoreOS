@@ -2247,3 +2247,30 @@ var sgst = Money.Round2(totalGst - cgst);
 - Migration:
   - `20261005183636_012_InventoryImeis` applied via:
     `dotnet ef migrations add 012_InventoryImeis --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+
+## P-408
+
+### IInventoryStockService: SellImeisAsync & Status Transitions
+- DTO (`StoreOS.Application.Inventory.InventoryImeiSnapshot`):
+  ```csharp
+  public record InventoryImeiSnapshot(Guid Id, Guid ProductId, Guid BranchId, decimal? PurchasePrice, string Status);
+  ```
+- Extended Interface (`StoreOS.Application.Inventory.IInventoryStockService`):
+  ```csharp
+  public interface IInventoryStockService
+  {
+      // (P-406 methods)
+      Task ReserveAndDecrementStockAsync(Guid branchId, Guid productId, int qty, string movementType,
+          string refType, string refId, CancellationToken ct);
+      Task IncreaseStockAsync(Guid branchId, Guid productId, int qty, decimal? newCostPrice,
+          string movementType, string refType, string refId, CancellationToken ct);
+
+      // (P-408 extensions)
+      Task SellImeiAsync(Guid imeiRowId, Guid saleId, Guid saleItemId, CancellationToken ct);
+      Task RestoreImeiToStockAsync(Guid imeiRowId, CancellationToken ct);
+      Task<InventoryImeiSnapshot> LoadImeiForSaleAsync(Guid branchId, string imei, CancellationToken ct);
+  }
+  ```
+- Concurrency & Double-Sale Prevention:
+  - `SellImeiAsync` executes `SELECT * FROM inventory_imeis WHERE id = @id AND tenant_id = @tenantId FOR UPDATE` row locking.
+  - Empirically observed failure mode: in RepeatableRead isolation, when two concurrent requests execute `SellImeiAsync` for the same row, the second transaction is blocked by Postgres row-level lock and subsequently receives `PostgresException` (SqlState 40001: could not serialize access due to concurrent update). If the first transaction committed before the second started its row lock, `MarkSold` throws `DomainValidationException("imei_not_available")`. In both paths, exactly one sale commits and double-sale is mathematically impossible.

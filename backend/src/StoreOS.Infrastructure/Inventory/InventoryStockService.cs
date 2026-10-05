@@ -70,4 +70,35 @@ public class InventoryStockService : IInventoryStockService
             movementType, qty, effectiveCost, refType, refId, _scope.IsAuthenticated ? _scope.UserId : null);
         await _db.Set<InventoryMovement>().AddAsync(movement, ct);
     }
+
+    public async Task<InventoryImeiSnapshot> LoadImeiForSaleAsync(Guid branchId, string imei, CancellationToken ct)
+    {
+        var row = await _db.Set<InventoryImei>()
+            .Where(i => i.TenantId == _scope.TenantId && i.BranchId == branchId && i.Imei == imei)
+            .OrderByDescending(i => i.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (row is null)
+            throw new DomainValidationException("imei_not_found", $"IMEI {imei} was not found at this branch.");
+        if (row.Status != ImeiStatus.InStock)
+            throw new DomainValidationException("imei_not_available", $"IMEI {imei} is not available (status: {row.Status}).");
+        return new InventoryImeiSnapshot(row.Id, row.ProductId, row.BranchId, row.PurchasePrice, row.Status);
+    }
+
+    public async Task SellImeiAsync(Guid imeiRowId, Guid saleId, Guid saleItemId, CancellationToken ct)
+    {
+        var row = await _db.Set<InventoryImei>().FromSqlInterpolated($@"
+            SELECT * FROM inventory_imeis WHERE id = {imeiRowId} AND tenant_id = {_scope.TenantId} FOR UPDATE")
+            .FirstOrDefaultAsync(ct);
+        if (row is null) throw new DomainValidationException("imei_not_found", "IMEI record not found.");
+        row.MarkSold(saleId, saleItemId);
+    }
+
+    public async Task RestoreImeiToStockAsync(Guid imeiRowId, CancellationToken ct)
+    {
+        var row = await _db.Set<InventoryImei>().FromSqlInterpolated($@"
+            SELECT * FROM inventory_imeis WHERE id = {imeiRowId} AND tenant_id = {_scope.TenantId} FOR UPDATE")
+            .FirstOrDefaultAsync(ct);
+        if (row is null) throw new DomainValidationException("imei_not_found", "IMEI record not found.");
+        row.RestoreToStock();
+    }
 }
