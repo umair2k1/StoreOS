@@ -1946,3 +1946,57 @@ var sgst = Money.Round2(totalGst - cgst);
   - `current_password_incorrect` -> 422 Unprocessable Entity (`ErrorCatalog.cs`)
 - Security & Session Invalidation Invariant:
   - Every password change or reset immediately bumps `users.token_version`, evicts the in-memory cache key (`token_version:{userId}`), and revokes all active refresh tokens in the database, ensuring all existing sessions are invalidated across devices.
+
+## P-401
+
+### Catalog & Product Entity
+- Domain Entity (`StoreOS.Domain.Catalog.Product`):
+  ```csharp
+  public class Product
+  {
+      public Guid Id { get; private set; }
+      public Guid TenantId { get; private set; }
+      public string Name { get; private set; }
+      public string Category { get; private set; }
+      public decimal SellPrice { get; private set; }
+      public decimal PurchasePrice { get; private set; }
+      public decimal GstRate { get; private set; }
+      public bool IsTaxable { get; private set; }
+      public bool IsMarginScheme { get; private set; }
+      public string? HsnCode { get; private set; }
+      public string? Description { get; private set; }
+      public int? EstimatedDurationMinutes { get; private set; }
+      public int? WarrantyDays { get; private set; }
+      public bool IsActive { get; private set; }
+      public DateTimeOffset CreatedAt { get; private set; }
+
+      public static Product Create(Guid tenantId, string name, string category, decimal sellPrice, decimal purchasePrice, decimal gstRate, string? hsnCode);
+      public void SetMarginScheme(bool enabled);
+      public void UpdatePricing(decimal sellPrice, decimal purchasePrice, decimal gstRate);
+      public void UpdateDescriptionAndServiceFields(string? description, int? estimatedDurationMinutes, int? warrantyDays);
+      public void Rename(string name);
+      public void Deactivate();
+      public void Activate();
+  }
+  ```
+- Categories (`StoreOS.Domain.Catalog.ProductCategory`):
+  ```csharp
+  public static class ProductCategory
+  {
+      public const string NewPhone = "NewPhone";
+      public const string UsedPhone = "UsedPhone";
+      public const string Accessory = "Accessory";
+      public const string RepairService = "RepairService";
+      public static readonly IReadOnlyList<string> All = new[] { NewPhone, UsedPhone, Accessory, RepairService };
+      public static bool IsValid(string category);
+      public static bool IsPhysical(string category);
+  }
+  ```
+- Database Schema & Invariants:
+  - Table: `public.products` (columns: `id` uuid PK, `tenant_id` uuid NOT NULL, `name` text NOT NULL, `category` text NOT NULL, `sell_price` numeric(18,2) NOT NULL, `purchase_price` numeric(18,2) NOT NULL DEFAULT 0, `gst_rate` numeric(5,2) NOT NULL DEFAULT 18, `is_taxable` bool NOT NULL DEFAULT true, `is_margin_scheme` bool NOT NULL DEFAULT false, `hsn_code` text, `description` text, `estimated_duration_minutes` int, `warranty_days` int, `is_active` bool NOT NULL DEFAULT true, `created_at` timestamptz NOT NULL DEFAULT now()).
+  - Indexes: `ix_products_tenant_cat` on `(tenant_id, category)`, `ix_products_tenant_name` on `(tenant_id, name)`.
+  - Constraints: `ck_products_category` CHECK (`category IN ('NewPhone','UsedPhone','Accessory','RepairService')`).
+  - RLS: Enabled & Forced with `tenant_isolation_policy` (`tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid`).
+  - Inventory Invariant 3 Rule: `RepairService` products intentionally do NOT get `branch_inventory` rows (enforced from P-403 onward).
+- Migration:
+  - `20261005180716_009_Products` applied via `dotnet ef migrations add 009_Products --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext && dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`.
