@@ -36,7 +36,7 @@ public record CheckoutCommand(
     public string RequiredPermission => "pos:checkout";
     public string? IdempotencyKey { get; init; }
     public string IdempotencyScope => "pos.checkout";
-    public bool IdempotencyRequired => true;
+    public bool IdempotencyRequired { get; init; } = true;
 }
 
 public record CheckoutResult(

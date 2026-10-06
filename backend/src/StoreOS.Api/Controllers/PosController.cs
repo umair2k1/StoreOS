@@ -63,4 +63,48 @@ public class PosController : ControllerBase
             saleDate = result.SaleDate
         });
     }
+
+    public record CreateEstimateBody(
+        IReadOnlyList<StoreOS.Application.Sales.Checkout.CheckoutCartLine> Lines,
+        Guid? CustomerId,
+        string? WalkInCustomerName,
+        decimal InvoiceDiscount,
+        IReadOnlyList<StoreOS.Application.Sales.Checkout.CheckoutPayment> Payments,
+        string? Description);
+
+    [HttpPost("estimate")]
+    public async Task<IActionResult> CreateEstimate(
+        [FromBody] CreateEstimateBody body,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        [FromServices] StoreOS.Application.Behaviors.IdempotencyReplayFlag replayFlag,
+        CancellationToken ct)
+    {
+        var command = new StoreOS.Application.Sales.Checkout.CheckoutCommand(
+            body.Lines,
+            body.CustomerId,
+            body.WalkInCustomerName,
+            body.InvoiceDiscount,
+            StoreOS.Domain.Sales.InvoiceType.Estimate,
+            body.Payments,
+            Finance: null,
+            body.Description)
+        {
+            IdempotencyKey = idempotencyKey,
+            IdempotencyRequired = false
+        };
+
+        var result = await _mediator.Send(command, ct);
+
+        if (replayFlag.Replayed)
+        {
+            Response.Headers["Idempotent-Replayed"] = "true";
+        }
+
+        return Created($"/api/sales/{result.SaleId}", new
+        {
+            saleId = result.SaleId,
+            invoiceNumber = result.InvoiceNumber,
+            grandTotal = result.GrandTotal
+        });
+    }
 }

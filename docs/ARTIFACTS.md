@@ -3246,3 +3246,30 @@ var sgst = Money.Round2(totalGst - cgst);
   - Customer ledger entries are zero, and customer `total_purchases` remains untouched.
   - Credit limit checks are completely bypassed for estimates.
   - Distinct series numbering and status/type query filtering verified.
+
+## P-518
+### POST /api/pos/estimate Endpoint
+- Controller Action & Request Shape (`StoreOS.Api.Controllers.PosController`):
+  ```csharp
+  public record CreateEstimateBody(
+      IReadOnlyList<CheckoutCartLine> Lines,
+      Guid? CustomerId,
+      string? WalkInCustomerName,
+      decimal InvoiceDiscount,
+      IReadOnlyList<CheckoutPayment> Payments,
+      string? Description);
+
+  [HttpPost("estimate")]
+  public async Task<IActionResult> CreateEstimate(
+      [FromBody] CreateEstimateBody body,
+      [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+      [FromServices] IdempotencyReplayFlag replayFlag,
+      CancellationToken ct)
+  ```
+- Semantic & Architecture Invariants:
+  - `CreateEstimateBody` deliberately omits `InvoiceType` and `Finance` fields, making it structurally impossible to accidentally create a financed estimate or specify the wrong invoice type.
+  - Dispatches `CheckoutCommand` with forced `InvoiceType = InvoiceType.Estimate`, `Finance = null`, and `IdempotencyRequired = false`.
+  - `Idempotency-Key` is completely optional: requests without the header succeed with 201 Created; requests with the header participate in `IdempotencyBehavior` (supporting replayed 201 responses and detecting payload mismatch 409 conflicts).
+- Integration Tests (`CreateEstimateEndpointTests`):
+  - Succeeded without `Idempotency-Key` (201 Created), stock unaffected, DB row confirmed as `InvoiceType.Estimate`.
+  - Tested with `Idempotency-Key`: supports cached replay (`Idempotent-Replayed: true`) and detects payload mismatch conflict (409 `idempotency_key_reuse`).
