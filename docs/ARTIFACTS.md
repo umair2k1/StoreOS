@@ -3510,3 +3510,35 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Payment creates customer ledger credit entry for tax invoice with attached customer.
   - (e) Payment against financed sale skips customer ledger entry creation.
   - (f) Replaying same `Idempotency-Key` does not double-record payment.
+
+## P-524
+### POST /api/sales/{id}/void Endpoint (Live Permission Gated, Reversing Movements & Ledger)
+- Command Shape (`StoreOS.Application.Sales.VoidSale`):
+  ```csharp
+  public record VoidSaleCommand(Guid SaleId, string Reason) : IRequest, IHighImpactOperation
+  {
+      public string RequiredPermission => "sales:void";
+  }
+  ```
+- Validator (`StoreOS.Application.Sales.VoidSale.VoidSaleValidator`):
+  - `SaleId` required, `Reason` required.
+- Controller Endpoint (`StoreOS.Api.Controllers.SalesController`):
+  - `POST /api/sales/{id:guid}/void`
+  - Live-DB permission gated (`sales:void` verified with zero cache lag via `IHighImpactOperation`).
+  - Returns `200 OK`.
+- Handler Implementation (`StoreOS.Application.Sales.VoidSale.VoidSaleHandler`):
+  - Preserves original `Sale` row: marks `sale.MarkVoided()` (only status changes to `Voided`, amounts and lines preserved).
+  - Throws `DomainValidationException("sale_not_active")` if not currently Active.
+  - Corrected stock-reversal loop: restores physical stock for all physical lines (including gift lines since gifts consumed stock at sale time).
+  - Reverses IMEI status (`imeiRow.RestoreToStock()`) transitioning `Sold -> InStock` and unlinking sale references.
+  - Reverses customer ledger debit via `_ledgerService.RecordVoidReversalAsync` (`CustomerLedgerEntryType.InvoiceVoid`) and decreases `customer.SubtractFromTotalPurchases(sale.GrandTotal)`.
+  - Skips ledger reversal if `PaymentMode == "Finance"`.
+  - Writes audit event `sale.voided`.
+- Integration Tests (`StoreOS.IntegrationTests.Sales.VoidSaleTests`):
+  - (a) Voiding an active sale sets `status='Voided'` while preserving all original line items and financial amounts.
+  - (b) Stock is restored for non-IMEI physical lines via `MovementType.SaleVoid`.
+  - (c) IMEI transitions `Sold -> InStock`.
+  - (d) Gift lines correctly have their stock restored on void.
+  - (e) Voiding an already-voided sale returns 422 `sale_not_active`.
+  - (f) Customer ledger gets `InvoiceVoid` credit and `total_purchases` decreases.
+  - (g) Live-DB permission revocation check: caller with revoked DB permission receives 403 Forbidden immediately.

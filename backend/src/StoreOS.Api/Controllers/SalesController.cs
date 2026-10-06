@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Sales.Search;
 using StoreOS.Application.Sales.GetSaleById;
+using StoreOS.Application.Sales.VoidSale;
 using StoreOS.Application.Behaviors;
 using StoreOS.Application.Sales.RecordPayment;
 
@@ -60,5 +61,17 @@ public class SalesController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    public record VoidSaleBody(string Reason);
+
+    [HttpPost("{id:guid}/void")]
+    public async Task<IActionResult> VoidSale(
+        Guid id,
+        [FromBody] VoidSaleBody body,
+        CancellationToken ct)
+    {
+        await _mediator.Send(new VoidSaleCommand(id, body.Reason), ct);
+        return Ok();
     }
 }
