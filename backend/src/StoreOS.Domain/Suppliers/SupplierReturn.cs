@@ -73,6 +73,12 @@ public class SupplierReturn
         TotalAmount += item.LineTotal;
     }
 
+    public void SetTotals(int totalQty, decimal totalAmount)
+    {
+        TotalQty = totalQty;
+        TotalAmount = totalAmount;
+    }
+
     public SupplierReturnItem AddItem(
         Guid? productId,
         string itemName,

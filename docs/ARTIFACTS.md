@@ -3800,3 +3800,34 @@ var sgst = Money.Round2(totalGst - cgst);
 - Tests:
   - Domain tests: `StoreOS.Domain.Tests.Suppliers.SupplierReturnTests` (8 tests passing), `StoreOS.Domain.Tests.Suppliers.SupplierReturnNumberFormatterTests` (9 tests passing).
   - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).
+
+## P-608
+### POST /api/supplier-returns Handler & Atomic Orchestration
+- Command & Result Types (`StoreOS.Application.Suppliers.CreateReturn`):
+  - `ReturnLineInput(Guid? ProductId, string ItemName, int Qty, decimal PurchasePrice, decimal ReturnRate, string[]? ImeiNumbers = null)`
+  - `CreateSupplierReturnCommand(Guid SupplierId, DateOnly ReturnDate, IReadOnlyList<ReturnLineInput> Lines, string SettlementType, string? Reason = null, string? Notes = null) : IRequest<CreateSupplierReturnResult>, IRequiresPermission` (`purchases:manage`)
+  - `CreateSupplierReturnResult(Guid ReturnId, string ReturnNumber, decimal TotalAmount)`
+  - `CreateSupplierReturnValidator` (FluentValidation)
+  - `CreateSupplierReturnHandler`
+- Controller Route (`StoreOS.Api.Controllers.SupplierReturnsController`):
+  - `POST /api/supplier-returns` -> `Create([FromBody] CreateSupplierReturnCommand command)` -> 200 OK (`CreateSupplierReturnResult`).
+- Atomic Orchestration Flow:
+  1. Validates branch context (`_branchContext.CurrentBranchId`).
+  2. Allocates sequential daily return number via `_sequenceAllocator` using series key `$"RETURN-{request.ReturnDate:yyyyMMdd}"` and formats via `SupplierReturnNumberFormatter.Format(branch.Code, request.ReturnDate, seq)` (`RET-<BRANCH>-YYYYMMDD-XXX`).
+  3. Creates `SupplierReturn` header and flushes via preliminary `SaveChangesAsync()` so `supplierReturn.Id` is persisted as a real UUID `refId`.
+  4. For each line: decrements physical stock conditionally (`ReserveAndDecrementStockAsync` with `MovementType.SupplierReturn` and `refId = supplierReturn.Id.ToString()`), creates `SupplierReturnItem`, transitions any listed IMEIs to `ReturnedToSupplier` (`imeiRow.MarkReturnedToSupplier(supplierReturn.Id)`), and accumulates totals.
+  5. Sets header totals via `supplierReturn.SetTotals(totalQty, totalAmount)`.
+  6. Ledger posting based on settlement type (Plan §10.4):
+     - `PayableDeduction`: calls `_supplierLedger.RecordReturnCreditAsync(...)` (reduces payable).
+     - `PendingCredit`: calls `_supplierLedger.RecordReturnCreditAsync(...)` (records credit available for future bills).
+     - `CashRefund`: deliberately DOES NOT post to ledger (immediate cash transaction outside payable tracking; documented design decision).
+  7. Audit log written: `supplier_return.created` with return metadata.
+  8. Final `SaveChangesAsync()` commits the entire atomic unit.
+- Integration Tests (`StoreOS.IntegrationTests.Suppliers.CreateSupplierReturnTests`):
+  - (a) Return with non-IMEI line decrements stock and records `SupplierReturn` movement.
+  - (b) Return with IMEI line transitions IMEI to `ReturnedToSupplier` and verifies it becomes unavailable for sale (rejected by `LoadImeiForSaleAsync`).
+  - (c) `PayableDeduction` settlement reduces supplier payable via `GetPayableAsync`.
+  - (d) `CashRefund` settlement leaves payable unaffected.
+  - (e) `PendingCredit` settlement posts return credit reducing payable.
+  - (f) Returning more than available stock fails with `insufficient_stock` (422) and rolls back atomically.
+  - (g) Unique, sequential return numbers formatted correctly per branch and date.

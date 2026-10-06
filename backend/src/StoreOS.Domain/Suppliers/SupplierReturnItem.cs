@@ -56,4 +56,42 @@ public class SupplierReturnItem
             ImeiNumbers = imeiNumbers
         };
     }
+
+    public static SupplierReturnItem Create(
+        Guid tenantId,
+        Guid returnId,
+        Guid? productId,
+        string itemName,
+        int qty,
+        decimal purchasePrice,
+        decimal returnRate,
+        decimal lineTotal,
+        string[]? imeiNumbers = null)
+    {
+        if (string.IsNullOrWhiteSpace(itemName))
+            throw new DomainValidationException("invalid_item_name", "Item name is required.");
+
+        if (qty <= 0)
+            throw new DomainValidationException("invalid_qty", "Item quantity must be greater than zero.");
+
+        if (purchasePrice < 0)
+            throw new DomainValidationException("invalid_purchase_price", "Purchase price cannot be negative.");
+
+        if (returnRate < 0)
+            throw new DomainValidationException("invalid_return_rate", "Return rate cannot be negative.");
+
+        return new SupplierReturnItem
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            ReturnId = returnId,
+            ProductId = productId,
+            ItemName = itemName,
+            Qty = qty,
+            PurchasePrice = purchasePrice,
+            ReturnRate = returnRate,
+            LineTotal = lineTotal,
+            ImeiNumbers = imeiNumbers
+        };
+    }
 }
