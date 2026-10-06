@@ -3760,3 +3760,43 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Formula exactly matches Requirements Section 13.4: `Payable = Opening + Bills - Payments - Credits`.
   - (e) Caller without `purchases:manage` -> 403 Forbidden on all 3 endpoints.
   - (f) Listing transactions with date-range filter works correctly.
+
+## P-607
+### Supplier Returns & Supplier Return Items Entities and Migration
+- Domain Types (`StoreOS.Domain.Suppliers`):
+  - `SettlementType`: `PayableDeduction`, `CashRefund`, `PendingCredit`.
+  - `SupplierReturnNumberFormatter`:
+    - Shape: `RET-<BRANCH>-YYYYMMDD-XXX`
+    - Methods:
+      - `Format(string branchCode, DateOnly date, long seq)`
+      - `Format(string branchCode, DateTimeOffset date, long seq)`
+  - `SupplierReturn`:
+    - Aggregate root with private `List<SupplierReturnItem> _items`.
+    - Factory: `Create(Guid tenantId, Guid branchId, string returnNumber, DateOnly returnDate, Guid supplierId, string? supplierPhone, string? supplierAddress, string settlementType, string? reason, string? notes, Guid createdBy)`
+    - Methods: `AddItem(SupplierReturnItem item)`, `AddItem(Guid? productId, string itemName, int qty, decimal purchasePrice, decimal returnRate, string[]? imeiNumbers = null)`
+    - Properties: `Id`, `TenantId`, `BranchId`, `ReturnNumber`, `ReturnDate`, `SupplierId`, `SupplierPhone`, `SupplierAddress`, `TotalQty`, `TotalAmount`, `SettlementType`, `Reason`, `Notes`, `CreatedBy`, `CreatedAt`, `Items`.
+  - `SupplierReturnItem`:
+    - Factory: `Create(Guid tenantId, Guid returnId, Guid? productId, string itemName, int qty, decimal purchasePrice, decimal returnRate, string[]? imeiNumbers = null)`
+    - Properties: `Id`, `TenantId`, `ReturnId`, `ProductId`, `ItemName`, `Qty`, `PurchasePrice`, `ReturnRate`, `LineTotal`, `ImeiNumbers`.
+    - Validation: `qty > 0`, `purchasePrice >= 0`, `returnRate >= 0`, `itemName` required.
+- Persistence Configurations & Migration:
+  - Configurations: `SupplierReturnConfiguration`, `SupplierReturnItemConfiguration`.
+  - Constraints:
+    - `CK_supplier_returns_settlement_type`: `settlement_type IN ('PayableDeduction', 'CashRefund', 'PendingCredit')`
+    - `CK_supplier_return_items_qty`: `qty > 0`
+    - `UQ_supplier_returns_tenant_return_number`: `UNIQUE (tenant_id, return_number)`
+    - Array column: `imei_numbers text[]` with `string[]` CLR property.
+  - Migration: `20261006205902_024_SupplierReturns` created via:
+    `dotnet ef migrations add 024_SupplierReturns --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+    applied via:
+    `dotnet ef database update --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - RLS policies:
+    - `supplier_returns`: Archetype B (`tenant_branch_isolation_policy`).
+    - `supplier_return_items`: Archetype A (`tenant_isolation_policy`).
+    - Both tables have `ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`.
+  - QueryFilters:
+    - `SupplierReturn`: branch-scoped filter in `QueryFilters.ApplyAll`.
+    - `SupplierReturnItem`: tenant-scoped filter in `QueryFilters.ApplyAll`.
+- Tests:
+  - Domain tests: `StoreOS.Domain.Tests.Suppliers.SupplierReturnTests` (8 tests passing), `StoreOS.Domain.Tests.Suppliers.SupplierReturnNumberFormatterTests` (9 tests passing).
+  - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).

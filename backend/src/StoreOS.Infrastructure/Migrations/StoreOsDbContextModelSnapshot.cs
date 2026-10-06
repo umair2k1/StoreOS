@@ -1395,6 +1395,158 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("supplier_ledger_entries", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierReturn", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text")
+                        .HasColumnName("reason");
+
+                    b.Property<DateOnly>("ReturnDate")
+                        .HasColumnType("date")
+                        .HasColumnName("return_date");
+
+                    b.Property<string>("ReturnNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("return_number");
+
+                    b.Property<string>("SettlementType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("settlement_type");
+
+                    b.Property<string>("SupplierAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_address");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<string>("SupplierPhone")
+                        .HasColumnType("text")
+                        .HasColumnName("supplier_phone");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<int>("TotalQty")
+                        .HasColumnType("integer")
+                        .HasColumnName("total_qty");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("TenantId", "ReturnNumber")
+                        .IsUnique()
+                        .HasDatabaseName("uq_supplier_returns_tenant_return_number");
+
+                    b.HasIndex("TenantId", "SupplierId")
+                        .HasDatabaseName("ix_supplier_returns_tenant_supplier");
+
+                    b.HasIndex("TenantId", "BranchId", "ReturnDate")
+                        .HasDatabaseName("ix_supplier_returns_tenant_branch_date");
+
+                    b.ToTable("supplier_returns", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_supplier_returns_settlement_type", "settlement_type IN ('PayableDeduction', 'CashRefund', 'PendingCredit')");
+                        });
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierReturnItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.PrimitiveCollection<string[]>("ImeiNumbers")
+                        .HasColumnType("text[]")
+                        .HasColumnName("imei_numbers");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("item_name");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_total");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<decimal>("PurchasePrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("purchase_price");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("integer")
+                        .HasColumnName("qty");
+
+                    b.Property<Guid>("ReturnId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("return_id");
+
+                    b.Property<decimal>("ReturnRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("return_rate");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("ReturnId");
+
+                    b.HasIndex("TenantId", "ReturnId")
+                        .HasDatabaseName("ix_supplier_return_items_return");
+
+                    b.ToTable("supplier_return_items", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_supplier_return_items_qty", "qty > 0");
+                        });
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierTransaction", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1842,6 +1994,35 @@ namespace StoreOS.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierReturn", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Suppliers.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierReturnItem", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Catalog.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreOS.Domain.Suppliers.SupplierReturn", null)
+                        .WithMany("Items")
+                        .HasForeignKey("ReturnId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierTransaction", b =>
                 {
                     b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
@@ -1874,6 +2055,11 @@ namespace StoreOS.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Sales.Sale", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierReturn", b =>
                 {
                     b.Navigation("Items");
                 });
