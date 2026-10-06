@@ -31,6 +31,7 @@ public class SettingConfiguration : IEntityTypeConfiguration<Setting>
         builder.HasOne<Branch>()
             .WithMany()
             .HasForeignKey(s => s.BranchId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

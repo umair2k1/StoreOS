@@ -3182,3 +3182,21 @@ var sgst = Money.Round2(totalGst - cgst);
   - The down payment is recorded as a real `CustomerPayment` and applied to `sale.AmountPaid`.
 - Integration Tests:
   - `FinanceCheckoutTests`: Scenario A (0% interest EMI calculation and `emi_details` JSON persistence), Scenario B (positive interest rate EMI calculation matching FinanceEngine), Scenario C (customer ledger exclusion for financed sales while preserving down payment), Scenario D (`DownPayment > GrandTotal` throws `finance_down_payment_exceeds_total`).
+
+## P-516
+### Finance Providers Settings-Backed Suggestion List
+- Application DTO and Use-Cases (`StoreOS.Application.Settings.FinanceProviders`):
+  - `FinanceProviderDto(string NormalizedName, string DisplayName)`
+  - `GetFinanceProvidersQuery : IRequest<IReadOnlyList<FinanceProviderDto>>, IReadOnlyRequest`
+  - `AddFinanceProviderCommand(string DisplayName) : IRequest<Unit>, IRequiresPermission` (`settings:manage`)
+  - `RemoveFinanceProviderCommand(string NormalizedName) : IRequest<Unit>, IRequiresPermission` (`settings:manage`)
+- Controller Routes (`StoreOS.Api.Controllers.SettingsController`):
+  - `GET /api/settings/finance-providers` -> `200 OK (IReadOnlyList<FinanceProviderDto>)`
+  - `POST /api/settings/finance-providers` -> `200 OK` (Body: `{ displayName: string }`)
+  - `DELETE /api/settings/finance-providers/{normalizedName}` -> `204 NoContent`
+- Hard Invariant & Rules:
+  - Suggestion list is backed by the tenant-level setting row `"finance_providers"` (`branch_id IS NULL`).
+  - Deduplication is case-insensitive on normalized key (`displayName.Trim().ToLowerInvariant()`), while preserving the original casing of the first-added display name. Duplicate additions are idempotent no-ops.
+  - Removing a provider removes the item from the suggestion list, but has strictly ZERO effect on existing `sales.finance_provider` / `sales.financer_name` snapshot values on historical sales.
+- Integration Tests:
+  - `FinanceProvidersTests`: adding provider, case-insensitive duplicate idempotency, provider removal, and empirical verification that historical sales retain their original provider string unaffected.
