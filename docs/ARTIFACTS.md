@@ -3578,3 +3578,29 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Refunding a voided sale returns 422 `sale_not_active`.
   - (e) Restocking fee partial amount applies exact refund amount to customer ledger and decreases `total_purchases` by exact amount.
   - (f) Live-DB permission revocation check: caller with revoked permission receives 403 Forbidden immediately.
+
+## P-601
+### GET /api/customers/{id}/credit-balance Endpoint
+- Query & DTO (`StoreOS.Application.Customers.GetCreditBalance`):
+  ```csharp
+  public record GetCreditBalanceQuery(Guid CustomerId) : IRequest<CreditBalanceDto>, IReadOnlyRequest;
+
+  public record CreditBalanceDto(
+      Guid CustomerId,
+      decimal ConsolidatedBalance,
+      decimal? CreditLimit,
+      decimal? AvailableCredit,
+      bool IsOverLimit);
+  ```
+- Handler (`StoreOS.Application.Customers.GetCreditBalance.GetCreditBalanceHandler`):
+  - Fetches customer by id and tenant id.
+  - Calls `ICustomerLedgerService.GetConsolidatedBalanceAsync(customerId, ct)` for the single sanctioned cross-branch balance calculation.
+  - Calculates `AvailableCredit = CreditLimit - ConsolidatedBalance` (null if CreditLimit is null).
+  - Calculates `IsOverLimit = CreditLimit is not null && ConsolidatedBalance > CreditLimit`.
+- Controller (`StoreOS.Api.Controllers.CustomersController`):
+  - `GET /api/customers/{id:guid}/credit-balance` -> returns `CreditBalanceDto`.
+- Integration Tests (`StoreOS.IntegrationTests.Customers.GetCreditBalanceTests`):
+  - (a) Customer with no credit limit and outstanding balance -> `CreditLimit=null`, `AvailableCredit=null`, `IsOverLimit=false`.
+  - (b) Customer with limit and balance under it -> correct `AvailableCredit`, `IsOverLimit=false`.
+  - (c) Customer over limit -> correct negative `AvailableCredit`, `IsOverLimit=true`.
+  - (d) Cross-branch customer -> balance correctly consolidated across multiple branches.
