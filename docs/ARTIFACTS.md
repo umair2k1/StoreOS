@@ -3604,3 +3604,29 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Customer with limit and balance under it -> correct `AvailableCredit`, `IsOverLimit=false`.
   - (c) Customer over limit -> correct negative `AvailableCredit`, `IsOverLimit=true`.
   - (d) Cross-branch customer -> balance correctly consolidated across multiple branches.
+
+## P-602
+### Customers CRUD Endpoints
+- Use-Case Slices (`StoreOS.Application.Customers.Crud`):
+  - `CreateCustomerCommand(string Name, string? Phone = null, string? Gstin = null) : IRequest<Guid>, IRequiresPermission`
+    - Gated by `pos:checkout`.
+  - `GetCustomersQuery(string? Search = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<CustomerListItemDto>>, IReadOnlyRequest`
+    - `CustomerListItemDto(Guid Id, string Name, string? Phone, decimal TotalPurchases, decimal CurrentCreditBalance)`
+    - `CurrentCreditBalance` computed via `ICustomerLedgerService.GetConsolidatedBalanceAsync` for each customer on page.
+  - `GetCustomerByIdQuery(Guid Id) : IRequest<CustomerDetailDto>, IReadOnlyRequest`
+    - `CustomerDetailDto(Guid Id, string Name, string? Phone, string? Gstin, decimal TotalPurchases, decimal? CreditLimit, decimal CurrentCreditBalance, DateTimeOffset CreatedAt)`
+  - `UpdateCustomerProfileCommand(Guid Id, string Name, string? Phone = null, string? Gstin = null) : IRequest, IRequiresPermission`
+    - Gated by `pos:checkout` for general front-line profile edits.
+  - `SetCustomerCreditLimitCommand(Guid Id, decimal? CreditLimit) : IRequest, IRequiresPermission`
+    - Split deliberately from profile edits: gated by `settings:manage`.
+- Controller (`StoreOS.Api.Controllers.CustomersController`):
+  - `GET /api/customers` -> `PagedResult<CustomerListItemDto>`
+  - `POST /api/customers` -> returns 201 Created with Location header and customer id
+  - `GET /api/customers/{id:guid}` -> `CustomerDetailDto`
+  - `PATCH /api/customers/{id:guid}` -> 204 NoContent
+  - `PATCH /api/customers/{id:guid}/credit-limit` -> 204 NoContent
+- Integration Tests (`StoreOS.IntegrationTests.Customers.CustomersCrudTests`):
+  - (a) Create, get by id, and update profile all work correctly.
+  - (b) `PATCH .../credit-limit` requires `settings:manage` specifically (returns 403 for user with only `pos:checkout`, succeeds with 204 for manager).
+  - (c) Search by partial phone number and partial name both work correctly.
+  - (d) `CurrentCreditBalance` in `CustomerListItemDto` accurately matches ledger balance.
