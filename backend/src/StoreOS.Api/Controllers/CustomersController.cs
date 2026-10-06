@@ -7,6 +7,9 @@ using StoreOS.Application.Customers.Crud.GetCustomers;
 using StoreOS.Application.Customers.Crud.SetCustomerCreditLimit;
 using StoreOS.Application.Customers.Crud.UpdateCustomerProfile;
 using StoreOS.Application.Customers.GetCreditBalance;
+using StoreOS.Application.Customers.GetCustomerLedger;
+using StoreOS.Application.Customers.GetCustomerSales;
+using StoreOS.Application.Sales.Search;
 
 namespace StoreOS.Api.Controllers;
 
@@ -74,6 +77,28 @@ public class CustomersController : ControllerBase
         CancellationToken ct)
     {
         var result = await _mediator.Send(new GetCreditBalanceQuery(id), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/ledger")]
+    public async Task<ActionResult<PagedResult<CustomerLedgerEntryDto>>> GetCustomerLedger(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new GetCustomerLedgerQuery(id, page, pageSize), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}/sales")]
+    public async Task<ActionResult<PagedResult<SaleSummaryDto>>> GetCustomerSales(
+        Guid id,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new GetCustomerSalesQuery(id, page, pageSize), ct);
         return Ok(result);
     }
 }

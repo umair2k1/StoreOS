@@ -3630,3 +3630,37 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) `PATCH .../credit-limit` requires `settings:manage` specifically (returns 403 for user with only `pos:checkout`, succeeds with 204 for manager).
   - (c) Search by partial phone number and partial name both work correctly.
   - (d) `CurrentCreditBalance` in `CustomerListItemDto` accurately matches ledger balance.
+
+## P-603
+### GET /api/customers/{id}/ledger and /api/customers/{id}/sales Endpoints
+- Query & DTO shapes (`StoreOS.Application.Customers.GetCustomerLedger`, `StoreOS.Application.Customers.GetCustomerSales`):
+  ```csharp
+  public record GetCustomerLedgerQuery(Guid CustomerId, int Page = 1, int PageSize = 50)
+      : IRequest<PagedResult<CustomerLedgerEntryDto>>, IReadOnlyRequest;
+
+  public record CustomerLedgerEntryDto(
+      long Id,
+      string EntryType,
+      decimal Debit,
+      decimal Credit,
+      Guid? BranchId,
+      string? BranchName,
+      DateOnly EntryDate,
+      string? RefId);
+
+  public record GetCustomerSalesQuery(Guid CustomerId, int Page = 1, int PageSize = 50)
+      : IRequest<PagedResult<SaleSummaryDto>>, IReadOnlyRequest;
+  ```
+- Handlers:
+  - `GetCustomerLedgerHandler`: DETAIL view, branch-filtered (applies standard branch-scoped query filters per Decision 4 / P-506 two-query pattern). Joins `branches` table for `BranchName`.
+  - `GetCustomerSalesHandler`: Paginated sales history for a given customer (`sales.customer_id == request.CustomerId`), reusing `SaleSummaryDto` from P-521.
+- Controller (`StoreOS.Api.Controllers.CustomersController`):
+  - `GET /api/customers/{id:guid}/ledger` -> `PagedResult<CustomerLedgerEntryDto>`
+  - `GET /api/customers/{id:guid}/sales` -> `PagedResult<SaleSummaryDto>`
+- Explicit Scoping Contrast:
+  - `GET /api/customers/{id}/credit-balance` (P-601): tenant-global checkout check (`IgnoreQueryFilters()`), aggregating balances across all branches.
+  - `GET /api/customers/{id}/ledger` (P-603): branch-filtered detail view, only returning ledger rows accessible to the caller's active branch scope.
+- Integration Tests (`StoreOS.IntegrationTests.Customers.CustomerLedgerAndSalesViewTests`):
+  - (a) Ledger view displays branch attribution per entry with `BranchId` and `BranchName`.
+  - (b) A branch-A-scoped user viewing a multi-branch customer's ledger sees only branch-A entries, while the balance endpoint returns the consolidated total across branches.
+  - (c) Sales view lists only the customer's sales, branch-scoped and paginated.
