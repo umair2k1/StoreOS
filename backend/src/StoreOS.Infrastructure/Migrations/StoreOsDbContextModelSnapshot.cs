@@ -297,6 +297,117 @@ namespace StoreOS.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.FinanceOps.Liability", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly?>("DueDate")
+                        .HasColumnType("date")
+                        .HasColumnName("due_date");
+
+                    b.Property<string>("LenderName")
+                        .HasColumnType("text")
+                        .HasColumnName("lender_name");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("Status")
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("title");
+
+                    b.Property<decimal>("TotalPrincipal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_principal");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Status")
+                        .HasDatabaseName("ix_liabilities_tenant_status");
+
+                    b.ToTable("liabilities", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_liabilities_type", "type IN ('Loan', 'CreditCard', 'Financing', 'Investment')");
+                        });
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.FinanceOps.LiabilityPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("LiabilityId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("liability_id");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date")
+                        .HasColumnName("payment_date");
+
+                    b.Property<string>("PaymentMode")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("payment_mode");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LiabilityId");
+
+                    b.HasIndex("TenantId", "LiabilityId")
+                        .HasDatabaseName("ix_liability_payments_liability");
+
+                    b.ToTable("liability_payments", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_liability_payments_amount", "amount > 0");
+                        });
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Identity.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1848,6 +1959,15 @@ namespace StoreOS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.FinanceOps.LiabilityPayment", b =>
+                {
+                    b.HasOne("StoreOS.Domain.FinanceOps.Liability", null)
+                        .WithMany()
+                        .HasForeignKey("LiabilityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Identity.RefreshToken", b =>

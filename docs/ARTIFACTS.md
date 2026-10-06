@@ -3876,3 +3876,41 @@ var sgst = Money.Round2(totalGst - cgst);
   - (c) `GET /api/expenses` with no date range defaults to first-of-month through today.
   - (d) Monthly total sums only the current month's expenses.
   - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).
+
+## P-610
+### Liabilities & Liability Payments Entities and Migration
+- Domain Types (`StoreOS.Domain.FinanceOps`):
+  - `LiabilityType`:
+    - Constants: `Loan`, `CreditCard`, `Financing`, `Investment`.
+    - Set: `All = new HashSet<string> { Loan, CreditCard, Financing, Investment }`.
+    - Method: `IsValid(string type) => All.Contains(type)`.
+  - `Liability`:
+    - Strictly tenant-level (no `branch_id` column per Plan §8.8).
+    - Factory: `Create(Guid tenantId, string title, string type, string? lenderName, decimal totalPrincipal, DateOnly? dueDate, string? notes)`.
+    - Methods:
+      - `UpdateDescriptiveData(string title, string? lenderName, DateOnly? dueDate, string? status, string? notes)`: updates title, lender, due date, status, notes only.
+    - Immutable-Principal Rule: `TotalPrincipal` is strictly immutable after creation. `UpdateDescriptiveData` deliberately never accepts `totalPrincipal` (Requirements §19.6: editing must not rewrite repayment history).
+    - Properties: `Id`, `TenantId`, `Title`, `Type`, `LenderName`, `TotalPrincipal`, `DueDate`, `Status`, `Notes`, `CreatedAt`.
+  - `LiabilityPayment`:
+    - Factory: `Create(Guid tenantId, Guid liabilityId, decimal amount, string paymentMode, DateOnly paymentDate, string? notes)`.
+    - Immutable-Payment Rule: permanently immutable with no update/mutation methods, identical in spirit to `CustomerPayment` (P-508).
+    - Properties: `Id`, `TenantId`, `LiabilityId`, `Amount`, `PaymentMode`, `PaymentDate`, `Notes`, `CreatedAt`.
+- Persistence Configurations & Migration:
+  - Configurations: `LiabilityConfiguration`, `LiabilityPaymentConfiguration`.
+  - Tables:
+    - `liabilities`: `id`, `tenant_id`, `title`, `type`, `lender_name`, `total_principal`, `due_date`, `status`, `notes`, `created_at`.
+    - `liability_payments`: `id`, `tenant_id`, `liability_id`, `amount`, `payment_mode`, `payment_date`, `notes`, `created_at`.
+  - Constraints:
+    - `CK_liabilities_type`: `type IN ('Loan', 'CreditCard', 'Financing', 'Investment')`.
+    - `CK_liability_payments_amount`: `amount > 0`.
+    - Foreign key: `liability_payments.liability_id REFERENCES liabilities(id) ON DELETE RESTRICT`.
+  - Migration: `20261006213014_026_Liabilities` created via:
+    `dotnet ef migrations add 026_Liabilities --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+    applied via:
+    `dotnet ef database update --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - RLS: `tenant_isolation_policy` enabled and forced on both `liabilities` and `liability_payments` (`tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid`).
+  - QueryFilters: tenant-level filters registered in `QueryFilters.ApplyAll`.
+- Domain Tests (`StoreOS.Domain.Tests.FinanceOps`):
+  - `LiabilityTests` (16 tests passing): valid creation of each liability type, invalid type throws, `UpdateDescriptiveData` strictly preserves `TotalPrincipal`, non-positive principal throws, empty title throws.
+  - `LiabilityPaymentTests` (7 tests passing): valid creation, non-positive amount throws, empty payment mode throws, reflection verifies zero mutating methods on `LiabilityPayment`.
+  - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).
