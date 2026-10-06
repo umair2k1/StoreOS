@@ -107,4 +107,46 @@ public class PosController : ControllerBase
             grandTotal = result.GrandTotal
         });
     }
+
+    public record ConvertEstimateBody(IReadOnlyList<StoreOS.Application.Sales.Checkout.CheckoutPayment>? Payments);
+
+    [HttpPost("estimate/{id:guid}/convert")]
+    public async Task<IActionResult> ConvertEstimate(
+        Guid id,
+        [FromBody] ConvertEstimateBody? body,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        [FromServices] StoreOS.Application.Behaviors.IdempotencyReplayFlag replayFlag,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new
+            {
+                code = "idempotency_key_required",
+                message = "POST /pos/estimate/{id}/convert requires an Idempotency-Key header."
+            });
+        }
+
+        var payments = body?.Payments ?? Array.Empty<StoreOS.Application.Sales.Checkout.CheckoutPayment>();
+        var command = new StoreOS.Application.Sales.ConvertEstimate.ConvertEstimateCommand(id, payments)
+        {
+            IdempotencyKey = idempotencyKey
+        };
+
+        var result = await _mediator.Send(command, ct);
+
+        if (replayFlag.Replayed)
+        {
+            Response.Headers["Idempotent-Replayed"] = "true";
+        }
+
+        return Created($"/api/sales/{result.NewSaleId}", new
+        {
+            saleId = result.NewSaleId,
+            invoiceNumber = result.InvoiceNumber,
+            grandTotal = result.GrandTotal,
+            amountPaid = result.AmountPaid,
+            balance = result.Balance
+        });
+    }
 }

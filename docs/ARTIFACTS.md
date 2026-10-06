@@ -3308,3 +3308,49 @@ var sgst = Money.Round2(totalGst - cgst);
   - `MarkConvertedToTaxInvoice` correctly sets `LinkedTaxInvoiceId` on estimate.
   - Calling `MarkConvertedToTaxInvoice` on non-Estimate sale throws `DomainValidationException("not_an_estimate")`.
   - Calling `MarkConvertedToTaxInvoice` twice on same estimate throws `DomainValidationException("estimate_already_converted")`.
+
+## P-520
+### POST /api/pos/estimate/{id}/convert Handler & Endpoint
+- Command & Response Shapes (`StoreOS.Application.Sales.ConvertEstimate`):
+  ```csharp
+  public record ConvertEstimateCommand(
+      Guid EstimateId,
+      IReadOnlyList<CheckoutPayment> Payments
+  ) : IRequest<ConvertEstimateResult>, IRequiresPermission, ISerializableRequest, IIdempotentRequest
+  {
+      public string RequiredPermission => "pos:checkout";
+      public string? IdempotencyKey { get; init; }
+      public string IdempotencyScope => $"pos.estimate.convert:{EstimateId}";
+      public bool IdempotencyRequired => true;
+  }
+
+  public record ConvertEstimateResult(
+      Guid NewSaleId,
+      string InvoiceNumber,
+      decimal GrandTotal,
+      decimal AmountPaid,
+      decimal Balance);
+  ```
+- Handler Logic & Reuse (`StoreOS.Application.Sales.ConvertEstimate.ConvertEstimateHandler`):
+  - Reuses core services: `IInventoryStockService`, `ICustomerLedgerService`, `CreditLimitChecker`, `IInvoiceSequenceAllocator`, `PaymentComposer`.
+  - Implements Plan §10.7 11 steps:
+    1. Verifies branch access and estimate status (`not_an_estimate`, `estimate_already_converted`, `branch_mismatch`).
+    2. Re-validates live stock and IMEI availability.
+    3. Runs customer credit limit check for unpaid balance.
+    4. Reserves consecutive TaxInvoice number from tax series (`FYxx-xx`).
+    5. Instantiates and saves new `TaxInvoice` `Sale` + `SaleItem` items.
+    6. Decrements stock movements and marks IMEI sold with real `SaleItem.Id`.
+    7. Records payments and posts debit/credit to `customer_ledger_entries`.
+    8. Updates original estimate with `estimate.MarkConvertedToTaxInvoice(newSale.Id)` and stamps `newSale.MarkConvertedFrom(estimate.Id)`.
+    9. Writes audit entry `estimate.converted`.
+- Controller Endpoint (`StoreOS.Api.Controllers.PosController`):
+  - `POST /api/pos/estimate/{id:guid}/convert`
+  - Mandatory `Idempotency-Key` header (returns 400 `idempotency_key_required` if omitted).
+  - Returns 201 Created with `Location: /api/sales/{newSaleId}`.
+- Integration Tests (`ConvertEstimateTests`):
+  - Happy path conversion with stock/IMEI decrements and bidirectional FK linkage.
+  - Converting same estimate twice rejects with `estimate_already_converted`.
+  - Stock sold out before conversion rejects with `insufficient_stock`.
+  - IMEI sold before conversion rejects cleanly (`imei_not_available`/`insufficient_stock`).
+  - Idempotency replay with same key returns cached result without double converting.
+  - Attempting to convert regular tax invoice rejects with `not_an_estimate`.
