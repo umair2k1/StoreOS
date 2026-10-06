@@ -28,4 +28,39 @@ public class PosController : ControllerBase
         var result = await _mediator.Send(new GetPosProductQuery(id), ct);
         return Ok(result);
     }
+
+    [HttpPost("checkout")]
+    public async Task<IActionResult> Checkout(
+        [FromBody] StoreOS.Application.Sales.Checkout.CheckoutCommand command,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        [FromServices] StoreOS.Application.Behaviors.IdempotencyReplayFlag replayFlag,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new
+            {
+                code = "idempotency_key_required",
+                message = "POST /pos/checkout requires an Idempotency-Key header."
+            });
+        }
+
+        var cmdWithKey = command with { IdempotencyKey = idempotencyKey };
+        var result = await _mediator.Send(cmdWithKey, ct);
+
+        if (replayFlag.Replayed)
+        {
+            Response.Headers["Idempotent-Replayed"] = "true";
+        }
+
+        return Created($"/api/sales/{result.SaleId}", new
+        {
+            saleId = result.SaleId,
+            invoiceNumber = result.InvoiceNumber,
+            grandTotal = result.GrandTotal,
+            amountPaid = result.AmountPaid,
+            balance = result.Balance,
+            saleDate = result.SaleDate
+        });
+    }
 }

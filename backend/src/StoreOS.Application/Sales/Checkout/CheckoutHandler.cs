@@ -87,21 +87,14 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             await _creditLimitChecker.CheckAsync(customerId.Value, newCreditAmount, ct);
         }
 
-        // Step 4: Reserve invoice sequence
-        var seriesKey = $"FY{InvoiceNumberFormatter.FinancialYearLabel(businessDate)}";
-        var branch = await _db.Set<StoreOS.Domain.Tenancy.Branch>().FirstAsync(b => b.Id == branchId, ct);
-        var seq = await _sequenceAllocator.AllocateNextAsync(_scope.TenantId, branchId, seriesKey, ct);
-        var fyLabel = InvoiceNumberFormatter.FinancialYearLabel(businessDate);
-        var invoiceNumber = request.InvoiceType == InvoiceType.TaxInvoice
-            ? InvoiceNumberFormatter.FormatFyConsecutive(branch.Code, fyLabel, seq)
-            : InvoiceNumberFormatter.FormatEstimate(branch.Code, fyLabel, seq);
+        var branch = await _db.Set<StoreOS.Domain.Tenancy.Branch>().AsNoTracking().FirstAsync(b => b.Id == branchId, ct);
 
         // Step 1: Create the sale header
         var customerName = request.WalkInCustomerName ?? "Walk-in Customer";
         string? customerGstin = null;
         if (customerId is not null)
         {
-            var customerEntity = await _db.Set<Customer>().FirstOrDefaultAsync(c => c.Id == customerId.Value, ct);
+            var customerEntity = await _db.Set<Customer>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == customerId.Value, ct);
             if (customerEntity != null)
             {
                 customerName = customerEntity.Name;
@@ -109,18 +102,18 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             }
         }
 
+        var placeholderInvoice = Guid.NewGuid().ToString("N");
         var sale = request.InvoiceType == InvoiceType.TaxInvoice
             ? Sale.CreateTaxInvoice(
-                _scope.TenantId, branchId, invoiceNumber, saleDate, customerId, customerName, customerGstin,
+                _scope.TenantId, branchId, placeholderInvoice, saleDate, customerId, customerName, customerGstin,
                 totalTaxable, totalCgst, totalSgst, grandTotal, request.InvoiceDiscount, 0m,
                 null, null, null, null, null, null, request.Description, null, _scope.UserId)
             : Sale.CreateEstimate(
-                _scope.TenantId, branchId, invoiceNumber, saleDate, customerId, customerName, customerGstin,
+                _scope.TenantId, branchId, placeholderInvoice, saleDate, customerId, customerName, customerGstin,
                 totalTaxable, totalCgst, totalSgst, grandTotal, request.InvoiceDiscount, 0m,
                 null, null, null, null, null, null, request.Description, null, _scope.UserId);
 
         await _db.Set<Sale>().AddAsync(sale, ct);
-
         // Corrected ordering (fixes Guid.Empty issue):
         // Create SaleItem entities FIRST so we have their real IDs client-side before stock/IMEI reservation
         var itemsWithLines = new List<(SaleItem Item, ResolvedCartLine Line)>();
@@ -181,6 +174,15 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             var customer = await _db.Set<Customer>().FirstAsync(c => c.Id == customerId.Value, ct);
             customer.AddToTotalPurchases(grandTotal);
         }
+
+        // Step 9: Reserve invoice sequence immediately before commit
+        var seriesKey = $"FY{InvoiceNumberFormatter.FinancialYearLabel(businessDate)}";
+        var seq = await _sequenceAllocator.AllocateNextAsync(_scope.TenantId, branchId, seriesKey, ct);
+        var fyLabel = InvoiceNumberFormatter.FinancialYearLabel(businessDate);
+        var invoiceNumber = request.InvoiceType == InvoiceType.TaxInvoice
+            ? InvoiceNumberFormatter.FormatFyConsecutive(branch.Code, fyLabel, seq)
+            : InvoiceNumberFormatter.FormatEstimate(branch.Code, fyLabel, seq);
+        typeof(Sale).GetProperty(nameof(Sale.InvoiceNumber))!.SetValue(sale, invoiceNumber);
 
         // Step 10: Audit log
         await _audit.WriteAsync(

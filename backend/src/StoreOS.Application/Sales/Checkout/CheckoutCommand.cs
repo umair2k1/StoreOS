@@ -31,9 +31,12 @@ public record CheckoutCommand(
     IReadOnlyList<CheckoutPayment> Payments,
     CheckoutFinanceDetails? Finance,
     string? Description
-) : IRequest<CheckoutResult>, IRequiresPermission, ISerializableRequest
+) : IRequest<CheckoutResult>, IRequiresPermission, ISerializableRequest, IIdempotentRequest
 {
     public string RequiredPermission => "pos:checkout";
+    public string? IdempotencyKey { get; init; }
+    public string IdempotencyScope => "pos.checkout";
+    public bool IdempotencyRequired => true;
 }
 
 public record CheckoutResult(

@@ -3051,3 +3051,45 @@ var sgst = Money.Round2(totalGst - cgst);
             saleDate);
     }
     ```
+
+## P-511
+### SerializationRetryBehavior & Transaction Outer Retry Wrapper
+- Pipeline Behavior (`StoreOS.Infrastructure.Persistence.SerializationRetryBehavior<TRequest, TResponse>`):
+  ```csharp
+  namespace StoreOS.Infrastructure.Persistence;
+
+  public sealed class SerializationRetryBehavior<TRequest, TResponse> : IPipelineBehavior<TRequest, TResponse>
+      where TRequest : notnull
+  {
+      private static readonly ResiliencePipeline Pipeline = new ResiliencePipelineBuilder()
+          .AddRetry(new RetryStrategyOptions
+          {
+              ShouldHandle = new PredicateBuilder().Handle<Exception>(IsSerializationFailure),
+              MaxRetryAttempts = 3,
+              BackoffType = DelayBackoffType.Exponential,
+              UseJitter = true,
+              Delay = TimeSpan.FromMilliseconds(25),
+              MaxDelay = TimeSpan.FromMilliseconds(250)
+          })
+          .Build();
+
+      public SerializationRetryBehavior(IServiceProvider services);
+      public Task<TResponse> Handle(TRequest request, RequestHandlerDelegate<TResponse> next, CancellationToken ct);
+      public static bool IsSerializationFailure(Exception ex);
+  }
+  ```
+- Pipeline Order (Registered in `Program.cs`):
+  `ValidationBehavior -> SerializationRetryBehavior -> AuthorizationBehavior -> TransactionBehavior -> TokenVersionBehavior -> LiveDbPermissionBehavior -> IdempotencyBehavior -> Handler`
+- Extended `CheckoutCommand` (carrying `IIdempotentRequest` and `ISerializableRequest`):
+  ```csharp
+  public record CheckoutCommand(...) : IRequest<CheckoutResult>, IRequiresPermission, ISerializableRequest, IIdempotentRequest
+  {
+      public string RequiredPermission => "pos:checkout";
+      public string? IdempotencyKey { get; init; }
+      public string IdempotencyScope => "pos.checkout";
+      public bool IdempotencyRequired => true;
+  }
+  ```
+- Tests & Verification:
+  - Unit: `SerializationRetryBehaviorTests` (3 invocations on transient 40001 then success; exhaustion throws `DomainException("serialization_conflict")`; non-serialization exceptions not retried; read-only requests skipped).
+  - Integration: `CheckoutContentionTests` & `IdempotencyBehaviorTests` (last unit parallel checkout with one 201 and one 422; 20 parallel checkouts all 201 with unique consecutive invoice numbers; same idempotency key replay; conflicting payload key reuse 409).

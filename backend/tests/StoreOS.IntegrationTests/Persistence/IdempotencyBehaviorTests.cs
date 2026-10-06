@@ -139,6 +139,7 @@ public class IdempotencyBehaviorTests : IAsyncLifetime
         services.AddMediatR(cfg =>
         {
             cfg.RegisterServicesFromAssembly(typeof(IncrementProbeHandler).Assembly);
+            cfg.AddOpenBehavior(typeof(SerializationRetryBehavior<,>));
             cfg.AddOpenBehavior(typeof(TransactionBehavior<,>));
             cfg.AddOpenBehavior(typeof(IdempotencyBehavior<,>));
         });
@@ -249,7 +250,7 @@ public class IdempotencyBehaviorTests : IAsyncLifetime
         }
     }
 
-    [Fact(Skip = "enabled by P-511")]
+    [Fact]
     public async Task Two_concurrent_requests_with_same_key_resolve_via_retry_and_replay()
     {
         var sp = BuildServiceProvider(_tenantAId, _userAId);

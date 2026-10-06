@@ -82,11 +82,12 @@ builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(StoreOS.Application.AssemblyMarker).Assembly);
-    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.ValidationBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.SerializationRetryBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.AuthorizationBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Infrastructure.Persistence.TransactionBehavior<,>));
-    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.LiveDbPermissionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.TokenVersionBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.LiveDbPermissionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.IdempotencyBehavior<,>));
 });
 builder.Services.AddScoped<StoreOS.Application.Behaviors.IdempotencyReplayFlag>();
