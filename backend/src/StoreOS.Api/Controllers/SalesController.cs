@@ -4,6 +4,7 @@ using StoreOS.Application.Abstractions;
 using StoreOS.Application.Sales.Search;
 using StoreOS.Application.Sales.GetSaleById;
 using StoreOS.Application.Sales.VoidSale;
+using StoreOS.Application.Sales.RefundSale;
 using StoreOS.Application.Behaviors;
 using StoreOS.Application.Sales.RecordPayment;
 
@@ -72,6 +73,21 @@ public class SalesController : ControllerBase
         CancellationToken ct)
     {
         await _mediator.Send(new VoidSaleCommand(id, body.Reason), ct);
+        return Ok();
+    }
+
+    public record RefundSaleBody(
+        IReadOnlyList<Guid>? SaleItemIds,
+        string Reason,
+        decimal RefundAmount);
+
+    [HttpPost("{id:guid}/refund")]
+    public async Task<IActionResult> RefundSale(
+        Guid id,
+        [FromBody] RefundSaleBody body,
+        CancellationToken ct)
+    {
+        await _mediator.Send(new RefundSaleCommand(id, body.SaleItemIds, body.Reason, body.RefundAmount), ct);
         return Ok();
     }
 }

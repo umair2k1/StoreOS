@@ -3542,3 +3542,39 @@ var sgst = Money.Round2(totalGst - cgst);
   - (e) Voiding an already-voided sale returns 422 `sale_not_active`.
   - (f) Customer ledger gets `InvoiceVoid` credit and `total_purchases` decreases.
   - (g) Live-DB permission revocation check: caller with revoked DB permission receives 403 Forbidden immediately.
+
+## P-525
+### POST /api/sales/{id}/refund Endpoint (Whole/Partial Refund, Stock Reversal, Ledger Credit)
+- Command Shape (`StoreOS.Application.Sales.RefundSale`):
+  ```csharp
+  public record RefundSaleCommand(
+      Guid SaleId,
+      IReadOnlyList<Guid>? SaleItemIds,
+      string Reason,
+      decimal RefundAmount
+  ) : IRequest, IHighImpactOperation
+  {
+      public string RequiredPermission => "sales:refund";
+  }
+  ```
+- Validator (`StoreOS.Application.Sales.RefundSale.RefundSaleValidator`):
+  - `SaleId` required, `Reason` required, `RefundAmount > 0`.
+- Controller Endpoint (`StoreOS.Api.Controllers.SalesController`):
+  - `POST /api/sales/{id:guid}/refund`
+  - Live-DB permission gated (`sales:refund` verified via `IHighImpactOperation`).
+  - Returns `200 OK`.
+- Partial-vs-Whole Refund Invariants (`StoreOS.Application.Sales.RefundSale.RefundSaleHandler`):
+  - Original `Sale` row financial amounts are preserved and immutable (Invariant 6).
+  - Whole-sale refund (`SaleItemIds == null` or all lines selected): transitions `sale.Status` to `Refunded`.
+  - Partial refund: leaves `sale.Status` as `Active`, as requirements define only 3 states (`Active`, `Voided`, `Refunded`) and the audit trail captures which lines were refunded.
+  - Restores stock for refunded physical lines (`MovementType.SaleRefund`) and restores IMEI status to `InStock`.
+  - Customer ledger gets a `Refund` credit for the exact `RefundAmount` (which can reflect restocking fee deductions), and `customer.SubtractFromTotalPurchases(request.RefundAmount)` decreases purchases by that exact amount.
+  - Skips ledger credit if `PaymentMode == "Finance"`.
+  - Writes audit event `sale.refunded`.
+- Integration Tests (`StoreOS.IntegrationTests.Sales.RefundSaleTests`):
+  - (a) Whole-sale refund sets `Status='Refunded'`, restores all physical stock and IMEIs, original totals preserved.
+  - (b) Partial refund leaves `Status='Active'`, only specified line restored, audit trail records line ids and partial flag.
+  - (c) Refund amount exceeding grand total returns 422 `invalid_refund_amount`.
+  - (d) Refunding a voided sale returns 422 `sale_not_active`.
+  - (e) Restocking fee partial amount applies exact refund amount to customer ledger and decreases `total_purchases` by exact amount.
+  - (f) Live-DB permission revocation check: caller with revoked permission receives 403 Forbidden immediately.

@@ -34,6 +34,8 @@ public static class ErrorCatalog
         ["current_password_incorrect"] = HttpStatusCode.UnprocessableEntity,
         ["sale_not_active"] = HttpStatusCode.UnprocessableEntity,
         ["payment_exceeds_balance"] = HttpStatusCode.UnprocessableEntity,
+        ["invalid_refund_amount"] = HttpStatusCode.UnprocessableEntity,
+        ["no_lines_to_refund"] = HttpStatusCode.UnprocessableEntity,
     };
 
     public static HttpStatusCode StatusFor(string code)
