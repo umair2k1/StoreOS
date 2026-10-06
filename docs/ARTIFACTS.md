@@ -3200,3 +3200,49 @@ var sgst = Money.Round2(totalGst - cgst);
   - Removing a provider removes the item from the suggestion list, but has strictly ZERO effect on existing `sales.finance_provider` / `sales.financer_name` snapshot values on historical sales.
 - Integration Tests:
   - `FinanceProvidersTests`: adding provider, case-insensitive duplicate idempotency, provider removal, and empirical verification that historical sales retain their original provider string unaffected.
+
+## P-517
+### Estimate Support in Checkout (Bypass Stock/IMEI Decrement & Customer Ledger)
+- Invariant 9 Proof & Guard Verification in `CheckoutHandler`:
+  ```csharp
+  // 1. Credit Limit Check bypass:
+  if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice && request.Finance is null)
+  {
+      await _creditLimitChecker.CheckAsync(customerId.Value, newCreditAmount, ct);
+  }
+
+  // 2. Stock & IMEI reservation bypass:
+  if (request.InvoiceType == InvoiceType.TaxInvoice)
+  {
+      foreach (var (item, line) in itemsWithLines)
+      {
+          if (!StoreOS.Domain.Catalog.ProductCategory.IsPhysical(line.Category)) continue;
+          await _stockService.ReserveAndDecrementStockAsync(branchId, line.ProductId, line.Qty,
+              StoreOS.Domain.Inventory.MovementType.Sale, "Sale", sale.Id.ToString(), ct);
+          if (line.ImeiRowId is not null)
+              await _stockService.SellImeiAsync(line.ImeiRowId.Value, sale.Id, item.Id, ct);
+      }
+  }
+
+  // 3. Customer Ledger debit & total purchases bypass:
+  if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice)
+  {
+      if (request.Finance is null)
+      {
+          await _ledgerService.RecordInvoiceDebitAsync(customerId.Value, sale.Id, grandTotal, branchId, businessDate, ct);
+          if (totalPaid > 0)
+              await _ledgerService.RecordPaymentCreditAsync(customerId.Value, sale.Id, totalPaid, branchId, businessDate, ct);
+      }
+      var customer = await _db.Set<Customer>().FirstAsync(c => c.Id == customerId.Value, ct);
+      customer.AddToTotalPurchases(grandTotal);
+  }
+  ```
+- Numbering Series (DECISIONS D-07):
+  - Estimates use a separate sequence series (`series_key = $"EST-FY{fyLabel}"`), formatted via `InvoiceNumberFormatter.FormatEstimate(...)` (e.g. `ET1/E/26-27/000001`).
+  - Generating estimates does not consume or leave gaps in the official Rule 46(b) tax invoice consecutive series.
+- Integration Tests (`EstimateCheckoutTests`):
+  - Physical stock and inventory movements are completely untouched.
+  - Serialized IMEIs remain `InStock` and unassigned.
+  - Customer ledger entries are zero, and customer `total_purchases` remains untouched.
+  - Credit limit checks are completely bypassed for estimates.
+  - Distinct series numbering and status/type query filtering verified.

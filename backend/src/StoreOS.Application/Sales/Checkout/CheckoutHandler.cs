@@ -198,14 +198,16 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
         }
 
         // Step 9: Reserve invoice sequence immediately before commit
-        var seriesKey = $"FY{InvoiceNumberFormatter.FinancialYearLabel(businessDate)}";
-        var seq = await _sequenceAllocator.AllocateNextAsync(_scope.TenantId, branchId, seriesKey, ct);
+        // DECISIONS D-07: Estimate uses separate series_key ("EST-FYxx-xx") so tax invoice consecutive series is never burned/gapped
         var fyLabel = InvoiceNumberFormatter.FinancialYearLabel(businessDate);
+        var seriesKey = request.InvoiceType == InvoiceType.TaxInvoice
+            ? $"FY{fyLabel}"
+            : $"EST-FY{fyLabel}";
+        var seq = await _sequenceAllocator.AllocateNextAsync(_scope.TenantId, branchId, seriesKey, ct);
         var invoiceNumber = request.InvoiceType == InvoiceType.TaxInvoice
             ? InvoiceNumberFormatter.FormatFyConsecutive(branch.Code, fyLabel, seq)
             : InvoiceNumberFormatter.FormatEstimate(branch.Code, fyLabel, seq);
         typeof(Sale).GetProperty(nameof(Sale.InvoiceNumber))!.SetValue(sale, invoiceNumber);
-
         // Step 10: Audit log
         await _audit.WriteAsync(
             branchId,
