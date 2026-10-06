@@ -127,6 +127,22 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
             .HasDefaultValueSql("now()")
             .IsRequired();
 
+        builder.Property(s => s.ConvertedFromEstimateId)
+            .HasColumnName("converted_from_estimate_id");
+
+        builder.Property(s => s.LinkedTaxInvoiceId)
+            .HasColumnName("linked_tax_invoice_id");
+
+        builder.HasOne<Sale>()
+            .WithMany()
+            .HasForeignKey(s => s.ConvertedFromEstimateId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Sale>()
+            .WithMany()
+            .HasForeignKey(s => s.LinkedTaxInvoiceId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.HasIndex(s => new { s.TenantId, s.InvoiceNumber })
             .IsUnique()
             .HasDatabaseName("ix_sales_tenant_invoice_number");

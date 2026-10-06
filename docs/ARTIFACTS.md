@@ -3273,3 +3273,38 @@ var sgst = Money.Round2(totalGst - cgst);
 - Integration Tests (`CreateEstimateEndpointTests`):
   - Succeeded without `Idempotency-Key` (201 Created), stock unaffected, DB row confirmed as `InvoiceType.Estimate`.
   - Tested with `Idempotency-Key`: supports cached replay (`Idempotent-Replayed: true`) and detects payload mismatch conflict (409 `idempotency_key_reuse`).
+
+## P-519
+### converted_from_estimate_id / linked_tax_invoice_id Columns & Domain Methods
+- Domain Entity Extensions (`StoreOS.Domain.Sales.Sale`):
+  ```csharp
+  public Guid? ConvertedFromEstimateId { get; private set; }
+  public Guid? LinkedTaxInvoiceId { get; private set; }
+
+  public void MarkConvertedFrom(Guid estimateId) => ConvertedFromEstimateId = estimateId;
+
+  public void MarkConvertedToTaxInvoice(Guid taxInvoiceId)
+  {
+      if (InvoiceType != StoreOS.Domain.Sales.InvoiceType.Estimate)
+          throw new StoreOS.Domain.Exceptions.DomainValidationException("not_an_estimate",
+              "Only an Estimate can be marked as converted.");
+      if (LinkedTaxInvoiceId is not null)
+          throw new StoreOS.Domain.Exceptions.DomainValidationException("estimate_already_converted",
+              "This estimate has already been converted to a tax invoice.");
+      LinkedTaxInvoiceId = taxInvoiceId;
+  }
+  ```
+- Database Columns & Constraints:
+  - Added nullable self-referencing foreign key columns to `public.sales`:
+    - `converted_from_estimate_id uuid NULL REFERENCES sales(id)`
+    - `linked_tax_invoice_id uuid NULL REFERENCES sales(id)`
+  - Mapped in `SaleConfiguration.cs` with foreign key relationships on delete `Restrict`.
+- Migration:
+  - `20261006192156_022_EstimateConversion` added and applied via:
+    `dotnet ef migrations add 022_EstimateConversion --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+    `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`
+- Domain Tests (`StoreOS.Domain.Tests.Sales.EstimateConversionMarkersTests`):
+  - `MarkConvertedFrom` correctly sets `ConvertedFromEstimateId` on invoice.
+  - `MarkConvertedToTaxInvoice` correctly sets `LinkedTaxInvoiceId` on estimate.
+  - Calling `MarkConvertedToTaxInvoice` on non-Estimate sale throws `DomainValidationException("not_an_estimate")`.
+  - Calling `MarkConvertedToTaxInvoice` twice on same estimate throws `DomainValidationException("estimate_already_converted")`.

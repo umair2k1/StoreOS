@@ -1038,6 +1038,10 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("branch_id");
 
+                    b.Property<Guid?>("ConvertedFromEstimateId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("converted_from_estimate_id");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -1119,6 +1123,10 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("irn_qr_data");
 
+                    b.Property<Guid?>("LinkedTaxInvoiceId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("linked_tax_invoice_id");
+
                     b.Property<string>("PaymentMode")
                         .HasColumnType("text")
                         .HasColumnName("payment_mode");
@@ -1160,6 +1168,10 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BranchId");
+
+                    b.HasIndex("ConvertedFromEstimateId");
+
+                    b.HasIndex("LinkedTaxInvoiceId");
 
                     b.HasIndex("TenantId", "InvoiceNumber")
                         .IsUnique()
@@ -1650,6 +1662,16 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasForeignKey("BranchId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("StoreOS.Domain.Sales.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("ConvertedFromEstimateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreOS.Domain.Sales.Sale", null)
+                        .WithMany()
+                        .HasForeignKey("LinkedTaxInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Sales.SaleItem", b =>
@@ -1680,8 +1702,7 @@ namespace StoreOS.Infrastructure.Migrations
                     b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
                         .WithMany()
                         .HasForeignKey("BranchId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("StoreOS.Domain.Sales.Sale", b =>

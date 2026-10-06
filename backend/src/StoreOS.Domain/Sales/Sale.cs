@@ -35,6 +35,8 @@ public class Sale
     public string? IrnQrData { get; private set; }
     public Guid CreatedBy { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public Guid? ConvertedFromEstimateId { get; private set; }
+    public Guid? LinkedTaxInvoiceId { get; private set; }
 
     public IReadOnlyList<SaleItem> Items => _items.AsReadOnly();
 
@@ -223,5 +225,18 @@ public class Sale
         FinancerName = financerName;
         DownPayment = downPayment;
         EmiDetailsJson = emiDetailsJson;
+    }
+
+    public void MarkConvertedFrom(Guid estimateId) => ConvertedFromEstimateId = estimateId;
+
+    public void MarkConvertedToTaxInvoice(Guid taxInvoiceId)
+    {
+        if (InvoiceType != StoreOS.Domain.Sales.InvoiceType.Estimate)
+            throw new StoreOS.Domain.Exceptions.DomainValidationException("not_an_estimate",
+                "Only an Estimate can be marked as converted.");
+        if (LinkedTaxInvoiceId is not null)
+            throw new StoreOS.Domain.Exceptions.DomainValidationException("estimate_already_converted",
+                "This estimate has already been converted to a tax invoice.");
+        LinkedTaxInvoiceId = taxInvoiceId;
     }
 }
