@@ -127,4 +127,9 @@ idempotency_key_invalid` (+ FluentValidation). 409: `branch_code_taken, imei_alr
 * Tax invoice, FY series (default): `<BRANCH>/<FY>/<NNNNNN>`, e.g. `B01/26-27/000042`; branch code 1-3 chars `[A-Z1-9][A-Z0-9]{0,2}` so the number is <= 16 chars (GST Rule 46(b)); series key `FY26-27`; FY = 1 April - 31 March in the tenant time zone.
 * Estimate: `<BRANCH>/E/<FY>/<NNNNNN>`, own sequence key `EST-FY26-27`; never consumes the tax series (D-07).
 * Daily-timestamp format is a legacy option (23 chars, not Rule 46(b) compliant): warn on selection, CA sign-off required (O-01).
+
+## 10. Orchestration & Handlers (Invariants)
+
+* **Entity-Before-Reservation Invariant:** Handlers creating parent records and line items (such as `CheckoutHandler` creating `Sale` + `SaleItem`) MUST instantiate `SaleItem` entities client-side prior to invoking inventory/IMEI services (`SellImeiAsync`), guaranteeing real GUIDs are passed instead of placeholder `Guid.Empty`.
+* **Nullable Branch RLS Sentinel:** Tables with optional `branch_id` attribution (`customer_ledger_entries`, `audit_log`, `import_batches`) MUST express the null check using `COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid) = '00000000-0000-0000-0000-000000000000'::uuid` rather than `branch_id IS NULL`, ensuring full compliance with `RlsCoverageTests`.
 * Repair job numbers: `REP-<BRANCH>-YYYYMMDD-XXXX` (own sequence).

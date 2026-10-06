@@ -509,6 +509,23 @@ def cmd_verify(prompt_id: Optional[str] = None) -> int:
                 print("FAIL")
                 errors.append(f"dotnet build execution error: {e}")
 
+            # 6. Run fast Domain unit tests
+            print("  6. Running fast domain tests ('dotnet test StoreOS.Domain.Tests')...", end=" ")
+            try:
+                t_res = subprocess.run(
+                    [dotnet_bin, "test", "backend/tests/StoreOS.Domain.Tests", "--no-build", "--nologo", "-v", "q"],
+                    cwd=ROOT,
+                    capture_output=True,
+                    text=True,
+                )
+                if t_res.returncode == 0:
+                    print("PASS")
+                else:
+                    print("FAIL")
+                    errors.append(f"Domain unit tests failed:\n{t_res.stdout}\n{t_res.stderr}")
+            except Exception as e:
+                print("FAIL")
+                errors.append(f"Domain unit test execution error: {e}")
     # Summary
     if errors:
         print(f"\n[VERIFY FAILED] Found {len(errors)} failure(s):")

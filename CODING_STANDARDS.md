@@ -66,6 +66,18 @@ In `Program.cs`, register open behaviors in the verified sequence:
   ```
 - **Inserting**: For inserting tenant-wide assignments with `branch_id = null`, use `_db.ExecuteRawSqlAsync(...)` to bypass EF Core key change-tracking constraints.
 
+### 3.3 Nullable Branch RLS Policy Expression
+- When creating an RLS policy on a table that has a nullable `branch_id` (representing optional branch attribution, such as `customer_ledger_entries` or `audit_log`), NEVER use `branch_id IS NULL`. `RlsCoverageTests` strictly scans for and forbids `IS NULL` within RLS qual definitions.
+- Always use the sentinel UUID pattern:
+  ```sql
+  COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid) = '00000000-0000-0000-0000-000000000000'::uuid
+  ```
+
+### 3.4 Entity-Before-Reservation Invariant in Mutation Handlers
+- When creating transactional aggregates with child items that interact with stock/serial services (e.g., `CheckoutHandler` with `Sale` and `SaleItem`), always construct child line entities client-side FIRST so their IDs (`Guid.NewGuid()`) are generated.
+- Never pass placeholder `Guid.Empty` into stock or IMEI services (`SellImeiAsync(imeiRowId, saleId, saleItemId, ct)`).
+- Pass the real, client-instantiated `item.Id` to preserve referential integrity across the transaction.
+
 ---
 
 ## 4. HTTP Middleware & Branch Context
