@@ -82,3 +82,4 @@ P-511 | DONE | backend/src/StoreOS.Infrastructure/Persistence/SerializationRetry
 P-512 | DONE | backend/tests/StoreOS.ConcurrencyTests/EndToEndCheckoutConcurrencyTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-513 | DONE | backend/src/StoreOS.Api/Controllers/PosController.cs, backend/tests/StoreOS.IntegrationTests/Sales/CheckoutControllerTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
 P-514 | DONE | backend/src/StoreOS.Application/Sales/Checkout/CheckoutHandler.cs, backend/tests/StoreOS.IntegrationTests/Sales/GiftAndDiscountCheckoutTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md
+P-515 | DONE | backend/src/StoreOS.Application/Sales/Checkout/FinanceComposer.cs, backend/src/StoreOS.Domain/Sales/Sale.cs, backend/src/StoreOS.Application/Sales/Checkout/CheckoutHandler.cs, backend/tests/StoreOS.IntegrationTests/Sales/FinanceCheckoutTests.cs, docs/ARTIFACTS.md, docs/BUILD_LOG.md

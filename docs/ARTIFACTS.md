@@ -3153,3 +3153,32 @@ var sgst = Money.Round2(totalGst - cgst);
   - Pure giveaways (`grandTotal == 0`) with non-zero requested payments are explicitly rejected via `DomainValidationException("payment_exceeds_balance")`.
 - Integration Tests:
   - `GiftAndDiscountCheckoutTests`: Scenario A (paid + gift line with correct grand total and stock deduction for both), Scenario B (proportional discount applied only across paid lines), Scenario C (pure giveaway zero grand total with non-zero payment rejection and zero payment success).
+
+## P-515
+### Finance/EMI Fields & Composition in Checkout
+- Application Helper (`StoreOS.Application.Sales.Checkout.FinanceComposer`):
+  ```csharp
+  public record ComposedFinance(string FinanceProvider, string? FinancerName, decimal DownPayment,
+      int TenureMonths, decimal AnnualInterestRate, decimal Principal, decimal MonthlyEmi, decimal TotalPayable);
+
+  public static class FinanceComposer
+  {
+      public static ComposedFinance Compose(CheckoutFinanceDetails details, decimal grandTotal);
+  }
+  ```
+- Domain Method on `Sale` (`StoreOS.Domain.Sales.Sale`):
+  ```csharp
+  public void RecordFinanceDetails(string financeProvider, string? financerName, decimal downPayment, string emiDetailsJson)
+  {
+      PaymentMode = Sales.PaymentMode.Finance;
+      FinanceProvider = financeProvider;
+      FinancerName = financerName;
+      DownPayment = downPayment;
+      EmiDetailsJson = emiDetailsJson;
+  }
+  ```
+- Hard Invariant on Customer Ledger:
+  - Financed sales are strictly excluded from `customer_ledger_entries` (neither debit nor credit is recorded, and credit limit check is bypassed).
+  - The down payment is recorded as a real `CustomerPayment` and applied to `sale.AmountPaid`.
+- Integration Tests:
+  - `FinanceCheckoutTests`: Scenario A (0% interest EMI calculation and `emi_details` JSON persistence), Scenario B (positive interest rate EMI calculation matching FinanceEngine), Scenario C (customer ledger exclusion for financed sales while preserving down payment), Scenario D (`DownPayment > GrandTotal` throws `finance_down_payment_exceeds_total`).

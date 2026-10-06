@@ -86,7 +86,7 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             throw new DomainValidationException("payment_exceeds_balance", "Payment amount cannot exceed grand total of 0.");
         }
         var newCreditAmount = Math.Max(0, grandTotal - requestedPaid);
-        if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice)
+        if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice && request.Finance is null)
         {
             await _creditLimitChecker.CheckAsync(customerId.Value, newCreditAmount, ct);
         }
@@ -154,8 +154,22 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
         }
 
         // Step 8: Payments & ledger
+        var effectivePayments = request.Payments.ToList();
+        if (request.Finance is not null)
+        {
+            var composed = FinanceComposer.Compose(request.Finance, grandTotal);
+            var emiJson = System.Text.Json.JsonSerializer.Serialize(composed);
+            sale.RecordFinanceDetails(composed.FinanceProvider, composed.FinancerName, composed.DownPayment, emiJson);
+
+            // If down payment > 0 and not already in Payments list, apply it as a payment
+            if (composed.DownPayment > 0 && !effectivePayments.Any(p => p.Amount == composed.DownPayment))
+            {
+                effectivePayments.Add(new CheckoutPayment(PaymentMode.Finance, composed.DownPayment));
+            }
+        }
+
         var (payments, totalPaid) = PaymentComposer.Compose(
-            _scope.TenantId, sale.Id, request.Payments, businessDate, _scope.UserId);
+            _scope.TenantId, sale.Id, effectivePayments, businessDate, _scope.UserId);
 
         foreach (var payment in payments)
         {
@@ -167,12 +181,16 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             sale.ApplyPayment(totalPaid);
         }
 
+        // Ledger entries: strictly skipped when Finance is present per Hard Constraints (neither debit nor credit)
         if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice)
         {
-            await _ledgerService.RecordInvoiceDebitAsync(customerId.Value, sale.Id, grandTotal, branchId, businessDate, ct);
-            if (totalPaid > 0)
+            if (request.Finance is null)
             {
-                await _ledgerService.RecordPaymentCreditAsync(customerId.Value, sale.Id, totalPaid, branchId, businessDate, ct);
+                await _ledgerService.RecordInvoiceDebitAsync(customerId.Value, sale.Id, grandTotal, branchId, businessDate, ct);
+                if (totalPaid > 0)
+                {
+                    await _ledgerService.RecordPaymentCreditAsync(customerId.Value, sale.Id, totalPaid, branchId, businessDate, ct);
+                }
             }
 
             var customer = await _db.Set<Customer>().FirstAsync(c => c.Id == customerId.Value, ct);

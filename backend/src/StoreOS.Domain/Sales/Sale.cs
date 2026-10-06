@@ -215,4 +215,13 @@ public class Sale
         IrnAckNo = irnAckNo;
         IrnQrData = irnQrData;
     }
+
+    public void RecordFinanceDetails(string financeProvider, string? financerName, decimal downPayment, string emiDetailsJson)
+    {
+        PaymentMode = Sales.PaymentMode.Finance;
+        FinanceProvider = financeProvider;
+        FinancerName = financerName;
+        DownPayment = downPayment;
+        EmiDetailsJson = emiDetailsJson;
+    }
 }
