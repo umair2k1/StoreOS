@@ -59,11 +59,11 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
             resolvedLines.Add(await _pricingResolver.ResolveAsync(branchId, line, ct));
         }
 
-        var subtotal = resolvedLines.Sum(l => l.PricePerUnit * l.Qty);
-        var taxableBeforeDiscount = resolvedLines.Sum(l => l.LineTaxable);
-        var cgstBeforeDiscount = resolvedLines.Sum(l => l.LineCgst);
-        var sgstBeforeDiscount = resolvedLines.Sum(l => l.LineSgst);
-
+        var chargeableLines = resolvedLines.Where(l => !l.IsGift).ToList();
+        var subtotal = chargeableLines.Sum(l => l.PricePerUnit * l.Qty);
+        var taxableBeforeDiscount = chargeableLines.Sum(l => l.LineTaxable);
+        var cgstBeforeDiscount = chargeableLines.Sum(l => l.LineCgst);
+        var sgstBeforeDiscount = chargeableLines.Sum(l => l.LineSgst);
         // Discount application
         decimal totalTaxable = taxableBeforeDiscount;
         decimal totalCgst = cgstBeforeDiscount;
@@ -81,6 +81,10 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
         // Step 3: Credit validation
         Guid? customerId = request.CustomerId;
         var requestedPaid = request.Payments.Sum(p => p.Amount);
+        if (grandTotal == 0 && requestedPaid > 0)
+        {
+            throw new DomainValidationException("payment_exceeds_balance", "Payment amount cannot exceed grand total of 0.");
+        }
         var newCreditAmount = Math.Max(0, grandTotal - requestedPaid);
         if (customerId is not null && request.InvoiceType == InvoiceType.TaxInvoice)
         {

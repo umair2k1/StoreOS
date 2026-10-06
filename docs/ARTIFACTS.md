@@ -3136,3 +3136,20 @@ var sgst = Money.Round2(totalGst - cgst);
   ```
 - Integration Tests:
   - `CheckoutControllerTests`: missing `Idempotency-Key` (400), valid checkout (201 with Location header), exact replay (201 + `Idempotent-Replayed: true` + 1 DB sale row), payload mismatch conflict (409 `idempotency_key_reuse`).
+
+## P-514
+### Gift Line Handling & Proportional Discount Wiring
+- Handler Adjustments (`StoreOS.Application.Sales.Checkout.CheckoutHandler`):
+  - **Chargeable Lines Aggregation:**
+    ```csharp
+    var chargeableLines = resolvedLines.Where(l => !l.IsGift).ToList();
+    var subtotal = chargeableLines.Sum(l => l.PricePerUnit * l.Qty);
+    var taxableBeforeDiscount = chargeableLines.Sum(l => l.LineTaxable);
+    var cgstBeforeDiscount = chargeableLines.Sum(l => l.LineCgst);
+    var sgstBeforeDiscount = chargeableLines.Sum(l => l.LineSgst);
+    ```
+  - Gift lines (`IsGift == true`) record nominal `price_per_unit` on `sale_items` for informational display and deduct inventory stock normally, but contribute `0` to financial totals (`subtotal`, `grandTotal`, taxes).
+  - Proportional discount is applied strictly against the non-gift (chargeable) subtotal.
+  - Pure giveaways (`grandTotal == 0`) with non-zero requested payments are explicitly rejected via `DomainValidationException("payment_exceeds_balance")`.
+- Integration Tests:
+  - `GiftAndDiscountCheckoutTests`: Scenario A (paid + gift line with correct grand total and stock deduction for both), Scenario B (proportional discount applied only across paid lines), Scenario C (pure giveaway zero grand total with non-zero payment rejection and zero payment success).
