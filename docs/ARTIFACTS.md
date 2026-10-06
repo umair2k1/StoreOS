@@ -3404,3 +3404,70 @@ var sgst = Money.Round2(totalGst - cgst);
   - Sorting by `SaleDate`, `GrandTotal`, `InvoiceNumber`, `CustomerName`, `Balance` (`GrandTotal - AmountPaid`).
 - Integration Tests (`StoreOS.IntegrationTests.Sales.GetSalesTests`):
   - 37 tests covering search (invoice, IMEI, finance provider), all 7 date filters, status, payment modes, invoice types, paid/due, financed, category, amount ranges, 5 sort dimensions (asc/desc), and pagination boundaries.
+
+## P-522
+### GET /api/sales/{id} Detail Endpoint & Anti-Enumeration Mapping
+- Query & DTO Shapes (`StoreOS.Application.Sales.GetSaleById`):
+  ```csharp
+  public record GetSaleByIdQuery(Guid Id) : IRequest<SaleDetailDto>, IReadOnlyRequest;
+
+  public record SaleLineDto(
+      Guid Id,
+      string ItemName,
+      string Category,
+      int Qty,
+      decimal PricePerUnit,
+      decimal Taxable,
+      decimal Cgst,
+      decimal Sgst,
+      bool IsMarginScheme,
+      bool IsGift,
+      string? Imei,
+      string? HsnSnapshot);
+
+  public record PaymentRecordDto(
+      Guid Id,
+      decimal Amount,
+      string PaymentMode,
+      DateOnly PaymentDate);
+
+  public record SaleDetailDto(
+      Guid Id,
+      string InvoiceNumber,
+      string InvoiceType,
+      DateTimeOffset SaleDate,
+      Guid? CustomerId,
+      string CustomerName,
+      string? CustomerGstin,
+      decimal TotalTaxable,
+      decimal TotalCgst,
+      decimal TotalSgst,
+      decimal GrandTotal,
+      decimal Discount,
+      decimal AmountPaid,
+      decimal Balance,
+      string Status,
+      string? PaymentMode,
+      string? FinanceProvider,
+      string? FinancerName,
+      decimal? DownPayment,
+      string? EmiDetailsJson,
+      string? GiftDetailsJson,
+      string? Description,
+      Guid? RepairJobId,
+      Guid? ConvertedFromEstimateId,
+      Guid? LinkedTaxInvoiceId,
+      IReadOnlyList<SaleLineDto> Items,
+      IReadOnlyList<PaymentRecordDto> Payments);
+  ```
+- Controller Endpoint (`StoreOS.Api.Controllers.SalesController`):
+  - `GET /api/sales/{id:guid}`
+  - Returns `200 OK` with `SaleDetailDto`
+- Error Catalog & Anti-Enumeration (`StoreOS.Api.Middleware.ErrorCatalog`):
+  - Added explicit mapping: `["sale_not_found"] = HttpStatusCode.NotFound` (404)
+  - Anti-enumeration guarantee: querying a sale outside caller's tenant/branch access returns 404 Not Found rather than 403 Forbidden.
+- Integration Tests (`StoreOS.IntegrationTests.Sales.GetSaleByIdTests`):
+  - (a) Fetching full checkout sale returns all fields populated, line items, and payment records.
+  - (b) Fetching nonexistent id returns 404 `sale_not_found`.
+  - (c) Cross-tenant and cross-branch inaccessible sales return 404 (anti-enumeration verified).
+  - (d) Converted estimate verification: tax invoice has `ConvertedFromEstimateId` populated; original estimate has `LinkedTaxInvoiceId` populated.

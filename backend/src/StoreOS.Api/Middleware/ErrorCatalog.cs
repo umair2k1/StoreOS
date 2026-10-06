@@ -22,6 +22,8 @@ public static class ErrorCatalog
         ["idempotency_key_required"] = HttpStatusCode.BadRequest,
         ["idempotency_key_invalid"] = HttpStatusCode.BadRequest,
         ["invalid_permission_code"] = HttpStatusCode.BadRequest,
+        // 404 - not found
+        ["sale_not_found"] = HttpStatusCode.NotFound,
         // 409 - state conflicts
         ["branch_code_taken"] = HttpStatusCode.Conflict,
         ["imei_already_active"] = HttpStatusCode.Conflict,

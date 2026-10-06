@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Sales.Search;
+using StoreOS.Application.Sales.GetSaleById;
 
 namespace StoreOS.Api.Controllers;
 
@@ -22,6 +23,15 @@ public class SalesController : ControllerBase
         CancellationToken ct)
     {
         var result = await _mediator.Send(query, ct);
+        return Ok(result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<SaleDetailDto>> GetSaleById(
+        Guid id,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(new GetSaleByIdQuery(id), ct);
         return Ok(result);
     }
 }
