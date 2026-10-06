@@ -3471,3 +3471,42 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Fetching nonexistent id returns 404 `sale_not_found`.
   - (c) Cross-tenant and cross-branch inaccessible sales return 404 (anti-enumeration verified).
   - (d) Converted estimate verification: tax invoice has `ConvertedFromEstimateId` populated; original estimate has `LinkedTaxInvoiceId` populated.
+
+## P-523
+### POST /api/sales/{id}/payments Subsequent Payment Endpoint
+- Command & Response Shapes (`StoreOS.Application.Sales.RecordPayment`):
+  ```csharp
+  public record RecordPaymentCommand(
+      Guid SaleId,
+      decimal Amount,
+      string PaymentMode
+  ) : IRequest<RecordPaymentResult>, IRequiresPermission, ISerializableRequest, IIdempotentRequest
+  {
+      public string RequiredPermission => "pos:checkout";
+      public string? IdempotencyKey { get; init; }
+      public string IdempotencyScope => $"sales.payment:{SaleId}";
+      public bool IdempotencyRequired => true;
+  }
+
+  public record RecordPaymentResult(Guid PaymentId, decimal NewAmountPaid, decimal NewBalance);
+  ```
+- Validator (`StoreOS.Application.Sales.RecordPayment.RecordPaymentValidator`):
+  - `SaleId` required, `Amount > 0`, `PaymentMode` must be within `StoreOS.Domain.Sales.PaymentMode.All`.
+- Controller Endpoint (`StoreOS.Api.Controllers.SalesController`):
+  - `POST /api/sales/{id:guid}/payments`
+  - Mandatory `Idempotency-Key` header (financial mutation).
+  - Returns `200 OK` with `RecordPaymentResult`. Replay sets `Idempotent-Replayed: true`.
+- Invariants Enforced (`StoreOS.Application.Sales.RecordPayment.RecordPaymentHandler`):
+  - Payments are strictly additive and immutable: creates a new `CustomerPayment` row, never mutates existing ones (Invariant 5).
+  - Re-reads sale inside the transaction and validates `amount <= outstanding` (`payment_exceeds_balance`).
+  - Validates active sale status (`sale_not_active`).
+  - Posts customer credit to `customer_ledger_entries` for `TaxInvoice` with attached customer.
+  - Skips ledger posting entirely if `sale.PaymentMode == "Finance"`.
+  - Writes audit event `sale.payment_recorded`.
+- Integration Tests (`StoreOS.IntegrationTests.Sales.RecordPaymentTests`):
+  - (a) Two separate partial payments create 2 distinct immutable rows in `customer_payments`, cumulative totals updated.
+  - (b) Payment exceeding balance returns 422 `payment_exceeds_balance`.
+  - (c) Payment against voided sale returns 422 `sale_not_active`.
+  - (d) Payment creates customer ledger credit entry for tax invoice with attached customer.
+  - (e) Payment against financed sale skips customer ledger entry creation.
+  - (f) Replaying same `Idempotency-Key` does not double-record payment.

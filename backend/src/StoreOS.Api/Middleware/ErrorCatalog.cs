@@ -32,6 +32,8 @@ public static class ErrorCatalog
         ["serialization_conflict"] = HttpStatusCode.Conflict,
         // 422 - business-rule violation
         ["current_password_incorrect"] = HttpStatusCode.UnprocessableEntity,
+        ["sale_not_active"] = HttpStatusCode.UnprocessableEntity,
+        ["payment_exceeds_balance"] = HttpStatusCode.UnprocessableEntity,
     };
 
     public static HttpStatusCode StatusFor(string code)
