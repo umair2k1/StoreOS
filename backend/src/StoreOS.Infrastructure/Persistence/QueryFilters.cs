@@ -60,6 +60,7 @@ public static class QueryFilters
         ApplyFilter<SupplierLedgerEntry>(modelBuilder, scopeAccess, (sle, s) => sle.TenantId == s.TenantId && (sle.BranchId == null || s.AllBranches || s.BranchIds.Contains(sle.BranchId.Value)));
         ApplyFilter<SupplierReturn>(modelBuilder, scopeAccess, (sr, s) => sr.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(sr.BranchId)));
         ApplyFilter<SupplierReturnItem>(modelBuilder, scopeAccess, (sri, s) => sri.TenantId == s.TenantId);
+        ApplyFilter<StoreOS.Domain.FinanceOps.Expense>(modelBuilder, scopeAccess, (e, s) => e.TenantId == s.TenantId && (e.BranchId == null || s.AllBranches || s.BranchIds.Contains(e.BranchId.Value)));
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,

@@ -3831,3 +3831,48 @@ var sgst = Money.Round2(totalGst - cgst);
   - (e) `PendingCredit` settlement posts return credit reducing payable.
   - (f) Returning more than available stock fails with `insufficient_stock` (422) and rolls back atomically.
   - (g) Unique, sequential return numbers formatted correctly per branch and date.
+
+## P-609
+### Expenses Entity, Migration & CRUD Endpoints
+- Domain Types (`StoreOS.Domain.FinanceOps`):
+  - `ExpenseCategory`:
+    - Constants: `Rent`, `Utilities`, `Salaries`, `Miscellaneous`.
+    - `Suggested`: `IReadOnlyList<string>` suggestions only (extensible free text; not an enum).
+  - `Expense`:
+    - Factory: `Create(Guid tenantId, Guid? branchId, string description, decimal amount, string category, DateOnly expenseDate, string? notes, Guid createdBy)`
+    - Validates: `description` required, `amount > 0`, `category` required (any non-empty string allowed per Requirements §18.3), `expenseDate` required.
+    - Properties: `Id`, `TenantId`, `BranchId` (nullable, NULL = head office), `Description`, `Amount`, `Category`, `ExpenseDate`, `Notes`, `CreatedBy`, `CreatedAt`.
+- Persistence Configurations & Migration:
+  - Configuration: `ExpenseConfiguration`.
+  - Table: `expenses` (columns: `id`, `tenant_id`, `branch_id`, `description`, `amount`, `category`, `expense_date`, `notes`, `created_by`, `created_at`).
+  - Constraints: `CK_expenses_amount` (`amount > 0`), foreign key to `branches(id)`.
+  - Indexes: `ix_expenses_tenant_branch_date (tenant_id, branch_id, expense_date)`.
+  - Migration: `20261006211923_025_Expenses` created via:
+    `dotnet ef migrations add 025_Expenses --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+    applied via:
+    `dotnet ef database update --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - RLS: `tenant_branch_isolation_policy` on `expenses` with sentinel UUID handling for nullable `branch_id` (`COALESCE(branch_id, '00000000-0000-0000-0000-000000000000'::uuid) = '00000000-0000-0000-0000-000000000000'::uuid`).
+  - QueryFilters: nullable-branch filter registered in `QueryFilters.ApplyAll`.
+- Vertical Slices (`StoreOS.Application.FinanceOps.Expenses`):
+  - `CreateExpense`:
+    - `CreateExpenseCommand(string Description, decimal Amount, string Category, DateOnly ExpenseDate, Guid? BranchId = null, string? Notes = null) : IRequest<Guid>, IRequiresPermission` (`expenses:manage`)
+    - `CreateExpenseValidator`
+    - `CreateExpenseHandler`
+  - `GetExpenses`:
+    - `GetExpensesQuery(DateOnly? From = null, DateOnly? To = null, string? Category = null, Guid? BranchId = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<ExpenseDto>>, IReadOnlyRequest, IRequiresPermission` (`expenses:manage`)
+    - `ExpenseDto(Guid Id, Guid? BranchId, string Description, decimal Amount, string Category, DateOnly ExpenseDate, string? Notes, Guid CreatedBy, DateTimeOffset CreatedAt)`
+    - `GetExpensesHandler`: defaults date range to `[first day of current month, current date]` when both `From` and `To` are omitted per Requirements §18.5.
+  - `GetMonthlyTotal`:
+    - `GetMonthlyTotalQuery(int? Year = null, int? Month = null, Guid? BranchId = null) : IRequest<MonthlyExpenseTotalDto>, IReadOnlyRequest, IRequiresPermission` (`expenses:manage`)
+    - `MonthlyExpenseTotalDto(int Year, int Month, decimal TotalAmount)`
+    - `GetMonthlyTotalHandler`: sums all expenses for the specified or current month.
+- Controller Endpoints (`StoreOS.Api.Controllers.ExpensesController`):
+  - `POST /api/expenses` -> `Create([FromBody] CreateExpenseCommand command)` -> 200 OK (`{ id }`)
+  - `GET /api/expenses?from=&to=&category=&branchId=&page=&pageSize=` -> `List(...)` -> 200 OK (`PagedResult<ExpenseDto>`)
+  - `GET /api/expenses/monthly-total?year=&month=&branchId=` -> `GetMonthlyTotal(...)` -> 200 OK (`MonthlyExpenseTotalDto`)
+- Integration Tests (`StoreOS.IntegrationTests.FinanceOps.ExpensesTests`):
+  - (a) Creating with novel category string succeeds, proving category extensibility.
+  - (b) Empty description, zero amount, missing date, and empty category throw specific validation codes (`expense_description_required`, `expense_invalid_amount`, `expense_date_required`, `expense_category_required`).
+  - (c) `GET /api/expenses` with no date range defaults to first-of-month through today.
+  - (d) Monthly total sums only the current month's expenses.
+  - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).
