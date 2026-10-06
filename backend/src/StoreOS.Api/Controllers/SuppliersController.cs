@@ -2,7 +2,10 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Suppliers.CreateSupplier;
 using StoreOS.Application.Suppliers.GetSupplierById;
+using StoreOS.Application.Suppliers.GetSupplierPayable;
 using StoreOS.Application.Suppliers.GetSuppliers;
+using StoreOS.Application.Suppliers.GetSupplierTransactions;
+using StoreOS.Application.Suppliers.RecordTransaction;
 using StoreOS.Application.Suppliers.UpdateSupplier;
 
 namespace StoreOS.Api.Controllers;
@@ -42,6 +45,45 @@ public class SuppliersController : ControllerBase
             body.Notes), ct);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/transactions")]
+    public async Task<IActionResult> RecordTransaction(Guid id, [FromBody] RecordSupplierTransactionBody body, CancellationToken ct)
+    {
+        var txnId = await _mediator.Send(new RecordSupplierTransactionCommand(
+            id,
+            body.Type,
+            body.Amount,
+            body.PaymentMode,
+            body.ReferenceNo,
+            body.TxnDate,
+            body.Notes), ct);
+        return Ok(new { id = txnId });
+    }
+
+    [HttpGet("{id:guid}/ledger")]
+    [HttpGet("{id:guid}/payable")]
+    public async Task<IActionResult> GetPayable(Guid id, CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetSupplierPayableQuery(id), ct));
+
+    [HttpGet("{id:guid}/transactions")]
+    public async Task<IActionResult> GetTransactions(
+        Guid id,
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        [FromQuery] string? type,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        var result = await _mediator.Send(new GetSupplierTransactionsQuery(
+            id,
+            fromDate,
+            toDate,
+            type,
+            page,
+            pageSize), ct);
+        return Ok(result);
+    }
 }
 
 public record UpdateSupplierBody(
@@ -49,4 +91,12 @@ public record UpdateSupplierBody(
     string? Phone = null,
     string? Address = null,
     string? BrandOrCategory = null,
+    string? Notes = null);
+
+public record RecordSupplierTransactionBody(
+    string Type,
+    decimal Amount,
+    string? PaymentMode = null,
+    string? ReferenceNo = null,
+    DateOnly TxnDate = default,
     string? Notes = null);

@@ -3715,3 +3715,48 @@ var sgst = Money.Round2(totalGst - cgst);
 - Tests:
   - Domain tests: `StoreOS.Domain.Tests.Suppliers.SupplierTransactionAndLedgerTests` covering valid transaction types, payment mode validation, debit/credit factories.
   - RLS coverage tests: `StoreOS.IntegrationTests.RlsCoverageTests` all 5 passing.
+
+## P-606
+### Supplier Transactions Endpoints & Payable Derivation
+- Application Ledger Interface (`StoreOS.Application.Suppliers.ISupplierLedgerService`):
+  ```csharp
+  public interface ISupplierLedgerService
+  {
+      Task RecordBillAsync(Guid supplierId, decimal amount, Guid? branchId, DateOnly entryDate, string? refId, CancellationToken ct);
+      Task RecordPaymentAsync(Guid supplierId, decimal amount, Guid? branchId, DateOnly entryDate, string? refId, CancellationToken ct);
+      Task RecordOpeningBalanceAsync(Guid supplierId, decimal amount, DateOnly entryDate, CancellationToken ct);
+      Task RecordReturnCreditAsync(Guid supplierId, decimal amount, Guid? branchId, DateOnly entryDate, string? refId, CancellationToken ct);
+      Task<decimal> GetPayableAsync(Guid supplierId, CancellationToken ct);
+  }
+  ```
+- Infrastructure Implementation (`StoreOS.Infrastructure.Suppliers.SupplierLedgerService`):
+  - Registered scoped in `Program.cs`.
+  - `RecordBillAsync`: creates Credit entry with `SupplierLedgerEntryType.Bill`.
+  - `RecordPaymentAsync`: creates Debit entry with `SupplierLedgerEntryType.Payment`.
+  - `RecordOpeningBalanceAsync`: creates Credit entry with `SupplierLedgerEntryType.OpeningBalance` and null branch.
+  - `RecordReturnCreditAsync`: creates Debit entry with `SupplierLedgerEntryType.ReturnCredit`.
+  - `GetPayableAsync`: derives payable across tenant using `Math.Max(0, SUM(credit) - SUM(debit))` with `IgnoreQueryFilters()`.
+- Vertical Slice Shapes (`StoreOS.Application.Suppliers`):
+  - `RecordTransaction`:
+    - `RecordSupplierTransactionCommand(Guid SupplierId, string Type, decimal Amount, string? PaymentMode = null, string? ReferenceNo = null, DateOnly TxnDate = default, string? Notes = null) : IRequest<Guid>, IRequiresPermission` (`purchases:manage`)
+    - `RecordSupplierTransactionValidator`
+    - `RecordSupplierTransactionHandler`
+  - `GetSupplierPayable`:
+    - `GetSupplierPayableQuery(Guid SupplierId) : IRequest<SupplierPayableDto>, IReadOnlyRequest, IRequiresPermission` (`purchases:manage`)
+    - `SupplierPayableDto(Guid SupplierId, decimal Balance)`
+    - `GetSupplierPayableHandler`
+  - `GetSupplierTransactions`:
+    - `GetSupplierTransactionsQuery(Guid SupplierId, DateOnly? FromDate = null, DateOnly? ToDate = null, string? Type = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<SupplierTransactionDto>>, IReadOnlyRequest, IRequiresPermission` (`purchases:manage`)
+    - `SupplierTransactionDto(Guid Id, Guid SupplierId, Guid? BranchId, string Type, decimal Amount, string? PaymentMode, string? ReferenceNo, DateOnly TxnDate, string? Notes, Guid CreatedBy, DateTimeOffset CreatedAt)`
+    - `GetSupplierTransactionsHandler`
+- Controller Endpoints (`StoreOS.Api.Controllers.SuppliersController`):
+  - `POST /api/suppliers/{id:guid}/transactions` -> `RecordTransaction` (returns `{ id = txnId }`)
+  - `GET /api/suppliers/{id:guid}/ledger` (and alias `/api/suppliers/{id:guid}/payable`) -> `GetPayable` (returns `SupplierPayableDto`)
+  - `GET /api/suppliers/{id:guid}/transactions` -> `GetTransactions` (returns `PagedResult<SupplierTransactionDto>`)
+- Integration Tests (`StoreOS.IntegrationTests.Suppliers.SupplierTransactionsTests`):
+  - (a) Recording an OpeningBalance of 10000 -> GetPayableAsync returns 10000.
+  - (b) Recording a Bill of 5000 -> payable becomes 15000.
+  - (c) Recording a Payment of 8000 -> payable becomes 7000.
+  - (d) Formula exactly matches Requirements Section 13.4: `Payable = Opening + Bills - Payments - Credits`.
+  - (e) Caller without `purchases:manage` -> 403 Forbidden on all 3 endpoints.
+  - (f) Listing transactions with date-range filter works correctly.
