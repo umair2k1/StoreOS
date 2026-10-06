@@ -3107,3 +3107,32 @@ var sgst = Money.Round2(totalGst - cgst);
   - **Scenario 3 — Parallel Invoice Numbering Across Concurrent Checkouts:**
     - 20 concurrent checkouts competing on the `invoice_sequences` row for different products.
     - Empirically verified across 5 consecutive iterations: all 20 checkouts succeed, producing exactly 20 unique invoice numbers with no duplicate sequence numbers in PostgreSQL.
+
+## P-513
+### POST /api/pos/checkout Controller Endpoint
+- Controller Action (`StoreOS.Api.Controllers.PosController`):
+  ```csharp
+  [HttpPost("checkout")]
+  public async Task<IActionResult> Checkout(
+      [FromBody] CheckoutCommand command,
+      [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+      [FromServices] IdempotencyReplayFlag replayFlag,
+      CancellationToken ct)
+  ```
+  - Enforces `Idempotency-Key` header presence upfront before dispatching to MediatR (returns 400 `idempotency_key_required` if missing/blank).
+  - Dispatches `command with { IdempotencyKey = idempotencyKey }` to MediatR pipeline.
+  - Detects cached replay via scoped `IdempotencyReplayFlag.Replayed` and appends `Idempotent-Replayed: true` response header.
+  - Returns 201 Created with `Location: /api/sales/{saleId}` without requiring forward-reference stubs.
+- Response JSON Shape:
+  ```json
+  {
+    "saleId": "guid",
+    "invoiceNumber": "string",
+    "grandTotal": 0.00,
+    "amountPaid": 0.00,
+    "balance": 0.00,
+    "saleDate": "2026-10-06T12:00:00Z"
+  }
+  ```
+- Integration Tests:
+  - `CheckoutControllerTests`: missing `Idempotency-Key` (400), valid checkout (201 with Location header), exact replay (201 + `Idempotent-Replayed: true` + 1 DB sale row), payload mismatch conflict (409 `idempotency_key_reuse`).
