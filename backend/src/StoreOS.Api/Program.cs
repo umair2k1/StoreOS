@@ -77,6 +77,7 @@ builder.Services.AddScoped<StoreOS.Application.Sales.Checkout.CreditLimitChecker
 builder.Services.AddHostedService<RlsRoleGuard>();
 builder.Services.AddScoped<StoreOS.Application.Customers.ICustomerLedgerService, StoreOS.Infrastructure.Customers.CustomerLedgerService>();
 builder.Services.AddScoped<StoreOS.Application.Suppliers.ISupplierLedgerService, StoreOS.Infrastructure.Suppliers.SupplierLedgerService>();
+builder.Services.AddScoped<StoreOS.Application.FinanceOps.ILiabilityBalanceService, StoreOS.Infrastructure.FinanceOps.LiabilityBalanceService>();
 
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();

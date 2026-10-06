@@ -3914,3 +3914,53 @@ var sgst = Money.Round2(totalGst - cgst);
   - `LiabilityTests` (16 tests passing): valid creation of each liability type, invalid type throws, `UpdateDescriptiveData` strictly preserves `TotalPrincipal`, non-positive principal throws, empty title throws.
   - `LiabilityPaymentTests` (7 tests passing): valid creation, non-positive amount throws, empty payment mode throws, reflection verifies zero mutating methods on `LiabilityPayment`.
   - RLS coverage tests: `StoreOS.IntegrationTests.Schema.RlsCoverageTests` (5 tests passing).
+
+## P-611
+### Liabilities CRUD & Repayment Endpoints (Balance Derivation)
+- Services:
+  - `ILiabilityBalanceService` (`StoreOS.Application.FinanceOps`):
+    - `Task<decimal> GetCurrentBalanceAsync(Guid liabilityId, CancellationToken ct)`
+  - `LiabilityBalanceService` (`StoreOS.Infrastructure.FinanceOps`):
+    - Injected with `StoreOsDbContext`.
+    - Computes `CurrentBalance = Math.Max(0m, TotalPrincipal - SUM(LiabilityPayments.Amount))` live via query.
+    - Scoped service registered in DI container.
+  - Live-Balance Derivation Invariant: `CurrentBalance` is always live-derived and NEVER stored as a mutable column in `liabilities`.
+- DTOs (`StoreOS.Application.FinanceOps.Liabilities`):
+  - `LiabilityDto(Guid Id, string Title, string Type, string? LenderName, decimal TotalPrincipal, decimal CurrentBalance, DateOnly? DueDate, string? Status, string? Notes)`
+- Application Vertical Slices (`StoreOS.Application.FinanceOps.Liabilities`):
+  - `CreateLiability`:
+    - Command: `CreateLiabilityCommand(string Title, string Type, string? LenderName, decimal TotalPrincipal, DateOnly? DueDate, string? Notes) : IRequest<Guid>, IRequiresPermission`
+    - Permission: `liabilities:manage`
+    - Validator: `CreateLiabilityValidator` (`liability_title_required`, `invalid_liability_type`, `invalid_principal`)
+    - Handler: `CreateLiabilityHandler`
+  - `GetLiabilities`:
+    - Query: `GetLiabilitiesQuery(int Page = 1, int PageSize = 50) : IRequest<PagedResult<LiabilityDto>>, IReadOnlyRequest, IRequiresPermission`
+    - Permission: `liabilities:manage`
+    - Handler: `GetLiabilitiesHandler` (paginated list computing `CurrentBalance` via grouped payments)
+  - `GetLiabilityById`:
+    - Query: `GetLiabilityByIdQuery(Guid Id) : IRequest<LiabilityDto>, IReadOnlyRequest, IRequiresPermission`
+    - Permission: `liabilities:manage`
+    - Handler: `GetLiabilityByIdHandler` (fetches liability, live balance via `ILiabilityBalanceService`)
+  - `UpdateLiability`:
+    - Command: `UpdateLiabilityCommand(Guid Id, string Title, string? LenderName = null, DateOnly? DueDate = null, string? Status = null, string? Notes = null) : IRequest<Unit>, IRequiresPermission`
+    - Permission: `liabilities:manage`
+    - Validator: `UpdateLiabilityValidator` (`liability_id_required`, `liability_title_required`)
+    - Handler: `UpdateLiabilityHandler` (calls `UpdateDescriptiveData` only; never mutates `TotalPrincipal`)
+  - `RecordRepayment`:
+    - Command: `RecordRepaymentCommand(Guid LiabilityId, decimal Amount, string PaymentMode, DateOnly PaymentDate, string? Notes = null) : IRequest<Guid>, IRequiresPermission`
+    - Permission: `liabilities:manage`
+    - Validator: `RecordRepaymentValidator` (`liability_id_required`, `invalid_payment_amount`, `payment_mode_required`, `payment_date_required`)
+    - Handler: `RecordRepaymentHandler` (checks overpayment: throws `repayment_exceeds_balance` if amount > current balance; appends immutable `LiabilityPayment` row)
+- Controller & Routes (`StoreOS.Api.Controllers.LiabilitiesController`):
+  - `POST /api/liabilities` -> `Create(CreateLiabilityCommand)`
+  - `GET /api/liabilities` -> `List(GetLiabilitiesQuery)`
+  - `GET /api/liabilities/{id}` -> `GetById(Guid id)`
+  - `PATCH /api/liabilities/{id}` -> `Update(Guid id, UpdateLiabilityBody)`
+  - `POST /api/liabilities/{id}/repayments` -> `RecordRepayment(Guid id, RecordRepaymentBody)`
+- Integration Tests (`StoreOS.IntegrationTests.FinanceOps.LiabilitiesTests`):
+  - (a) Create liability with `TotalPrincipal=100000` -> initial `CurrentBalance=100000`.
+  - (b) Repayment of `20000` -> `CurrentBalance=80000`.
+  - (c) Second repayment of `30000` -> `CurrentBalance=50000`, verified two distinct rows in `liability_payments`.
+  - (d) `PATCH /api/liabilities/{id}` updating title/lender leaves `TotalPrincipal` and `CurrentBalance` intact.
+  - (e) Repayment of `50000.01` exceeding remaining balance throws `422` with `repayment_exceeds_balance`.
+  - (f) Caller without `liabilities:manage` receives `403 Forbidden` on all five routes.
