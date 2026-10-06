@@ -3354,3 +3354,53 @@ var sgst = Money.Round2(totalGst - cgst);
   - IMEI sold before conversion rejects cleanly (`imei_not_available`/`insufficient_stock`).
   - Idempotency replay with same key returns cached result without double converting.
   - Attempting to convert regular tax invoice rejects with `not_an_estimate`.
+
+## P-521
+### GET /api/sales + Filters, Sorting, and Pagination
+- Query & DTO Shapes (`StoreOS.Application.Sales.Search`):
+  ```csharp
+  public record GetSalesQuery(
+      string? Search = null,
+      string? DateFilter = null,
+      DateOnly? CustomFrom = null,
+      DateOnly? CustomTo = null,
+      string? Status = null,
+      string? PaymentMode = null,
+      string? InvoiceType = null,
+      bool? PaidOnly = null,
+      bool? DueOnly = null,
+      bool? FinancedOnly = null,
+      string? Category = null,
+      decimal? MinAmount = null,
+      decimal? MaxAmount = null,
+      string SortBy = "SaleDate",
+      string SortDirection = "desc",
+      int Page = 1,
+      int PageSize = 50
+  ) : IRequest<PagedResult<SaleSummaryDto>>, IReportingRequest;
+
+  public record SaleSummaryDto(
+      Guid Id,
+      string InvoiceNumber,
+      DateTimeOffset SaleDate,
+      string CustomerName,
+      decimal GrandTotal,
+      decimal AmountPaid,
+      decimal Balance,
+      string Status,
+      string InvoiceType,
+      string? PaymentMode,
+      bool IsFinanced);
+  ```
+- Controller Endpoint (`StoreOS.Api.Controllers.SalesController`):
+  - `GET /api/sales` mapping query-string parameters to `GetSalesQuery`
+  - Returns `200 OK` with `PagedResult<SaleSummaryDto>`
+- Implementation Details (`StoreOS.Application.Sales.Search.GetSalesHandler`):
+  - Read-heavy query executing against `IReportingDbContext` (read-only snapshot routing).
+  - Universal search supporting invoice number, customer name, customer GSTIN, finance provider, financer name, description, and item names / IMEIs via `sale_items`.
+  - Server-side date boundaries computed using tenant timezone (`Asia/Kolkata` mandatory, unsupported timezones throw `DomainValidationException("unsupported_timezone")`).
+  - Date filters: `Today`, `Yesterday`, `ThisWeek`, `ThisMonth`, `LastMonth`, `ThisYear`, `Custom`.
+  - Paid/Due filters (`AmountPaid >= GrandTotal` / `AmountPaid < GrandTotal`), Financed (`PaymentMode == "Finance"`), Category via `sale_items`.
+  - Sorting by `SaleDate`, `GrandTotal`, `InvoiceNumber`, `CustomerName`, `Balance` (`GrandTotal - AmountPaid`).
+- Integration Tests (`StoreOS.IntegrationTests.Sales.GetSalesTests`):
+  - 37 tests covering search (invoice, IMEI, finance provider), all 7 date filters, status, payment modes, invoice types, paid/due, financed, category, amount ranges, 5 sort dimensions (asc/desc), and pagination boundaries.
