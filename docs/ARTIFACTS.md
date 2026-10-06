@@ -3685,3 +3685,33 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Customer PII scrubbed: name becomes "Anonymized Customer", phone and gstin null.
   - (c) Sales referencing customer have `customer_name` scrubbed, while all fiscal data (`grand_total`, taxes, invoice number, items) remains byte-for-byte identical.
   - (d) Customer ledger entries are preserved untouched (erasure targets PII, not financial audit trail).
+
+## P-605
+### Supplier Transactions & Supplier Ledger Entities and Migration
+- Domain Types (`StoreOS.Domain.Suppliers`):
+  - `SupplierTransactionType`: `Bill`, `Payment`, `OpeningBalance`.
+  - `SupplierPaymentMode`: `Cash`, `UPI`, `BankTransfer`, `Cheque`, `Credit`.
+  - `SupplierLedgerEntryType`: `Bill`, `Payment`, `OpeningBalance`, `ReturnCredit`.
+  - `SupplierTransaction`:
+    - Factory: `Create(Guid tenantId, Guid supplierId, Guid? branchId, string type, decimal amount, string? paymentMode, string? referenceNo, DateOnly txnDate, string? notes, Guid createdBy)`
+    - Validates: `amount > 0`, `type` in valid set, `paymentMode` required & valid when `type == Payment`, valid if non-null for other types.
+  - `SupplierLedgerEntry`:
+    - Factories: `CreateDebit(Guid tenantId, Guid supplierId, Guid? branchId, string entryType, decimal amount, DateOnly entryDate, string? refId)`, `CreateCredit(...)`
+    - Validates: `amount > 0`, `entryType` in valid set.
+- Explicit Polarity Convention (Opposite of Customer Ledger):
+  - For `supplier_ledger_entries`:
+    - `Credit` increases payable owed to supplier (`Bill`, `OpeningBalance`).
+    - `Debit` decreases payable owed to supplier (`Payment`, `ReturnCredit`).
+    - Payable calculation: `SUM(credit) - SUM(debit)`.
+- Persistence Configurations & Migration:
+  - EF Configurations: `SupplierTransactionConfiguration`, `SupplierLedgerEntryConfiguration`.
+  - CHECK constraints: `type IN ('Bill','Payment','OpeningBalance')`, `amount > 0`, `payment_mode IS NULL OR payment_mode IN ('Cash','UPI','BankTransfer','Cheque','Credit')`.
+  - Migration: `20261006203222_023_SupplierTransactions` created via:
+    `dotnet ef migrations add 023_SupplierTransactions --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+    applied via:
+    `dotnet ef database update --context StoreOsDbContext --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`
+  - Tables: `supplier_transactions`, `supplier_ledger_entries`. Both have tenant isolation RLS enabled and forced.
+  - Nullable-branch query filters registered in `QueryFilters.ApplyAll`.
+- Tests:
+  - Domain tests: `StoreOS.Domain.Tests.Suppliers.SupplierTransactionAndLedgerTests` covering valid transaction types, payment mode validation, debit/credit factories.
+  - RLS coverage tests: `StoreOS.IntegrationTests.RlsCoverageTests` all 5 passing.

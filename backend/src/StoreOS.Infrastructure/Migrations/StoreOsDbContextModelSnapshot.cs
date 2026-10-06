@@ -1329,6 +1329,146 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("suppliers", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierLedgerEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("Credit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("credit");
+
+                    b.Property<decimal>("Debit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("debit");
+
+                    b.Property<DateOnly>("EntryDate")
+                        .HasColumnType("date")
+                        .HasColumnName("entry_date");
+
+                    b.Property<string>("EntryType")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("entry_type");
+
+                    b.Property<string>("RefId")
+                        .HasColumnType("text")
+                        .HasColumnName("ref_id");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("TenantId", "SupplierId")
+                        .HasDatabaseName("ix_suppledger_supplier");
+
+                    b.ToTable("supplier_ledger_entries", "public");
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid?>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<string>("PaymentMode")
+                        .HasColumnType("text")
+                        .HasColumnName("payment_mode");
+
+                    b.Property<string>("ReferenceNo")
+                        .HasColumnType("text")
+                        .HasColumnName("reference_no");
+
+                    b.Property<Guid>("SupplierId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("supplier_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateOnly>("TxnDate")
+                        .HasColumnType("date")
+                        .HasColumnName("txn_date");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BranchId");
+
+                    b.HasIndex("SupplierId");
+
+                    b.HasIndex("TenantId", "SupplierId")
+                        .HasDatabaseName("ix_suppliertxn_supplier");
+
+                    b.ToTable("supplier_transactions", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_supplier_transactions_amount", "amount > 0");
+
+                            t.HasCheckConstraint("CK_supplier_transactions_payment_mode", "payment_mode IS NULL OR payment_mode IN ('Cash', 'UPI', 'BankTransfer', 'Cheque', 'Credit')");
+
+                            t.HasCheckConstraint("CK_supplier_transactions_type", "type IN ('Bill', 'Payment', 'OpeningBalance')");
+                        });
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Tenancy.Branch", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1685,6 +1825,34 @@ namespace StoreOS.Infrastructure.Migrations
                         .WithMany("Items")
                         .HasForeignKey("SaleId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierLedgerEntry", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreOS.Domain.Suppliers.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Suppliers.SupplierTransaction", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Tenancy.Branch", null)
+                        .WithMany()
+                        .HasForeignKey("BranchId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StoreOS.Domain.Suppliers.Supplier", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

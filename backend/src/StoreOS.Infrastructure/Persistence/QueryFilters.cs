@@ -56,6 +56,8 @@ public static class QueryFilters
         ApplyFilter<Customer>(modelBuilder, scopeAccess, (c, s) => c.TenantId == s.TenantId);
         ApplyFilter<CustomerLedgerEntry>(modelBuilder, scopeAccess, (cle, s) => cle.TenantId == s.TenantId && (cle.BranchId == null || s.AllBranches || s.BranchIds.Contains(cle.BranchId.Value)));
         ApplyFilter<CustomerPayment>(modelBuilder, scopeAccess, (cp, s) => cp.TenantId == s.TenantId);
+        ApplyFilter<SupplierTransaction>(modelBuilder, scopeAccess, (st, s) => st.TenantId == s.TenantId && (st.BranchId == null || s.AllBranches || s.BranchIds.Contains(st.BranchId.Value)));
+        ApplyFilter<SupplierLedgerEntry>(modelBuilder, scopeAccess, (sle, s) => sle.TenantId == s.TenantId && (sle.BranchId == null || s.AllBranches || s.BranchIds.Contains(sle.BranchId.Value)));
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,
