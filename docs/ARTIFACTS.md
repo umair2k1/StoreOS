@@ -3664,3 +3664,24 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Ledger view displays branch attribution per entry with `BranchId` and `BranchName`.
   - (b) A branch-A-scoped user viewing a multi-branch customer's ledger sees only branch-A entries, while the balance endpoint returns the consolidated total across branches.
   - (c) Sales view lists only the customer's sales, branch-scoped and paginated.
+
+## P-604
+### POST /api/customers/{id}/anonymize (DPDP Act PII Erasure)
+- Domain Methods:
+  - `Customer.Anonymize()`: Scrubs customer's name to `"Anonymized Customer"`, nulls out `phone` and `gstin`.
+  - `Sale.ScrubCustomerNameSnapshot(string replacement)`:
+    - **CRITICAL / SOLE EXCEPTION TO INVARIANT 4**: This method is the single, explicit, legally-mandated DPDP Act exception to historical invoice snapshot immutability across the entire codebase. It mutates *only* the display-name string (`sales.customer_name`), leaving all fiscal figures (`grand_total`, `total_taxable`, `total_cgst`, `total_sgst`, `amount_paid`, line tax amounts, etc.) completely untouched per Section 36 CGST 72-month retention requirement.
+- Command & Handler (`StoreOS.Application.Customers.Anonymize`):
+  - `public record AnonymizeCustomerCommand(Guid CustomerId) : IRequest, IHighImpactOperation`
+    - Live-DB permission gated with `settings:manage`.
+  - `AnonymizeCustomerHandler`:
+    - Calls `customer.Anonymize()`.
+    - Updates `sale.ScrubCustomerNameSnapshot("Anonymized Customer")` for all sales of this customer across the tenant.
+    - Writes audit log event `customer.anonymized`.
+- Controller (`StoreOS.Api.Controllers.CustomersController`):
+  - `POST /api/customers/{id:guid}/anonymize` -> 204 NoContent.
+- Integration Tests (`StoreOS.IntegrationTests.Customers.AnonymizeCustomerTests`):
+  - (a) Live-DB check: caller without `settings:manage` gets 403 Forbidden.
+  - (b) Customer PII scrubbed: name becomes "Anonymized Customer", phone and gstin null.
+  - (c) Sales referencing customer have `customer_name` scrubbed, while all fiscal data (`grand_total`, taxes, invoice number, items) remains byte-for-byte identical.
+  - (d) Customer ledger entries are preserved untouched (erasure targets PII, not financial audit trail).

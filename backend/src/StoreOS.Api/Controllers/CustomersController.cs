@@ -11,6 +11,7 @@ using StoreOS.Application.Customers.GetCustomerLedger;
 using StoreOS.Application.Customers.GetCustomerSales;
 using StoreOS.Application.Sales.Search;
 
+using StoreOS.Application.Customers.Anonymize;
 namespace StoreOS.Api.Controllers;
 
 [ApiController]
@@ -100,6 +101,15 @@ public class CustomersController : ControllerBase
     {
         var result = await _mediator.Send(new GetCustomerSalesQuery(id, page, pageSize), ct);
         return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/anonymize")]
+    public async Task<ActionResult> AnonymizeCustomer(
+        Guid id,
+        CancellationToken ct)
+    {
+        await _mediator.Send(new AnonymizeCustomerCommand(id), ct);
+        return NoContent();
     }
 }
 

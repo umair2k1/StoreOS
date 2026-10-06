@@ -239,4 +239,13 @@ public class Sale
                 "This estimate has already been converted to a tax invoice.");
         LinkedTaxInvoiceId = taxInvoiceId;
     }
+
+    /// <summary>
+    /// Sole legally-mandated DPDP Act exception to Invariant 4 snapshot immutability.
+    /// Scrubs only the customer name display snapshot, never fiscal or invoice figures.
+    /// </summary>
+    public void ScrubCustomerNameSnapshot(string replacement)
+    {
+        CustomerName = replacement;
+    }
 }

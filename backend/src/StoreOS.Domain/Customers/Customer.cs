@@ -55,4 +55,11 @@ public class Customer
             throw new DomainValidationException("invalid_credit_limit", "Credit limit cannot be negative.");
         CreditLimit = limit;
     }
+
+    public void Anonymize()
+    {
+        Name = "Anonymized Customer";
+        Phone = null;
+        Gstin = null;
+    }
 }
