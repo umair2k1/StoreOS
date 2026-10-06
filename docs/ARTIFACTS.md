@@ -3093,3 +3093,17 @@ var sgst = Money.Round2(totalGst - cgst);
 - Tests & Verification:
   - Unit: `SerializationRetryBehaviorTests` (3 invocations on transient 40001 then success; exhaustion throws `DomainException("serialization_conflict")`; non-serialization exceptions not retried; read-only requests skipped).
   - Integration: `CheckoutContentionTests` & `IdempotencyBehaviorTests` (last unit parallel checkout with one 201 and one 422; 20 parallel checkouts all 201 with unique consecutive invoice numbers; same idempotency key replay; conflicting payload key reuse 409).
+
+## P-512
+### End-to-End Checkout Concurrency Test Suite
+- Concurrency Test Suite (`StoreOS.ConcurrencyTests.EndToEndCheckoutConcurrencyTests`):
+  - Driven through `IMediator.Send` in independently scoped `IServiceScope` instances per concurrent task, running against the `storeos_app` connection under full RLS session scopes.
+  - **Scenario 1 — Last Unit Race:**
+    - 5 concurrent checkouts competing for exactly 1 stock unit of a non-IMEI accessory.
+    - Empirically verified across 5 consecutive iterations: exactly 1 checkout succeeds, the remaining 4 fail with `DomainValidationException("insufficient_stock")`, and final branch inventory stock qty is 0.
+  - **Scenario 2 — IMEI Double-Sell:**
+    - 3 concurrent checkouts competing for exactly 1 InStock IMEI of a new phone.
+    - Empirically verified across 5 consecutive iterations: exactly 1 checkout succeeds, winning sale item ID is stamped onto the IMEI row, and losing tasks fail cleanly with `DomainValidationException` (observed failure codes: `insufficient_stock` / `imei_not_available`).
+  - **Scenario 3 — Parallel Invoice Numbering Across Concurrent Checkouts:**
+    - 20 concurrent checkouts competing on the `invoice_sequences` row for different products.
+    - Empirically verified across 5 consecutive iterations: all 20 checkouts succeed, producing exactly 20 unique invoice numbers with no duplicate sequence numbers in PostgreSQL.
