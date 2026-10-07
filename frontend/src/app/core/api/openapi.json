@@ -1,0 +1,6245 @@
+{
+  "x-generator": "NSwag v14.7.1.0 (NJsonSchema v11.6.1.0 (Newtonsoft.Json v13.0.0.0))",
+  "openapi": "3.0.0",
+  "info": {
+    "title": "My Title",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_Login",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/dev-token": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_GenerateDevToken",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_Refresh",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_Logout",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_Me",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "Auth_ChangePassword",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/branches": {
+      "get": {
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "Branches_List",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "Branches_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBranchCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/branches/{id}": {
+      "get": {
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "Branches_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Branches"
+        ],
+        "operationId": "Branches_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBranchBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_GetCustomers",
+        "parameters": [
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfCustomerListItemDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_CreateCustomer",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCustomerCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string",
+                  "format": "guid"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_GetCustomerById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerDetailDto"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_UpdateCustomerProfile",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCustomerProfileRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}/credit-limit": {
+      "patch": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_SetCustomerCreditLimit",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCustomerCreditLimitRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}/credit-balance": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_GetCreditBalance",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreditBalanceDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}/ledger": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_GetCustomerLedger",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 2
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfCustomerLedgerEntryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}/sales": {
+      "get": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_GetCustomerSales",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 2
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfSaleSummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/customers/{id}/anonymize": {
+      "post": {
+        "tags": [
+          "Customers"
+        ],
+        "operationId": "Customers_AnonymizeCustomer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/expenses": {
+      "post": {
+        "tags": [
+          "Expenses"
+        ],
+        "operationId": "Expenses_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExpenseCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Expenses"
+        ],
+        "operationId": "Expenses_List",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 5
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 6
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/expenses/monthly-total": {
+      "get": {
+        "tags": [
+          "Expenses"
+        ],
+        "operationId": "Expenses_GetMonthlyTotal",
+        "parameters": [
+          {
+            "name": "year",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "branchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/inventory": {
+      "get": {
+        "tags": [
+          "Exports"
+        ],
+        "operationId": "Exports_ExportInventory",
+        "parameters": [
+          {
+            "name": "categories",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "x-position": 1
+          },
+          {
+            "name": "branchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 2
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/exports/gstr1": {
+      "get": {
+        "tags": [
+          "Exports"
+        ],
+        "operationId": "Exports_ExportGstr1",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "x-position": 2
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/imports/supplier-invoice": {
+      "post": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "Imports_ImportSupplierInvoice",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportSupplierInvoiceCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "Inventory_List",
+        "parameters": [
+          {
+            "name": "Category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "StockStatus",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "IsMarginScheme",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "BranchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 5
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 6
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 7
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/low-stock": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "Inventory_LowStock",
+        "parameters": [
+          {
+            "name": "BranchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/valuation": {
+      "get": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "Inventory_Valuation",
+        "parameters": [
+          {
+            "name": "BranchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/adjustments": {
+      "post": {
+        "tags": [
+          "Inventory"
+        ],
+        "operationId": "Inventory_AdjustStock",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdjustStockCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/liabilities": {
+      "get": {
+        "tags": [
+          "Liabilities"
+        ],
+        "operationId": "Liabilities_List",
+        "parameters": [
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          },
+          {
+            "name": "RequiredPermission",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Liabilities"
+        ],
+        "operationId": "Liabilities_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLiabilityCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/liabilities/{id}": {
+      "get": {
+        "tags": [
+          "Liabilities"
+        ],
+        "operationId": "Liabilities_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Liabilities"
+        ],
+        "operationId": "Liabilities_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLiabilityBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/liabilities/{id}/repayments": {
+      "post": {
+        "tags": [
+          "Liabilities"
+        ],
+        "operationId": "Liabilities_RecordRepayment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRepaymentBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tenant/export": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "operationId": "Platform_Export",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantBackupDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tenant/import": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "operationId": "Platform_Import",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "x-name": "backup",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantBackupDto"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/platform/reconciliation/run-now": {
+      "post": {
+        "tags": [
+          "Platform"
+        ],
+        "operationId": "Platform_RunReconciliationNow",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pos/search": {
+      "get": {
+        "tags": [
+          "Pos"
+        ],
+        "operationId": "Pos_Search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PosSearchResultDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pos/product/{id}": {
+      "get": {
+        "tags": [
+          "Pos"
+        ],
+        "operationId": "Pos_GetProduct",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PosProductDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pos/checkout": {
+      "post": {
+        "tags": [
+          "Pos"
+        ],
+        "operationId": "Pos_Checkout",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pos/estimate": {
+      "post": {
+        "tags": [
+          "Pos"
+        ],
+        "operationId": "Pos_CreateEstimate",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEstimateBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pos/estimate/{id}/convert": {
+      "post": {
+        "tags": [
+          "Pos"
+        ],
+        "operationId": "Pos_ConvertEstimate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConvertEstimateBody"
+              }
+            }
+          },
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "Products_List",
+        "parameters": [
+          {
+            "name": "Category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "IsActive",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "IsMarginScheme",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 5
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 6
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "Products_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/products/{id}": {
+      "get": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "Products_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Products"
+        ],
+        "operationId": "Products_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases": {
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "operationId": "Purchases_StockIn",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StockInCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "operationId": "Purchases_List",
+        "parameters": [
+          {
+            "name": "ProductId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "BranchId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "FromDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "ToDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 5
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 6
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs": {
+      "get": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_List",
+        "parameters": [
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 3
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 4
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRepairJobCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}": {
+      "get": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRepairJobBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/ticket.pdf": {
+      "get": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_GetTicketPdf",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/diagnosis": {
+      "patch": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_UpdateDiagnosis",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRepairJobDiagnosisBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/commercials": {
+      "patch": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_UpdateCommercials",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRepairJobCommercialsBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/status": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_ChangeStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRepairStatusBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/status-history": {
+      "get": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_GetStatusHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/parts": {
+      "get": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_GetParts",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_ReservePart",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveRepairPartBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/parts/{partId}/consume": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_ConsumePart",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/parts/{partId}/return": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_ReturnPart",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "partId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/approval": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_RecordApproval",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordApprovalBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/deliver": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_Deliver",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverRepairJobBody"
+              }
+            }
+          },
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-jobs/{id}/bill": {
+      "post": {
+        "tags": [
+          "RepairJobs"
+        ],
+        "operationId": "RepairJobs_BillRepair",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BillRepairBody"
+              }
+            }
+          },
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-services": {
+      "get": {
+        "tags": [
+          "RepairServices"
+        ],
+        "operationId": "RepairServices_List",
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 2
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "RepairServices"
+        ],
+        "operationId": "RepairServices_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRepairServiceCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-services/{id}": {
+      "get": {
+        "tags": [
+          "RepairServices"
+        ],
+        "operationId": "RepairServices_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "RepairServices"
+        ],
+        "operationId": "RepairServices_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRepairServiceBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/repair-services/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "RepairServices"
+        ],
+        "operationId": "RepairServices_Deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/dashboard": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "Reports_GetDashboard",
+        "parameters": [
+          {
+            "name": "branchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/daily-sales": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "Reports_GetDailySales",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "branchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/compare": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "Reports_GetBranchComparison",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/roles": {
+      "get": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "Roles_List",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Roles"
+        ],
+        "operationId": "Roles_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_GetSales",
+        "parameters": [
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "DateFilter",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "CustomFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "CustomTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "Status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 5
+          },
+          {
+            "name": "PaymentMode",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 6
+          },
+          {
+            "name": "InvoiceType",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 7
+          },
+          {
+            "name": "PaidOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 8
+          },
+          {
+            "name": "DueOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 9
+          },
+          {
+            "name": "FinancedOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 10
+          },
+          {
+            "name": "Category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 11
+          },
+          {
+            "name": "MinAmount",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal",
+              "nullable": true
+            },
+            "x-position": 12
+          },
+          {
+            "name": "MaxAmount",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "decimal",
+              "nullable": true
+            },
+            "x-position": 13
+          },
+          {
+            "name": "SortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 14
+          },
+          {
+            "name": "SortDirection",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 15
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 16
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 17
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfSaleSummaryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_GetSaleById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaleDetailDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}/invoice.pdf": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_GetInvoicePdf",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}/payments": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_RecordPayment",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Idempotency-Key",
+            "x-originalName": "idempotencyKey",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordPaymentBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordPaymentResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}/void": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_VoidSale",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoidSaleBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sales/{id}/refund": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "Sales_RefundSale",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefundSaleBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/finance-providers": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "Settings_GetFinanceProviders",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FinanceProviderDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "Settings_AddFinanceProvider",
+        "requestBody": {
+          "x-name": "request",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddFinanceProviderRequest"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/{normalizedName}": {
+      "delete": {
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "Settings_RemoveFinanceProvider",
+        "parameters": [
+          {
+            "name": "normalizedName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/repairs-enabled": {
+      "get": {
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "Settings_GetRepairsEnabled",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Settings"
+        ],
+        "operationId": "Settings_SetRepairsEnabled",
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetRepairsEnabledBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/supplier-returns": {
+      "post": {
+        "tags": [
+          "SupplierReturns"
+        ],
+        "operationId": "SupplierReturns_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupplierReturnCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/supplier-returns/{id}/note.pdf": {
+      "get": {
+        "tags": [
+          "SupplierReturns"
+        ],
+        "operationId": "SupplierReturns_GetReturnNotePdf",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suppliers": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_List",
+        "parameters": [
+          {
+            "name": "Search",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "Page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 3
+          },
+          {
+            "name": "RequiredPermission",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 4
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupplierCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suppliers/{id}": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_GetById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_Update",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSupplierBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suppliers/{id}/transactions": {
+      "post": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_RecordTransaction",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordSupplierTransactionBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_GetTransactions",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "fromDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "toDate",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 5
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 6
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suppliers/{id}/ledger": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_GetPayable",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/suppliers/{id}/payable": {
+      "get": {
+        "tags": [
+          "Suppliers"
+        ],
+        "operationId": "Suppliers_GetPayable2",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/transfers": {
+      "post": {
+        "tags": [
+          "Transfers"
+        ],
+        "operationId": "Transfers_TransferOut",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferOutCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/transfers/{id}/receive": {
+      "post": {
+        "tags": [
+          "Transfers"
+        ],
+        "operationId": "Transfers_Receive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_List",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_Create",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/roles": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_AssignRole",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/branches": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_AssignBranch",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignBranchBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/deactivate": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_Deactivate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/reset-password": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "operationId": "Users_ResetPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "guid"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "body",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordBody"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "LoginCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string",
+            "format": "guid"
+          }
+        }
+      },
+      "ChangePasswordCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "currentPassword": {
+            "type": "string"
+          },
+          "newPassword": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateBranchCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "gstin": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateBranchBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "gstin": {
+            "type": "string",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PagedResultOfCustomerListItemDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerListItemDto"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CustomerListItemDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalPurchases": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "currentCreditBalance": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "CreateCustomerCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "gstin": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "CustomerDetailDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "gstin": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalPurchases": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "creditLimit": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "currentCreditBalance": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UpdateCustomerProfileRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "gstin": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "SetCustomerCreditLimitRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "creditLimit": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          }
+        }
+      },
+      "CreditBalanceDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "consolidatedBalance": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "creditLimit": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "availableCredit": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "isOverLimit": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PagedResultOfCustomerLedgerEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CustomerLedgerEntryDto"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "CustomerLedgerEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "entryType": {
+            "type": "string"
+          },
+          "debit": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "credit": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "branchName": {
+            "type": "string",
+            "nullable": true
+          },
+          "entryDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "refId": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PagedResultOfSaleSummaryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleSummaryDto"
+            }
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "SaleSummaryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "saleDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "grandTotal": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "amountPaid": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "balance": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "status": {
+            "type": "string"
+          },
+          "invoiceType": {
+            "type": "string"
+          },
+          "paymentMode": {
+            "type": "string",
+            "nullable": true
+          },
+          "isFinanced": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateExpenseCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "category": {
+            "type": "string"
+          },
+          "expenseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "ImportSupplierInvoiceCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "supplierId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "supplierInvoiceNo": {
+            "type": "string"
+          },
+          "invoiceDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "sourceRef": {
+            "type": "string"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SupplierInvoiceImportLine"
+            }
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "SupplierInvoiceImportLine": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productNameRaw": {
+            "type": "string"
+          },
+          "hsnCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "imei": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "AdjustStockCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "qtyDelta": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateLiabilityCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "lenderName": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalPrincipal": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateLiabilityBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "lenderName": {
+            "type": "string",
+            "nullable": true
+          },
+          "dueDate": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RecordRepaymentBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "paymentMode": {
+            "type": "string"
+          },
+          "paymentDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TenantBackupDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "schemaVersion": {
+            "type": "string"
+          },
+          "exportedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tenantId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "tenant": {},
+          "branches": {
+            "type": "array",
+            "items": {}
+          },
+          "settings": {
+            "type": "array",
+            "items": {}
+          },
+          "users": {
+            "type": "array",
+            "items": {}
+          },
+          "roles": {
+            "type": "array",
+            "items": {}
+          },
+          "rolePermissions": {
+            "type": "array",
+            "items": {}
+          },
+          "userBranches": {
+            "type": "array",
+            "items": {}
+          },
+          "userRoleAssignments": {
+            "type": "array",
+            "items": {}
+          },
+          "products": {
+            "type": "array",
+            "items": {}
+          },
+          "branchInventories": {
+            "type": "array",
+            "items": {}
+          },
+          "purchases": {
+            "type": "array",
+            "items": {}
+          },
+          "inventoryImeis": {
+            "type": "array",
+            "items": {}
+          },
+          "inventoryMovements": {
+            "type": "array",
+            "items": {}
+          },
+          "sales": {
+            "type": "array",
+            "items": {}
+          },
+          "saleItems": {
+            "type": "array",
+            "items": {}
+          },
+          "customerPayments": {
+            "type": "array",
+            "items": {}
+          },
+          "customers": {
+            "type": "array",
+            "items": {}
+          },
+          "customerLedgerEntries": {
+            "type": "array",
+            "items": {}
+          },
+          "suppliers": {
+            "type": "array",
+            "items": {}
+          },
+          "supplierTransactions": {
+            "type": "array",
+            "items": {}
+          },
+          "supplierLedgerEntries": {
+            "type": "array",
+            "items": {}
+          },
+          "supplierReturns": {
+            "type": "array",
+            "items": {}
+          },
+          "supplierReturnItems": {
+            "type": "array",
+            "items": {}
+          },
+          "expenses": {
+            "type": "array",
+            "items": {}
+          },
+          "liabilities": {
+            "type": "array",
+            "items": {}
+          },
+          "liabilityPayments": {
+            "type": "array",
+            "items": {}
+          },
+          "repairJobs": {
+            "type": "array",
+            "items": {}
+          },
+          "repairJobParts": {
+            "type": "array",
+            "items": {}
+          },
+          "repairJobStatusHistory": {
+            "type": "array",
+            "items": {}
+          }
+        }
+      },
+      "PosSearchResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sellPrice": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "hsnCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "isMarginScheme": {
+            "type": "boolean"
+          },
+          "stockQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockStatus": {
+            "type": "string"
+          }
+        }
+      },
+      "PosProductDetailDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sellPrice": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "hsnCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "isMarginScheme": {
+            "type": "boolean"
+          },
+          "stockQty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stockStatus": {
+            "type": "string"
+          },
+          "availableImeis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CheckoutCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutCartLine"
+            }
+          },
+          "customerId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "walkInCustomerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "invoiceDiscount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "invoiceType": {
+            "type": "string"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutPayment"
+            }
+          },
+          "finance": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/CheckoutFinanceDetails"
+              }
+            ]
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "nullable": true
+          },
+          "idempotencyScope": {
+            "type": "string"
+          },
+          "idempotencyRequired": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CheckoutCartLine": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "imei": {
+            "type": "string",
+            "nullable": true
+          },
+          "useMarginScheme": {
+            "type": "boolean"
+          },
+          "isGift": {
+            "type": "boolean"
+          },
+          "overridePricePerUnit": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          }
+        }
+      },
+      "CheckoutPayment": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paymentMode": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "CheckoutFinanceDetails": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "financeProvider": {
+            "type": "string"
+          },
+          "financerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "downPayment": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "tenureMonths": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "annualInterestRate": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "CreateEstimateBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutCartLine"
+            }
+          },
+          "customerId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "walkInCustomerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "invoiceDiscount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CheckoutPayment"
+            }
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ConvertEstimateBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "payments": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/CheckoutPayment"
+            }
+          }
+        }
+      },
+      "CreateProductCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "sellPrice": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "purchasePrice": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "hsnCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "warrantyDays": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isMarginScheme": {
+            "type": "boolean"
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateProductBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "sellPrice": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "purchasePrice": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "isMarginScheme": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "warrantyDays": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "StockInCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "purchaseRate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "supplierId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "supplierName": {
+            "type": "string",
+            "nullable": true
+          },
+          "supplierPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "supplierAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "purchaseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "supplierInvoiceNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "imeis": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateRepairJobCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "customerId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "customerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceBrand": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceModel": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceType": {
+            "type": "string",
+            "nullable": true
+          },
+          "serialNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "imei1": {
+            "type": "string",
+            "nullable": true
+          },
+          "imei2": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceCondition": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessoriesReceived": {
+            "type": "string",
+            "nullable": true
+          },
+          "problemDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "customerNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedCost": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "advancePaid": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "expectedCompletion": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateRepairJobBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "customerNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "problemDescription": {
+            "type": "string",
+            "nullable": true
+          },
+          "deviceCondition": {
+            "type": "string",
+            "nullable": true
+          },
+          "accessoriesReceived": {
+            "type": "string",
+            "nullable": true
+          },
+          "expectedCompletion": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateRepairJobDiagnosisBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "diagnosis": {
+            "type": "string",
+            "nullable": true
+          },
+          "technicianNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "internalNotes": {
+            "type": "string",
+            "nullable": true
+          },
+          "technician": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "UpdateRepairJobCommercialsBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "estimatedCost": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "approvedCost": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "partsCost": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "laborCharge": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "discount": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "tax": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "finalTotal": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "advancePaid": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          }
+        }
+      },
+      "ChangeRepairStatusBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ReserveRepairPartBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "partName": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unitCost": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "chargeAmount": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "RecordApprovalBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "approvalState": {
+            "type": "string"
+          }
+        }
+      },
+      "DeliverRepairJobBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "warrantyDaysOverride": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
+      "BillRepairBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "payments": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "$ref": "#/components/schemas/CheckoutPayment"
+            }
+          }
+        }
+      },
+      "CreateRepairServiceCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "standardCharge": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "taxable": {
+            "type": "boolean"
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "sacCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "warrantyDays": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateRepairServiceBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "standardCharge": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "taxable": {
+            "type": "boolean",
+            "nullable": true
+          },
+          "gstRate": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "sacCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "estimatedDurationMinutes": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "warrantyDays": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "nullable": true
+          }
+        }
+      },
+      "CreateRoleCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "permissionCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "SaleDetailDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "invoiceNumber": {
+            "type": "string"
+          },
+          "invoiceType": {
+            "type": "string"
+          },
+          "saleDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "customerId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "customerName": {
+            "type": "string"
+          },
+          "customerGstin": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalTaxable": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "totalCgst": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "totalSgst": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "grandTotal": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "discount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "amountPaid": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "balance": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "status": {
+            "type": "string"
+          },
+          "paymentMode": {
+            "type": "string",
+            "nullable": true
+          },
+          "financeProvider": {
+            "type": "string",
+            "nullable": true
+          },
+          "financerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "downPayment": {
+            "type": "number",
+            "format": "decimal",
+            "nullable": true
+          },
+          "emiDetailsJson": {
+            "type": "string",
+            "nullable": true
+          },
+          "giftDetailsJson": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "repairJobId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "convertedFromEstimateId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "linkedTaxInvoiceId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SaleLineDto"
+            }
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PaymentRecordDto"
+            }
+          },
+          "branchId": {
+            "type": "string",
+            "format": "guid"
+          }
+        }
+      },
+      "SaleLineDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pricePerUnit": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "taxable": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "cgst": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "sgst": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "isMarginScheme": {
+            "type": "boolean"
+          },
+          "isGift": {
+            "type": "boolean"
+          },
+          "imei": {
+            "type": "string",
+            "nullable": true
+          },
+          "hsnSnapshot": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "PaymentRecordDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "guid"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "paymentMode": {
+            "type": "string"
+          },
+          "paymentDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "RecordPaymentResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "paymentId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "newAmountPaid": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "newBalance": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "RecordPaymentBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "paymentMode": {
+            "type": "string"
+          }
+        }
+      },
+      "VoidSaleBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "RefundSaleBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "saleItemIds": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "format": "guid"
+            }
+          },
+          "reason": {
+            "type": "string"
+          },
+          "refundAmount": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "FinanceProviderDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "normalizedName": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "AddFinanceProviderRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string"
+          }
+        }
+      },
+      "SetRepairsEnabledBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateSupplierReturnCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "supplierId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "returnDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReturnLineInput"
+            }
+          },
+          "settlementType": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "ReturnLineInput": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "itemName": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "purchasePrice": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "returnRate": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "imeiNumbers": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateSupplierCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "brandOrCategory": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateSupplierBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "address": {
+            "type": "string",
+            "nullable": true
+          },
+          "brandOrCategory": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RecordSupplierTransactionBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "paymentMode": {
+            "type": "string",
+            "nullable": true
+          },
+          "referenceNo": {
+            "type": "string",
+            "nullable": true
+          },
+          "txnDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "TransferOutCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "toBranchId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "qty": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "imeiStrings": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateUserCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "initialRoleId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "initialBranchId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          },
+          "requiredPermission": {
+            "type": "string"
+          }
+        }
+      },
+      "AssignRoleBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "roleId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "branchId": {
+            "type": "string",
+            "format": "guid",
+            "nullable": true
+          }
+        }
+      },
+      "AssignBranchBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ResetPasswordBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "newTemporaryPassword": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

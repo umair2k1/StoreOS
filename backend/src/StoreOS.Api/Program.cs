@@ -211,6 +211,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+builder.Services.AddOpenApiDocument();
 
 // Serilog Configuration (P-112)
 builder.Host.UseSerilog((context, services, configuration) => configuration

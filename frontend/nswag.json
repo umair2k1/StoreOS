@@ -1,0 +1,48 @@
+{
+  "runtime": "Net100",
+  "defaultVariables": null,
+  "documentGenerator": {
+    "fromDocument": {
+      "url": "src/app/core/api/openapi.json",
+      "output": null,
+      "newLineBehavior": "Auto"
+    }
+  },
+  "codeGenerators": {
+    "openApiToTypeScriptClient": {
+      "className": "{controller}Client",
+      "moduleName": "",
+      "namespace": "",
+      "typeScriptVersion": 5.4,
+      "template": "Angular",
+      "promiseType": "Promise",
+      "httpClass": "HttpClient",
+      "useSingletonProvider": true,
+      "injectionTokenType": "InjectionToken",
+      "rxJsVersion": 7.0,
+      "dateTimeType": "Date",
+      "nullValue": "Undefined",
+      "generateClientClasses": true,
+      "generateClientInterfaces": true,
+      "generateOptionalParameters": true,
+      "exportTypes": true,
+      "wrapDtoExceptions": false,
+      "exceptionClass": "ApiException",
+      "clientBaseClass": null,
+      "wrapResponses": false,
+      "generateResponseClasses": true,
+      "responseClass": "SwaggerResponse",
+      "generateDtoTypes": true,
+      "operationGenerationMode": "MultipleClientsFromOperationId",
+      "markOptionalProperties": true,
+      "typeStyle": "Interface",
+      "enumStyle": "Enum",
+      "generateDefaultValues": true,
+      "useGetBaseUrlMethod": false,
+      "baseUrlTokenName": "API_BASE_URL",
+      "useAbortSignal": true,
+      "output": "src/app/core/api/generated-client.ts",
+      "newLineBehavior": "Auto"
+    }
+  }
+}

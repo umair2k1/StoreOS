@@ -4677,3 +4677,25 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Triggering `run-now` with known `X-Correlation-ID` propagates that exact correlation ID into resulting audit log entries.
   - (b) Scheduled runs generate their own distinct fresh correlation IDs.
   - (c) Caller without `settings:manage` returns 403.
+
+## P-1001
+### Angular Core Module: HTTP Client, Environment Config, Generated API Client Wiring (NSwag)
+- Backend OpenAPI / NSwag Integration:
+  - `backend/Directory.Packages.props`: `NSwag.MSBuild` and `NSwag.AspNetCore` version `14.7.1`, `Swashbuckle.AspNetCore` version `6.9.0`.
+  - `backend/src/StoreOS.Api/StoreOS.Api.csproj`: Added `<PackageReference Include="NSwag.AspNetCore" />`.
+  - `backend/src/StoreOS.Api/Program.cs`: Registered `builder.Services.AddOpenApiDocument()` alongside `builder.Services.AddSwaggerGen(...)` for headless deterministic OpenAPI generation.
+  - `backend/src/StoreOS.Api/generate-client.sh`: Shell script running `aspnetcore2openapi` directly against assembly/csproj without live server process, followed by `nswag run`.
+- Frontend Client Generation Tooling:
+  - `frontend/nswag.json`: NSwag configuration using Net100 runtime, `fromDocument` schema source (`src/app/core/api/openapi.json`), and `openApiToTypeScriptClient` generator with Angular template, singleton provider, `API_BASE_URL` injection token, and abort signal support outputting to `src/app/core/api/generated-client.ts`.
+  - `frontend/scripts/generate-client.js`: Cross-platform Node script executing `nswag aspnetcore2openapi` with `DOTNET_ROLL_FORWARD=Major` and `nswag run`.
+  - `frontend/package.json`: Added `generate-client` script invoking `node scripts/generate-client.js`, and installed `nswag@14.7.1`.
+- Environments & Configuration:
+  - `frontend/src/environments/environment.ts`: `{ production: false, apiBaseUrl: 'http://localhost:5000/api' }`.
+  - `frontend/src/environments/environment.production.ts`: `{ production: true, apiBaseUrl: '/api' }`.
+  - `frontend/angular.json`: Configured `fileReplacements` in production build target substituting `environment.ts` with `environment.production.ts`.
+  - `frontend/src/app/core/api/api-config.ts`:
+    - Re-exports `API_BASE_URL` injection token from `generated-client.ts`.
+    - `provideApiConfig(...features: HttpFeature<HttpFeatureKind>[]): EnvironmentProviders`: Configures `provideHttpClient(...features)` and resolves `API_BASE_URL` by sanitizing trailing `/api` from `environment.apiBaseUrl` to avoid duplicated route prefixes.
+  - `frontend/src/app/app.config.ts`: Added `provideApiConfig()` to root application providers.
+- CI Drift-Check:
+  - `.github/workflows/ci.yml`: Added `dotnet build backend/src/StoreOS.Api/StoreOS.Api.csproj`, `npm run --prefix frontend generate-client`, and `git diff --exit-code frontend/src/app/core/api/generated-client.ts` to `frontend-build` job to fail on client drift.
