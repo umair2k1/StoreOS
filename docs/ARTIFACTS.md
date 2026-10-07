@@ -4731,3 +4731,18 @@ var sgst = Money.Round2(totalGst - cgst);
   - Registered in `frontend/src/app/app.config.ts` via `provideApiConfig(withInterceptors([authInterceptor]))`.
 - Unit Tests (`frontend/src/app/core/interceptors/auth.interceptor.spec.ts`):
   - Verified: (a) Bearer token attached; (b) 1 refresh for 3 concurrent 401s (buffering proof); (c) all 3 retried with new token; (d) failed refresh clears store and propagates error; (e) no refresh triggered on auth endpoints.
+
+## P-1003
+### Silent Refresh on APP_INITIALIZER + Refresh Flow
+- Silent Refresh Initializer (`frontend/src/app/core/auth/silent-refresh.ts`):
+  - `silentRefreshInitializer(): () => Promise<void>`:
+    - Factory function returning an async initializer that injects `AuthRefreshService`.
+    - Invokes `firstValueFrom(refreshService.refresh())` before router activation.
+    - Invariant: A missing or expired cookie (401) is caught as a non-fatal no-op; never throws or crashes bootstrap.
+- Root Application Configuration (`frontend/src/app/app.config.ts`):
+  - Registered initializer via `provideAppInitializer(() => silentRefreshInitializer()())`.
+  - Router navigation is strictly blocked until the silent refresh Promise resolves.
+- Unit Tests (`frontend/src/app/core/auth/silent-refresh.spec.ts`):
+  - (a) Successful silent refresh populates `AuthSignalStore` with tokens, user metadata, and `isAuthenticated() === true`.
+  - (b) 401 response resolves cleanly without throwing, leaving `isAuthenticated() === false`.
+  - (c) Router harness test: verifies initial navigation and route component activation are held up until the asynchronous refresh promise settles.
