@@ -4398,3 +4398,31 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Consolidated row exactly equals the sum of individual branch rows for every metric.
   - (c) Single-branch user sees only their accessible branch row with matching consolidated row.
   - (d) Regression suite passed: `DailySalesReportTests` verified green following the `ReportAggregationHelpers` refactor.
+
+## P-804
+### Inventory Export Endpoint (Physical and Service Separation)
+- Query and DTOs (`StoreOS.Application.Reporting.InventoryExport`):
+  - `GetInventoryExportQuery(string[] Categories, Guid[]? BranchIds = null) : IRequest<InventoryExportDto>, IReportingRequest`
+  - `PhysicalInventoryExportRowDto(string Item, string Category, int Quantity, decimal PurchasePrice, decimal SellingPrice, decimal Gst, string? Hsn, string? Supplier, string? ImeiSummary)`
+  - `ServiceExportRowDto(string Service, string? Description, decimal ServiceCharge, bool Taxable, decimal Gst, string? Sac)`
+  - `InventoryExportDto(IReadOnlyList<PhysicalInventoryExportRowDto> PhysicalItems, IReadOnlyList<ServiceExportRowDto> Services)`
+- CSV Writer Helper (`StoreOS.Application.Reporting.InventoryExport.InventoryCsvWriter`):
+  - `public static string ToCsv(InventoryExportDto export, bool includePurchasePrice = true)`
+  - `public static string Escape(string value)` (RFC 4180 quoting for commas, quotes, and newlines)
+  - Emits UTF-8 BOM preamble and separates physical items and services into distinct sections with appropriate column headers.
+- Handler (`StoreOS.Application.Reporting.InventoryExport.GetInventoryExportHandler`):
+  - Implements `IRequestHandler<GetInventoryExportQuery, InventoryExportDto>` using `IReportingDbContext` and `IAccessScope`.
+  - Strict Two-List Separation: physical categories populate `PhysicalItems` and `RepairService` populates `Services`, never mixing rows into a unified shape.
+  - Permission Gating: `PurchasePrice` is masked to `0m` when the caller lacks `inventory:cost:view`.
+  - IMEI Aggregation: active IMEIs listed up to 10 with a `+N more` suffix beyond 10.
+  - Supplier Resolution: resolved from latest purchase record for each product.
+- API Route (`StoreOS.Api.Controllers.ExportsController`):
+  - `GET /api/exports/inventory?categories=&branchIds=&format=csv|json` -> `ExportInventory`
+  - Emits CSV with UTF-8 BOM (`[0xEF, 0xBB, 0xBF]`) and `Content-Disposition: attachment; filename="inventory-<yyyyMMdd>.csv"` by default, or JSON when requested via `format=json` or `Accept: application/json`.
+- Integration Tests (`StoreOS.IntegrationTests.Reporting.InventoryExportTests`):
+  - (a) Requesting all 4 categories returns physical items in `PhysicalItems` and services in `Services` without mixing.
+  - (b) Requesting only `["RepairService"]` returns empty `PhysicalItems` and populated `Services`.
+  - (c) IMEI truncation verified for items with >10 active IMEIs (`+N more` suffix).
+  - (d) Requesting category subset (`["Accessory"]`) returns only physical items of that category.
+  - (e) CSV format export verified for UTF-8 BOM, RFC 4180 headers, and Content-Disposition header.
+  - (f) Caller lacking `inventory:cost:view` permission receives `PurchasePrice == 0m`.
