@@ -19,6 +19,9 @@ using StoreOS.Application.Repairs.Deliver;
 using StoreOS.Application.Repairs.BillRepair;
 using StoreOS.Application.Sales.Checkout;
 using StoreOS.Application.Behaviors;
+using StoreOS.Application.Abstractions;
+using StoreOS.Infrastructure.Printing;
+
 
 namespace StoreOS.Api.Controllers;
 
@@ -37,6 +40,58 @@ public class RepairJobsController : ControllerBase
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken ct) =>
         Ok(await _mediator.Send(new GetRepairJobByIdQuery(id), ct));
+    [HttpGet("{id:guid}/ticket.pdf")]
+    public async Task<IActionResult> GetTicketPdf(
+        Guid id,
+        [FromServices] RepairPdfRenderer renderer,
+        [FromServices] IAppDbContext db,
+        CancellationToken ct)
+    {
+        var job = await _mediator.Send(new GetRepairJobByIdQuery(id), ct);
+        var parts = await _mediator.Send(new GetRepairJobPartsQuery(id), ct);
+        var dto = await MapToRepairPdfDto(job, parts, db, ct);
+        var bytes = renderer.Render(dto);
+        return File(bytes, "application/pdf", $"repair-{job.JobNumber}.pdf");
+    }
+
+    private static async Task<RepairPdfDto> MapToRepairPdfDto(
+        RepairJobDto job,
+        IReadOnlyList<RepairJobPartDto> parts,
+        IAppDbContext db,
+        CancellationToken ct)
+    {
+        var branding = await ShopBrandingHelper.ResolveAsync(job.BranchId, db, ct);
+
+        var partLines = parts.Select(p => new RepairPartLineDto(
+            PartName: p.PartName,
+            Quantity: p.Quantity,
+            ChargeAmount: p.ChargeAmount
+        )).ToList();
+
+        return new RepairPdfDto(
+            ShopName: branding.ShopName,
+            ShopAddress: branding.Address,
+            ShopPhone: branding.Phone,
+            JobNumber: job.JobNumber,
+            ReceivedAt: job.ReceivedAt ?? job.CreatedAt,
+            CustomerName: job.CustomerName ?? "Customer",
+            CustomerPhone: job.CustomerPhone,
+            DeviceBrand: job.DeviceBrand,
+            DeviceModel: job.DeviceModel,
+            SerialNumber: job.SerialNumber,
+            Imei1: job.Imei1,
+            ProblemDescription: job.ProblemDescription,
+            Status: job.Status,
+            EstimatedCost: job.EstimatedCost,
+            FinalTotal: job.FinalTotal,
+            AdvancePaid: job.AdvancePaid,
+            BalanceDue: job.BalanceDue,
+            WarrantyUntil: job.WarrantyUntil,
+            Parts: partLines,
+            InvoiceNumber: job.InvoiceNumber
+        );
+    }
+
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRepairJobCommand command, CancellationToken ct)

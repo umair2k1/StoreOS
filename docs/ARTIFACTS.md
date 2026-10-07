@@ -4504,3 +4504,25 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) `RenderDailySales` with full seeded data produces valid PDF starting with `%PDF` magic bytes.
   - (b) `RenderInventoryExport` with physical and service items produces valid PDF.
   - (c) Rendering with empty itemized logs / empty inventory lists succeeds gracefully without throwing.
+
+## P-809
+### Primary Document PDF Endpoints & Shop Branding Fallback
+- Queries and DTOs (`StoreOS.Application`):
+  - `StoreOS.Application.Sales.GetSaleById.SaleDetailDto`: Added `BranchId` to provide selling branch context for branding lookup.
+  - `GetSupplierReturnByIdQuery(Guid Id) : IRequest<SupplierReturnDto>, IReadOnlyRequest` (`StoreOS.Application.Suppliers.GetReturnById`)
+  - `SupplierReturnDto(Guid Id, Guid TenantId, Guid BranchId, string ReturnNumber, DateOnly ReturnDate, Guid SupplierId, string SupplierName, string? SupplierPhone, string? SupplierAddress, int TotalQty, decimal TotalAmount, string SettlementType, string? Reason, string? Notes, IReadOnlyList<SupplierReturnItemDto> Items)`
+  - `SupplierReturnItemDto(Guid Id, string ItemName, int Qty, decimal ReturnRate, decimal LineTotal, string[]? ImeiNumbers)`
+- Shop Branding Helper (`StoreOS.Api.Controllers.ShopBrandingHelper`):
+  - `public static async Task<ResolvedShopBranding> ResolveAsync(Guid branchId, IAppDbContext db, CancellationToken ct)`
+  - Resolves `shopName`, `address`, `phone`, `email`, and `gstin` from the branch-level `"shop_profile"` setting JSON.
+  - Graceful Fallback: if the `"shop_profile"` setting is absent, empty, or unparseable, falls back seamlessly to `branches.name`/`address`/`phone`/`gstin` without throwing.
+- API Routes & Mapping Isolation:
+  - `GET /api/sales/{id}/invoice.pdf` (`SalesController`): Maps `SaleDetailDto` -> `InvoicePdfDto` in controller and renders via `InvoicePdfRenderer`.
+  - `GET /api/repair-jobs/{id}/ticket.pdf` (`RepairJobsController`): Maps `RepairJobDto` + parts -> `RepairPdfDto` in controller and renders via `RepairPdfRenderer`.
+  - `GET /api/supplier-returns/{id}/note.pdf` (`SupplierReturnsController`): Maps `SupplierReturnDto` -> `SupplierReturnPdfDto` in controller and renders via `SupplierReturnPdfRenderer`.
+- DTO Purity Rule:
+  - All entity-to-DTO mapping logic lives strictly in each controller, never inside the renderer classes, preserving pure DTO-to-bytes rendering.
+- Integration Tests (`StoreOS.IntegrationTests.Printing.PdfEndpointsTests`):
+  - (a) All 3 endpoints return 200 with `Content-Type: application/pdf` and valid `%PDF` bytes (>100 bytes) for fully-populated records.
+  - (b) Invoice PDF endpoint succeeds when no `"shop_profile"` setting exists, falling back to branch master data.
+  - (c) Nonexistent ID on any of the three endpoints returns 404 (reusing existing not-found handling).

@@ -55,7 +55,8 @@ public record SaleDetailDto(
     Guid? ConvertedFromEstimateId,
     Guid? LinkedTaxInvoiceId,
     IReadOnlyList<SaleLineDto> Items,
-    IReadOnlyList<PaymentRecordDto> Payments);
+    IReadOnlyList<PaymentRecordDto> Payments,
+    Guid BranchId = default);
 
 public class GetSaleByIdHandler : IRequestHandler<GetSaleByIdQuery, SaleDetailDto>
 {
@@ -127,7 +128,8 @@ public class GetSaleByIdHandler : IRequestHandler<GetSaleByIdQuery, SaleDetailDt
             sale.ConvertedFromEstimateId,
             sale.LinkedTaxInvoiceId,
             items,
-            payments
+            payments,
+            sale.BranchId
         );
     }
 }
