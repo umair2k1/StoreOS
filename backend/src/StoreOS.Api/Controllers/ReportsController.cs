@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using StoreOS.Application.Reporting.Compare;
 using StoreOS.Application.Reporting.DailySales;
 using StoreOS.Application.Reporting.Dashboard;
 
@@ -28,6 +29,16 @@ public class ReportsController : ControllerBase
     {
         var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var result = await _mediator.Send(new GetDailySalesReportQuery(targetDate, branchIds), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("compare")]
+    public async Task<IActionResult> GetBranchComparison(
+        [FromQuery] DateOnly? date,
+        CancellationToken ct)
+    {
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = await _mediator.Send(new GetBranchComparisonQuery(targetDate), ct);
         return Ok(result);
     }
 }

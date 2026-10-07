@@ -4374,3 +4374,27 @@ var sgst = Money.Round2(totalGst - cgst);
     - (d) Sale-value vs. collected vs. outstanding dual interpretation verified with exact mathematical precision.
     - (e) Category breakdown zero-fills categories with no sales.
     - (f) Itemized log includes every line with correct IMEI and payment mode detail.
+
+## P-803
+### Multi-Branch Comparison Report + Consolidated Totals
+- Shared Reporting Helper (`StoreOS.Application.Reporting.ReportAggregationHelpers`):
+  - `public record SalesMetrics(decimal Revenue, decimal BuyingCost, decimal Profit, decimal GstCollected, int InvoiceCount, int ItemsSold)`
+  - `public static SalesMetrics ComputeSalesMetrics(IEnumerable<Sale> sales, IEnumerable<SaleItem> lines)`
+  - `public static int CountActiveRepairs(IEnumerable<RepairJob> jobs, bool isRepairsEnabled)`
+  - Centralizes core sales and repairs aggregation across `GetDailySalesReportHandler` and `GetBranchComparisonHandler`, eliminating logic drift.
+- Query and DTOs (`StoreOS.Application.Reporting.Compare`):
+  - `GetBranchComparisonQuery(DateOnly Date) : IRequest<BranchComparisonDto>, IReportingRequest`
+  - `BranchRowDto(Guid BranchId, string BranchName, decimal Revenue, int InvoiceCount, decimal Profit, int ActiveRepairs)`
+  - `BranchComparisonDto(IReadOnlyList<BranchRowDto> Branches, BranchRowDto Consolidated)`
+- Handler (`StoreOS.Application.Reporting.Compare.GetBranchComparisonHandler`):
+  - Implements `IRequestHandler<GetBranchComparisonQuery, BranchComparisonDto>` using `IReportingDbContext`, `IAccessScope`, and `IFeatureManager`.
+  - Access Scope Scoping: resolves all branches accessible to caller via `IAccessScope.AllBranches` and `IAccessScope.BranchIds`. Single-branch users receive only their single branch row and an identical `Consolidated` row.
+  - Core Calculation: computes `Revenue`, `InvoiceCount`, `Profit` (using historical `purchase_price_snapshot`), and `ActiveRepairs` (gated by `IFeatureManager`) per branch.
+  - Consolidated Row Invariant: `Consolidated.Revenue == sum(Branches.Revenue)`, `Consolidated.InvoiceCount == sum(Branches.InvoiceCount)`, `Consolidated.Profit == sum(Branches.Profit)`, `Consolidated.ActiveRepairs == sum(Branches.ActiveRepairs)`.
+- API Route (`StoreOS.Api.Controllers.ReportsController`):
+  - `GET /api/reports/compare?date=` -> `GetBranchComparison(DateOnly? date, CancellationToken ct)` (defaults to current date if omitted).
+- Integration Tests (`StoreOS.IntegrationTests.Reporting.BranchComparisonTests`):
+  - (a) Multi-branch user querying date with sales across 2 branches sees exact per-branch rows.
+  - (b) Consolidated row exactly equals the sum of individual branch rows for every metric.
+  - (c) Single-branch user sees only their accessible branch row with matching consolidated row.
+  - (d) Regression suite passed: `DailySalesReportTests` verified green following the `ReportAggregationHelpers` refactor.

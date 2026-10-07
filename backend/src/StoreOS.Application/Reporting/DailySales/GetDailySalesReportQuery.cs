@@ -121,14 +121,15 @@ public class GetDailySalesReportHandler : IRequestHandler<GetDailySalesReportQue
 
         var lines = await linesQuery.ToListAsync(ct);
 
-        decimal revenue = sales.Sum(s => s.GrandTotal);
-        decimal buyingCost = lines.Where(li => !li.IsGift).Sum(li => li.Qty * (li.PurchasePriceSnapshot ?? 0m));
-        decimal profit = revenue - buyingCost;
-        decimal gstCollected = lines.Sum(li => li.Cgst + li.Sgst);
-        int invoiceCount = sales.Count;
-        int itemsSold = lines.Where(li => !li.IsGift).Sum(li => li.Qty);
-
-        var salesSummary = new SalesSummaryDto(revenue, buyingCost, profit, gstCollected, invoiceCount, itemsSold);
+        var metrics = ReportAggregationHelpers.ComputeSalesMetrics(sales, lines);
+        decimal revenue = metrics.Revenue;
+        var salesSummary = new SalesSummaryDto(
+            metrics.Revenue,
+            metrics.BuyingCost,
+            metrics.Profit,
+            metrics.GstCollected,
+            metrics.InvoiceCount,
+            metrics.ItemsSold);
 
         // 2. Inventory Summary (as of report run-time, excluding RepairService)
         var invQuery = from bi in _db.Set<BranchInventory>().AsNoTracking()
