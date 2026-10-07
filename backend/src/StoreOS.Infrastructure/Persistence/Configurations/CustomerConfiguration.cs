@@ -44,6 +44,13 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .HasDefaultValueSql("now()")
             .IsRequired();
 
+        builder.Property(c => c.DesktopId)
+            .HasColumnName("desktop_id");
+
+        builder.HasIndex(c => new { c.TenantId, c.DesktopId })
+            .HasDatabaseName("ix_customers_tenant_desktop_id")
+            .HasFilter("desktop_id IS NOT NULL");
+
         builder.HasIndex(c => new { c.TenantId, c.Phone })
             .HasDatabaseName("ix_customers_tenant_phone");
     }

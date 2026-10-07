@@ -37,6 +37,7 @@ public class Sale
     public DateTimeOffset CreatedAt { get; private set; }
     public Guid? ConvertedFromEstimateId { get; private set; }
     public Guid? LinkedTaxInvoiceId { get; private set; }
+    public string? OriginalInvoiceNumber { get; private set; }
 
     public IReadOnlyList<SaleItem> Items => _items.AsReadOnly();
 
@@ -116,7 +117,8 @@ public class Sale
         string? financeProvider, string? financerName, decimal? downPayment,
         string? emiDetailsJson, string? giftDetailsJson, string? description,
         Guid? repairJobId, string? irn, string? irnAckNo, string? irnQrData,
-        Guid createdBy, DateTimeOffset createdAt, Guid? convertedFromEstimateId, Guid? linkedTaxInvoiceId)
+        Guid createdBy, DateTimeOffset createdAt, Guid? convertedFromEstimateId, Guid? linkedTaxInvoiceId,
+        string? originalInvoiceNumber = null)
     {
         return new Sale
         {
@@ -150,9 +152,12 @@ public class Sale
             CreatedBy = createdBy,
             CreatedAt = createdAt,
             ConvertedFromEstimateId = convertedFromEstimateId,
-            LinkedTaxInvoiceId = linkedTaxInvoiceId
+            LinkedTaxInvoiceId = linkedTaxInvoiceId,
+            OriginalInvoiceNumber = originalInvoiceNumber
         };
     }
+
+    public void SetOriginalInvoiceNumber(string? originalInvoiceNumber) => OriginalInvoiceNumber = originalInvoiceNumber;
 
     public static Sale CreateTaxInvoice(
         Guid tenantId,

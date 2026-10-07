@@ -132,6 +132,10 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("credit_limit");
 
+                    b.Property<string>("DesktopId")
+                        .HasColumnType("text")
+                        .HasColumnName("desktop_id");
+
                     b.Property<string>("Gstin")
                         .HasColumnType("text")
                         .HasColumnName("gstin");
@@ -157,6 +161,10 @@ namespace StoreOS.Infrastructure.Migrations
                         .HasColumnName("total_purchases");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "DesktopId")
+                        .HasDatabaseName("ix_customers_tenant_desktop_id")
+                        .HasFilter("desktop_id IS NOT NULL");
 
                     b.HasIndex("TenantId", "Phone")
                         .HasDatabaseName("ix_customers_tenant_phone");
@@ -1627,6 +1635,10 @@ namespace StoreOS.Infrastructure.Migrations
                     b.Property<Guid?>("LinkedTaxInvoiceId")
                         .HasColumnType("uuid")
                         .HasColumnName("linked_tax_invoice_id");
+
+                    b.Property<string>("OriginalInvoiceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("original_invoice_number");
 
                     b.Property<string>("PaymentMode")
                         .HasColumnType("text")

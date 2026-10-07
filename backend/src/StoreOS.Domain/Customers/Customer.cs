@@ -12,6 +12,7 @@ public class Customer
     public decimal TotalPurchases { get; private set; }
     public decimal? CreditLimit { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
+    public string? DesktopId { get; private set; }
 
     private Customer() { }
 
@@ -31,7 +32,7 @@ public class Customer
 
     public static Customer Rehydrate(
         Guid id, Guid tenantId, string name, string? phone, string? gstin,
-        decimal totalPurchases, decimal? creditLimit, DateTimeOffset createdAt)
+        decimal totalPurchases, decimal? creditLimit, DateTimeOffset createdAt, string? desktopId = null)
     {
         return new Customer
         {
@@ -42,9 +43,12 @@ public class Customer
             Gstin = gstin,
             TotalPurchases = totalPurchases,
             CreditLimit = creditLimit,
-            CreatedAt = createdAt
+            CreatedAt = createdAt,
+            DesktopId = desktopId
         };
     }
+
+    public void SetDesktopId(string? desktopId) => DesktopId = desktopId;
 
     public void UpdateProfile(string name, string? phone, string? gstin)
     {

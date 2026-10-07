@@ -133,6 +133,9 @@ public class SaleConfiguration : IEntityTypeConfiguration<Sale>
         builder.Property(s => s.LinkedTaxInvoiceId)
             .HasColumnName("linked_tax_invoice_id");
 
+        builder.Property(s => s.OriginalInvoiceNumber)
+            .HasColumnName("original_invoice_number");
+
         builder.HasOne<Sale>()
             .WithMany()
             .HasForeignKey(s => s.ConvertedFromEstimateId)

@@ -4604,3 +4604,30 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Unrecognized/malformed JSON files are rejected with clear error messages without creating any report file.
   - (c) Dry-run operates purely on the input file with zero database connections.
   - (d) CLI invocation via `Program.Main` succeeds with exit code 0.
+
+## P-904
+### pz-migrate Record-Level Dedupe & Reconcile Customers CLI
+- Database Schema Updates & Migration:
+  - `Sale`: Added `public string? OriginalInvoiceNumber { get; private set; }` and `public void SetOriginalInvoiceNumber(string? originalInvoiceNumber)`. Mapped in `SaleConfiguration` to column `original_invoice_number` (`text`, nullable).
+  - `Customer`: Added `public string? DesktopId { get; private set; }` and `public void SetDesktopId(string? desktopId)`. Mapped in `CustomerConfiguration` to column `desktop_id` (`text`, nullable) with filtered index `ix_customers_tenant_desktop_id` (`WHERE desktop_id IS NOT NULL`).
+  - Migration: `20261007202708_031_MigrationSupportColumns` (`dotnet ef migrations add 031_MigrationSupportColumns --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext`).
+- Committing Import Pipeline (`PzMigrate.DesktopMigrationService.RunImportAsync`):
+  - 1. Tenant & Branch: Looks up or creates `Tenant` by name and default `Branch` (code `"B01"`, name `"Main Branch"`).
+  - 2. In-memory ID remapping: Maintains dictionaries (`itemMap`, `customerMap`, `supplierMap`, `purchaseMap`, `saleMap`) remapping legacy integer/string IDs to cloud GUIDs and matching against pre-existing rows on successive runs.
+  - 3. Natural-Key Record Deduplication:
+    - Sales: `(tenant_id, original_invoice_number)` — skips duplicate if original invoice exists.
+    - IMEIs: `(tenant_id, imei)` — skips duplicate if IMEI exists in tenant.
+    - Purchases: `(tenant_id, supplier_invoice_no, supplier_id, purchase_date)` — skips duplicate if matching purchase exists.
+    - Customers (Two-Tier): Primary match on `(tenant_id, desktop_id)`. If phone differs and collides with another customer, records conflict in `migration-conflicts.json` and skips. If phone differs and does not collide, updates customer's phone via `UpdateProfile(...)`. Secondary fallback match on `(tenant_id, phone)` stamps `desktop_id` and skips. Otherwise, inserts new customer.
+  - 4. Products & Inventory: Inserts products (with category normalization), initial `BranchInventory` with desktop stock quantity.
+  - 5. Conflict Logging: Writes `migration-conflicts.json` next to backup on phone collisions without aborting the batch.
+- Customer Reconciliation & Merging:
+  - `DesktopMigrationService.MergeCustomersAsync(StoreOsDbContext db, Guid survivingCustomerId, Guid duplicateCustomerId)`: Re-points `sales.customer_id` and `customer_ledger_entries.customer_id` from duplicate customer to surviving customer, deletes duplicate customer, and clears change tracker.
+  - CLI command: `pz-migrate reconcile-customers --tenant <id> [--dry-run] [--surviving <id> --duplicate <id>]` lists conflicting phone groups and allows merging.
+- Integration Tests (`tools/pz-migrate.Tests/CommittingImportTests.cs`):
+  - (a) First committing import creates expected entities and record counts matching P-903 report.
+  - (b) Re-running import on unchanged backup creates zero additional rows (full idempotency).
+  - (c) Re-running on updated backup imports only new sales and updates existing customer's phone without creating duplicates.
+  - (d) Phone collision edge case logs to `migration-conflicts.json` and skips without batch abortion.
+  - (e) Customer merge re-points sales and ledger entries and deletes duplicate.
+  - (f) CLI commands execution passes.
