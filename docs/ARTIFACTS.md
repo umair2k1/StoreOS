@@ -4490,3 +4490,17 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) `RepairPdfRenderer` renders successfully with full data (device, parts table, advance, balance, warranty, invoice reference).
   - (b) `RepairPdfRenderer` renders successfully when all optional fields are null (newly received job with no commercials yet).
   - (c) `SupplierReturnPdfRenderer` renders successfully with multiple lines including IMEI-bearing lines.
+
+## P-808
+### QuestPDF Daily Sales and Inventory Report Templates
+- Configuration (`StoreOS.Api.Program`):
+  - `builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.ReportPdfRenderer>();`
+- Renderer (`StoreOS.Infrastructure.Printing.ReportPdfRenderer`):
+  - `public byte[] RenderDailySales(DailySalesReportDto dto, string? shopName = null)`: Reuses existing `StoreOS.Application.Reporting.DailySales.DailySalesReportDto` directly without duplicate DTOs. Renders Header (shop branding, date), Sales & Commercial Summary, Inventory Valuation Snapshot, Payment Breakdown Table, Category Sales Table, and Itemized Sales Log (with IMEI annotations).
+  - `public byte[] RenderInventoryExport(InventoryExportDto dto, string? shopName = null)`: Reuses existing `StoreOS.Application.Reporting.InventoryExport.InventoryExportDto` directly. Renders Header, Physical Inventory Items Table (with IMEI summaries), and Repair & Service Catalog Table.
+- DTO Purity & Reuse:
+  - Follows strict DTO purity, accepting flat application DTOs and generating PDF bytes without database access.
+- Integration Tests (`StoreOS.IntegrationTests.Printing.ReportPdfRendererTests`):
+  - (a) `RenderDailySales` with full seeded data produces valid PDF starting with `%PDF` magic bytes.
+  - (b) `RenderInventoryExport` with physical and service items produces valid PDF.
+  - (c) Rendering with empty itemized logs / empty inventory lists succeeds gracefully without throwing.
