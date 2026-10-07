@@ -172,6 +172,21 @@ public class RepairJob
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public void UpdateIntakeDetails(
+        string? customerNotes,
+        string? problemDescription,
+        string? deviceCondition,
+        string? accessoriesReceived,
+        DateTimeOffset? expectedCompletion)
+    {
+        CustomerNotes = customerNotes;
+        ProblemDescription = problemDescription;
+        DeviceCondition = deviceCondition;
+        AccessoriesReceived = accessoriesReceived;
+        ExpectedCompletion = expectedCompletion;
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Cancel(string reason)
     {
         if (Status == RepairStatus.Delivered)

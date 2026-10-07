@@ -4045,3 +4045,50 @@ var sgst = Money.Round2(totalGst - cgst);
   - `RepairJobTests` (6 passed): intake status/received_at, commercials balance_due, cancel delivered throws, deliver non-ready throws, deliver ready succeeds, active status definition.
   - `RepairJobNumberConcurrencyTests` (1 passed): 20 concurrent intakes generate strictly sequential and distinct job numbers.
   - `RlsCoverageTests` (5 passed): validates `repair_jobs` table RLS enabled, forced, and covered.
+
+## P-703
+### Repair Job CRUD & Intake/Diagnosis/Commercials Endpoints
+- Authorization Decision:
+  - `repairs:manage` is used uniformly for all repair job mutations (creation, general updates, diagnosis updates, commercials updates).
+  - Read queries (`GetRepairJobs`, `GetRepairJobById`) require no special permission to support technician workflows.
+- Domain Extensions (`StoreOS.Domain.Repairs.RepairJob`):
+  - `UpdateIntakeDetails(customerNotes, problemDescription, deviceCondition, accessoriesReceived, expectedCompletion)`
+- DTOs (`StoreOS.Application.Repairs.Jobs`):
+  - `RepairJobDto(Guid Id, Guid TenantId, Guid BranchId, string JobNumber, Guid? CustomerId, string? CustomerName, string? CustomerPhone, string? CustomerAddress, string? DeviceBrand, string? DeviceModel, string? DeviceType, string? SerialNumber, string? Imei1, string? Imei2, string? DeviceCondition, string? AccessoriesReceived, string? ProblemDescription, string? CustomerNotes, string? Diagnosis, string? TechnicianNotes, string? InternalNotes, string? Technician, decimal? EstimatedCost, decimal? ApprovedCost, decimal? PartsCost, decimal? LaborCharge, decimal? Discount, decimal? Tax, decimal? FinalTotal, decimal? AdvancePaid, decimal? BalanceDue, string Status, DateTimeOffset? ReceivedAt, DateTimeOffset? ExpectedCompletion, DateTimeOffset? CompletedAt, DateTimeOffset? DeliveredAt, DateOnly? WarrantyUntil, string? ApprovalState, DateTimeOffset? ApprovalTimestamp, string? CancellationReason, string? InvoiceNumber, Guid? SaleId, DateTimeOffset CreatedAt, DateTimeOffset UpdatedAt)`
+- Application Vertical Slices (`StoreOS.Application.Repairs.Jobs`):
+  - `CreateRepairJob`:
+    - Command: `CreateRepairJobCommand(...) : IRequest<Guid>, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `CreateRepairJobValidator`
+    - Handler: `CreateRepairJobHandler` (allocates sequence via `InvoiceSequenceAllocator` and formats via `RepairJobNumberFormatter`)
+  - `GetRepairJobs`:
+    - Query: `GetRepairJobsQuery(string? Status = null, string? Search = null, int Page = 1, int PageSize = 50) : IRequest<PagedResult<RepairJobDto>>, IReadOnlyRequest`
+    - Handler: `GetRepairJobsHandler` (supports "Active" filter, individual status filters, search by model/serial/imei1/phone/customer/job_number)
+  - `GetRepairJobById`:
+    - Query: `GetRepairJobByIdQuery(Guid Id) : IRequest<RepairJobDto>, IReadOnlyRequest`
+    - Handler: `GetRepairJobByIdHandler`
+  - `UpdateRepairJob`:
+    - Command: `UpdateRepairJobCommand(Guid Id, string? CustomerNotes, string? ProblemDescription, string? DeviceCondition, string? AccessoriesReceived, DateTimeOffset? ExpectedCompletion) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `UpdateRepairJobHandler`
+  - `UpdateRepairJobDiagnosis`:
+    - Command: `UpdateRepairJobDiagnosisCommand(Guid Id, string? Diagnosis, string? TechnicianNotes, string? InternalNotes, string? Technician) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `UpdateRepairJobDiagnosisHandler`
+  - `UpdateRepairJobCommercials`:
+    - Command: `UpdateRepairJobCommercialsCommand(Guid Id, decimal? EstimatedCost, decimal? ApprovedCost, decimal? PartsCost, decimal? LaborCharge, decimal? Discount, decimal? Tax, decimal? FinalTotal, decimal? AdvancePaid) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `UpdateRepairJobCommercialsHandler` (calls `job.SetCommercials(...)` which auto-recalculates `BalanceDue`)
+- Controller & Routes (`StoreOS.Api.Controllers.RepairJobsController`):
+  - `GET /api/repair-jobs` -> `List(GetRepairJobsQuery)`
+  - `GET /api/repair-jobs/{id}` -> `GetById(Guid id)`
+  - `POST /api/repair-jobs` -> `Create(CreateRepairJobCommand)`
+  - `PATCH /api/repair-jobs/{id}` -> `Update(Guid id, UpdateRepairJobBody)`
+  - `PATCH /api/repair-jobs/{id}/diagnosis` -> `UpdateDiagnosis(Guid id, UpdateRepairJobDiagnosisBody)`
+  - `PATCH /api/repair-jobs/{id}/commercials` -> `UpdateCommercials(Guid id, UpdateRepairJobCommercialsBody)`
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.RepairJobsCrudTests`):
+  - (a) Job creation allocates unique, formatted job number (`REP-B1-YYYYMMDD-XXXX`) and sets `Status=Received`.
+  - (b) Search by device model, IMEI1, and customer phone works.
+  - (c) Status filter `Active` returns only jobs not in `Delivered` or `Cancelled`.
+  - (d) Updating diagnosis and commercials persists correctly and recomputes `BalanceDue`.
+  - (e) Caller without `repairs:manage` receives 403 Forbidden on mutations, but can read via list and detail queries.
