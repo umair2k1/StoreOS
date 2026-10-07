@@ -4453,3 +4453,23 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Sales outside the `[From, To]` date range are excluded.
   - (e) Each group's subtotals exactly match the sum of its own invoice rows.
   - (f) CSV format export verified for UTF-8 BOM, headers, invoice rows, and TOTAL rows.
+
+## P-806
+### QuestPDF Invoice/Estimate Template (DTO-only)
+- Configuration (`StoreOS.Api.Program`):
+  - `QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;`
+  - `builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.InvoicePdfRenderer>();`
+- Printing DTOs (`StoreOS.Infrastructure.Printing`):
+  - `InvoicePdfLineDto(string ItemName, string? Hsn, int Qty, decimal PricePerUnit, decimal Taxable, decimal Cgst, decimal Sgst, string? Imei, bool IsGift)`
+  - `InvoicePdfDto(string ShopName, string? ShopAddress, string? ShopPhone, string? ShopEmail, string? ShopGstin, string InvoiceNumber, string InvoiceType, DateTimeOffset SaleDate, string CustomerName, string? CustomerGstin, IReadOnlyList<InvoicePdfLineDto> Lines, decimal TotalTaxable, decimal TotalCgst, decimal TotalSgst, decimal Discount, decimal GrandTotal, decimal AmountPaid, decimal Balance, string? PaymentMode, string? FinanceProvider, string? FinancerName, string? Description, string? IrnDisplay, string? IrnQrDataUrl)`
+- Renderer (`StoreOS.Infrastructure.Printing.InvoicePdfRenderer`):
+  - `public byte[] Render(InvoicePdfDto dto)`
+  - Pure DTO-to-bytes rendering with zero database awareness.
+  - A4 format with structured Header, Line Items Table (with Gift and IMEI annotations), and Summary/Payment Footer.
+  - Reserved slots for `IrnDisplay` and `IrnQrDataUrl` (Phase 8 e-invoicing roadmap).
+- DTO Purity Rule:
+  - Every PDF renderer in StoreOS accepts only flat, print-ready DTOs and never touches raw domain entities, DbContexts, or external services within template generation.
+- Integration Tests (`StoreOS.IntegrationTests.Printing.InvoicePdfRendererTests`):
+  - (a) Rendering well-formed `InvoicePdfDto` produces valid PDF byte array starting with `%PDF` magic bytes.
+  - (b) Rendering succeeds when every optional field is null (minimal cash walk-in sale).
+  - (c) Rendering with Gift and IMEI line items produces valid PDF with appropriate size expansion.

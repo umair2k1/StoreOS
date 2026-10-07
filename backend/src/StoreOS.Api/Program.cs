@@ -10,6 +10,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 var builder = WebApplication.CreateBuilder(args);
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -81,6 +83,7 @@ builder.Services.AddScoped<StoreOS.Application.FinanceOps.ILiabilityBalanceServi
 builder.Services.AddScoped<StoreOS.Application.Repairs.IRepairBillingService, StoreOS.Infrastructure.Repairs.RepairBillingService>();
 builder.Services.AddScoped<StoreOS.Application.Platform.IFeatureManager, StoreOS.Infrastructure.Platform.TenantFeatureManager>();
 
+builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.InvoicePdfRenderer>();
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>
