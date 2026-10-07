@@ -60,6 +60,7 @@ public class ApprovalAndDeliveryTests : IAsyncLifetime
 
         var tenant = Tenant.Create("Approval Test Shop", subdomain: "appr-" + _tenantId.ToString("N")[..8]);
         typeof(Tenant).GetProperty(nameof(Tenant.Id))!.SetValue(tenant, _tenantId);
+        tenant.SetFeatures("{\"repairs\":true}");
         db.Tenants.Add(tenant);
 
         var branch = Branch.Create(_tenantId, BranchCode, "Main Branch");

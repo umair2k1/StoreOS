@@ -12,7 +12,7 @@ public record CreateRepairServiceCommand(
     string? SacCode,
     int? EstimatedDurationMinutes,
     int? WarrantyDays)
-    : IRequest<Guid>, IRequiresPermission
+    : IRequest<Guid>, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

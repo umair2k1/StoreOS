@@ -4263,3 +4263,54 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Caller without `repairs:manage` returns 403 Forbidden.
   - (e) Replaying identical `Idempotency-Key` returns cached result without double billing (headers contain `Idempotent-Replayed: true`).
   - (f) 10-iteration loop assertion confirms zero deadlock and zero FK-constraint failures under repeated execution.
+
+## P-708
+### Repair Feature Flag (IFeatureManager & RepairsFeatureGateBehavior)
+- Interfaces & Marker:
+  - `StoreOS.Application.Platform.IFeatureManager`:
+    - `Task<bool> IsRepairsEnabledAsync(CancellationToken ct);`
+    - `Task SetRepairsEnabledAsync(bool enabled, CancellationToken ct);`
+  - `StoreOS.Infrastructure.Platform.TenantFeatureManager`:
+    - Reads/writes `tenants.features` JSONB (`{"repairs": true|false}`).
+    - Registered scoped in `StoreOS.Api/Program.cs`.
+  - `StoreOS.Application.Abstractions.IRequiresRepairsFeature`:
+    - Marker interface gating repair commands and queries.
+- MediatR Pipeline Behavior:
+  - `StoreOS.Application.Behaviors.RepairsFeatureGateBehavior<TRequest, TResponse>`:
+    - Intercepts requests implementing `IRequiresRepairsFeature`.
+    - If `!await _featureManager.IsRepairsEnabledAsync(ct)`, throws `DomainValidationException("repairs_module_disabled", "The repairs module is not enabled for this tenant.")` (mapped to 422 Unprocessable Entity).
+    - Registered in MediatR pipeline after `TransactionBehavior`/`LiveDbPermissionBehavior`.
+- Retrofitted Repair Use-Cases (all implementing `IRequiresRepairsFeature`):
+  1. `CreateRepairServiceCommand`
+  2. `GetRepairServicesQuery`
+  3. `GetRepairServiceByIdQuery`
+  4. `UpdateRepairServiceCommand`
+  5. `DeactivateRepairServiceCommand`
+  6. `CreateRepairJobCommand`
+  7. `GetRepairJobsQuery`
+  8. `GetRepairJobByIdQuery`
+  9. `UpdateRepairJobDiagnosisCommand`
+  10. `UpdateRepairJobCommercialsCommand`
+  11. `UpdateRepairJobCommand`
+  12. `ChangeRepairStatusCommand`
+  13. `GetRepairStatusHistoryQuery`
+  14. `ReservePartCommand`
+  15. `ConsumePartCommand`
+  16. `ReturnPartCommand`
+  17. `GetRepairJobPartsQuery`
+  18. `RecordApprovalCommand`
+  19. `DeliverRepairJobCommand`
+  20. `BillRepairCommand`
+- Settings Endpoints & Slices (`StoreOS.Application.Settings.RepairFeature`):
+  - `GetRepairsEnabledQuery : IRequest<bool>, IReadOnlyRequest`
+  - `SetRepairsEnabledCommand(bool Enabled) : IRequest, IRequiresPermission` (`settings:manage`)
+  - Routes on `SettingsController`:
+    - `GET /api/settings/repairs-enabled` -> `GetRepairsEnabled`
+    - `PATCH /api/settings/repairs-enabled` -> `SetRepairsEnabled`
+- Multi-Tenancy & Query Filters:
+  - `QueryFilters.ApplyAll`: added `ApplyFilter<Tenant>(modelBuilder, scopeAccess, (t, s) => s.TenantId == Guid.Empty || t.Id == s.TenantId)` ensuring post-auth tenant reads are scoped to current tenant while unauthenticated resolution and fixtures (`NullAccessScope`) function seamlessly.
+  - `TenantResolver`: uses `IgnoreQueryFilters()` for pre-auth subdomain/id resolution.
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.RepairsFeatureFlagTests`):
+  - (a) Feature disabled by default: all 20 repair endpoints return 422 `repairs_module_disabled`.
+  - (b) Enabling feature via `PATCH /api/settings/repairs-enabled` immediately activates repair operations.
+  - (c) Disabling feature gates API operations without deleting or altering existing database rows (jobs, parts, history intact).

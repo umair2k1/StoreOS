@@ -13,7 +13,7 @@ public record UpdateRepairServiceCommand(
     string? SacCode = null,
     int? EstimatedDurationMinutes = null,
     int? WarrantyDays = null,
-    bool? IsActive = null) : IRequest, IRequiresPermission
+    bool? IsActive = null) : IRequest, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

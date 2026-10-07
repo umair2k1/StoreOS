@@ -20,7 +20,7 @@ public record CreateRepairJobCommand(
     string? CustomerNotes,
     decimal? EstimatedCost = null,
     decimal? AdvancePaid = null,
-    DateTimeOffset? ExpectedCompletion = null) : IRequest<Guid>, IRequiresPermission
+    DateTimeOffset? ExpectedCompletion = null) : IRequest<Guid>, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

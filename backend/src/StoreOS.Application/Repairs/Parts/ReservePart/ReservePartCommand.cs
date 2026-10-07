@@ -9,7 +9,7 @@ public record ReservePartCommand(
     string PartName,
     int Quantity,
     decimal UnitCost,
-    decimal ChargeAmount) : IRequest<Guid>, IRequiresPermission
+    decimal ChargeAmount) : IRequest<Guid>, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

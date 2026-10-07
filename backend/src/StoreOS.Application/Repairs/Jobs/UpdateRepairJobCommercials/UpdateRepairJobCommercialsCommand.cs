@@ -12,7 +12,7 @@ public record UpdateRepairJobCommercialsCommand(
     decimal? Discount,
     decimal? Tax,
     decimal? FinalTotal,
-    decimal? AdvancePaid) : IRequest, IRequiresPermission
+    decimal? AdvancePaid) : IRequest, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

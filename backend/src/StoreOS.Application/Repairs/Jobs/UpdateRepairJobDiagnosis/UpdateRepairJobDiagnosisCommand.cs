@@ -8,7 +8,7 @@ public record UpdateRepairJobDiagnosisCommand(
     string? Diagnosis,
     string? TechnicianNotes,
     string? InternalNotes,
-    string? Technician) : IRequest, IRequiresPermission
+    string? Technician) : IRequest, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

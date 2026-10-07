@@ -5,7 +5,7 @@ namespace StoreOS.Application.Repairs.Parts.ReturnPart;
 
 public record ReturnPartCommand(
     Guid RepairJobId,
-    Guid PartId) : IRequest, IRequiresPermission
+    Guid PartId) : IRequest, IRequiresPermission, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
 }

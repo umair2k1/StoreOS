@@ -7,4 +7,4 @@ public record GetRepairJobsQuery(
     string? Status = null,
     string? Search = null,
     int Page = 1,
-    int PageSize = 50) : IRequest<PagedResult<RepairJobDto>>, IReadOnlyRequest;
+    int PageSize = 50) : IRequest<PagedResult<RepairJobDto>>, IReadOnlyRequest, IRequiresRepairsFeature;

@@ -79,6 +79,7 @@ builder.Services.AddScoped<StoreOS.Application.Customers.ICustomerLedgerService,
 builder.Services.AddScoped<StoreOS.Application.Suppliers.ISupplierLedgerService, StoreOS.Infrastructure.Suppliers.SupplierLedgerService>();
 builder.Services.AddScoped<StoreOS.Application.FinanceOps.ILiabilityBalanceService, StoreOS.Infrastructure.FinanceOps.LiabilityBalanceService>();
 builder.Services.AddScoped<StoreOS.Application.Repairs.IRepairBillingService, StoreOS.Infrastructure.Repairs.RepairBillingService>();
+builder.Services.AddScoped<StoreOS.Application.Platform.IFeatureManager, StoreOS.Infrastructure.Platform.TenantFeatureManager>();
 
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();
@@ -92,6 +93,7 @@ builder.Services.AddMediatR(cfg =>
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.TokenVersionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.LiveDbPermissionBehavior<,>));
     cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.IdempotencyBehavior<,>));
+    cfg.AddOpenBehavior(typeof(StoreOS.Application.Behaviors.RepairsFeatureGateBehavior<,>));
 });
 builder.Services.AddScoped<StoreOS.Application.Behaviors.IdempotencyReplayFlag>();
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IIdempotencyStore, StoreOS.Infrastructure.Persistence.IdempotencyStore>();

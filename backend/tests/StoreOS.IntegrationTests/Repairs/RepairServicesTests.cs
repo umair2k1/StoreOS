@@ -65,6 +65,7 @@ public class RepairServicesTests : IAsyncLifetime
 
         var tenant = Tenant.Create("Repair Test Tenant", subdomain: "rep-" + _tenantId.ToString("N")[..8]);
         typeof(Tenant).GetProperty(nameof(Tenant.Id))!.SetValue(tenant, _tenantId);
+        tenant.SetFeatures("{\"repairs\":true}");
         db.Tenants.Add(tenant);
 
         var branch = Branch.Create(_tenantId, "RP1", "Repairs Branch");

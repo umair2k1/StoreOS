@@ -7,7 +7,7 @@ namespace StoreOS.Application.Repairs.BillRepair;
 public record BillRepairCommand(
     Guid RepairJobId,
     IReadOnlyList<CheckoutPayment>? Payments = null)
-    : IRequest<BillRepairResult>, IRequiresPermission, IIdempotentRequest
+    : IRequest<BillRepairResult>, IRequiresPermission, IIdempotentRequest, IRequiresRepairsFeature
 {
     public string RequiredPermission => "repairs:manage";
     public string? IdempotencyKey { get; init; }

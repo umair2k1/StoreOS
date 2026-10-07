@@ -39,6 +39,7 @@ public static class QueryFilters
     {
         var scopeAccess = scopeAccessor.Body;
 
+        ApplyFilter<Tenant>(modelBuilder, scopeAccess, (t, s) => s.TenantId == Guid.Empty || t.Id == s.TenantId);
         ApplyFilter<Branch>(modelBuilder, scopeAccess, (b, s) => b.TenantId == s.TenantId);
         ApplyFilter<Setting>(modelBuilder, scopeAccess, (s, scope) => s.TenantId == scope.TenantId);
         ApplyFilter<AuditLogEntry>(modelBuilder, scopeAccess, (a, s) => a.TenantId == s.TenantId && (a.BranchId == null || s.AllBranches || s.BranchIds.Contains(a.BranchId.Value)));

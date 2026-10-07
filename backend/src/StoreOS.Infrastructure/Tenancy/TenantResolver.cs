@@ -48,6 +48,7 @@ public class TenantResolver : ITenantResolver
             return null;
 
         return await _dbContext.Tenants
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(t => t.Subdomain == matchedSubdomain)
             .Select(t => new TenantPublicProfile(t.Id, t.Name, t.Subdomain, t.IsActive))
@@ -57,6 +58,7 @@ public class TenantResolver : ITenantResolver
     public async Task<TenantPublicProfile?> ResolveByIdAsync(Guid tenantId, CancellationToken ct = default)
     {
         return await _dbContext.Tenants
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(t => t.Id == tenantId)
             .Select(t => new TenantPublicProfile(t.Id, t.Name, t.Subdomain, t.IsActive))
