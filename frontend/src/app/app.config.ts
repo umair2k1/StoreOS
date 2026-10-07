@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 import { withInterceptors } from '@angular/common/http';
 import { provideServiceWorker } from '@angular/service-worker';
 import { provideApiConfig } from './core/api/api-config';
+import { branchContextInterceptor } from './core/interceptors/branch-context.interceptor';
 import { authInterceptor } from './core/interceptors/auth.interceptor';
 import { idempotencyInterceptor } from './core/interceptors/idempotency.interceptor';
 import { correlationIdInterceptor } from './core/interceptors/correlation-id.interceptor';
@@ -13,7 +14,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes),
-    provideApiConfig(withInterceptors([idempotencyInterceptor, authInterceptor, correlationIdInterceptor])),
+    provideApiConfig(withInterceptors([branchContextInterceptor, idempotencyInterceptor, authInterceptor, correlationIdInterceptor])),
     provideAppInitializer(() => silentRefreshInitializer()()),
     provideServiceWorker('ngsw-worker.js', {
       enabled: !isDevMode(),

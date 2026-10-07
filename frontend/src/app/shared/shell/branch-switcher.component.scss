@@ -1,0 +1,20 @@
+.branch-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: 1rem;
+}
+
+.branch-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--muted, #64748b);
+}
+
+.branch-select {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid var(--border, #cbd5e1);
+  background: var(--surface, #ffffff);
+  font-size: 0.875rem;
+}

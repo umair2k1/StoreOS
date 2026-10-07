@@ -4784,3 +4784,32 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/core/guards/auth.guard.spec.ts`: Validates activation when authenticated and redirection to `/login` when unauthenticated.
   - `frontend/src/app/core/directives/permission.directive.spec.ts`: Validates rendering when permission exists, hiding when permission absent, and dynamic reactivity to signal permission changes in the active session.
+
+## P-1006
+### App Shell: Top Nav, Branch Switcher, Dynamic Title & Branding Service
+- Branding Signal Store (`frontend/src/app/core/branding/branding-signal-store.ts`):
+  - `interface BrandingState`: `{ tenantName: string; activeBranchName: string | null; logoUrl: string | null; themeColor: string; }`
+  - `BrandingSignalStore`:
+    - In-memory signal store holding tenant branding, active branch name, logo URL, and theme color.
+    - Default tenant name is `'StoreOS'` ONLY as an internal pre-login / pre-onboarding fallback; must NEVER be displayed once tenant credentials or onboarding data are active (Requirements Section 3.5 white-labeling invariant).
+    - Computed signals: `tenantName`, `activeBranchName`, `logoUrl`, `themeColor`.
+    - Mutation method: `setBranding(data: Partial<BrandingState>): void`.
+- Branch Context Service (`frontend/src/app/core/branch/branch-context.service.ts`):
+  - `interface BranchInfo`: `{ id: string; name: string; }`
+  - `BranchContextService`:
+    - Signal-backed service holding `currentBranchId` and `branches`.
+    - `setCurrentBranchId(branchId: string | null, branchName?: string | null): void`: updates active branch and synchronizes `BrandingSignalStore.activeBranchName`.
+- Branch Context Interceptor (`frontend/src/app/core/interceptors/branch-context.interceptor.ts`):
+  - `branchContextInterceptor: HttpInterceptorFn`:
+    - Reads `BranchContextService.currentBranchId()`.
+    - Attaches `X-Branch-Id: <id>` to outgoing HTTP requests when a branch is selected.
+    - Registered in `app.config.ts` preceding other functional interceptors.
+- Shell Components (`frontend/src/app/shared/shell/`):
+  - `ShellComponent`: Root layout component featuring header, brand name, active branch badge, `<app-branch-switcher />`, navigation links (`/pos`, `/sales`, `/inventory`, `/customers`, `/reports`), and `<router-outlet />`.
+    - `effect()` reacts to `branding.tenantName()` and `branding.activeBranchName()` to dynamically update `Title.setTitle(...)` (`<branch> | <tenant>` or `<tenant>`).
+  - `BranchSwitcherComponent`: Standalone dropdown component shown strictly when the user has access to multiple branches (`authStore.allBranches() || authStore.branchIds().length > 1 || branchContext.branches().length > 1`). Dispatches branch selection changes to `BranchContextService`.
+- Routing Layout Wiring (`frontend/src/app/app.routes.ts`):
+  - Configured `ShellComponent` as root layout guarded by `authGuard`, declaring feature routes and default redirect to `pos`.
+- Unit Tests:
+  - `frontend/src/app/shared/shell/shell.component.spec.ts`: Validates document title reactive synchronization with store changes.
+  - `frontend/src/app/shared/shell/branch-switcher.component.spec.ts`: Validates conditional visibility (hidden for single-branch, visible for multi-branch) and branch selection updating `BranchContextService`.
