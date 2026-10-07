@@ -4746,3 +4746,26 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Successful silent refresh populates `AuthSignalStore` with tokens, user metadata, and `isAuthenticated() === true`.
   - (b) 401 response resolves cleanly without throwing, leaving `isAuthenticated() === false`.
   - (c) Router harness test: verifies initial navigation and route component activation are held up until the asynchronous refresh promise settles.
+
+## P-1004
+### Correlation-Id + Idempotency-Key Interceptors
+- Correlation-ID Interceptor (`frontend/src/app/core/interceptors/correlation-id.interceptor.ts`):
+  - `correlationIdInterceptor: HttpInterceptorFn`:
+    - Inlines UUID generation via `crypto.randomUUID()`.
+    - Attaches `X-Correlation-ID: <uuid>` to every outgoing request.
+    - On HTTP error response, annotates error with `correlationId` (`CorrelatedError`) for downstream toast / support tracking without disabling types.
+- Idempotency Interceptor (`frontend/src/app/core/interceptors/idempotency.interceptor.ts`):
+  - `idempotencyInterceptor: HttpInterceptorFn`:
+    - Strictly scoped to mutating POST requests matching `IDEMPOTENT_MUTATION_PATTERNS`:
+      - `/\/pos\/checkout$/`
+      - `/\/pos\/estimate\/[^/]+\/convert$/`
+      - `/\/sales\/[^/]+\/payments$/`
+      - `/\/repair-jobs\/[^/]+\/bill$/`
+      - `/\/tenant\/import$/`
+    - Attaches `Idempotency-Key: <uuid>` header on matching POST calls; passes non-POST and non-matching endpoints untouched.
+- Interceptor Chain Registration & Ordering (`frontend/src/app/app.config.ts`):
+  - Registered order: `[idempotencyInterceptor, authInterceptor, correlationIdInterceptor]`.
+  - Rationale: `idempotencyInterceptor` preserves the same idempotency key across retry attempts, while `correlationIdInterceptor` (placed downstream of `authInterceptor`) produces a fresh correlation ID for every actual network transmission including retries.
+- Unit Tests:
+  - `frontend/src/app/core/interceptors/correlation-id.interceptor.spec.ts`: Validates UUID format on headers and error object annotation.
+  - `frontend/src/app/core/interceptors/idempotency.interceptor.spec.ts`: Validates header presence on all 5 allowlisted POST endpoints, absence on unlisted POSTs, and absence on GET requests.
