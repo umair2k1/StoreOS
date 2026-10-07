@@ -94,6 +94,21 @@ def load_prompt_meta(prompt_path: Path) -> Dict[str, str]:
     return {"phase": "unknown", "reasoning": "unknown"}
 
 
+def extract_verification_test(prompt_path: Optional[Path]) -> Optional[str]:
+    """Extract any 'dotnet test' command from prompt's ## 7. VERIFICATION section."""
+    if not prompt_path or not prompt_path.exists():
+        return None
+    text = prompt_path.read_text(encoding="utf-8")
+    m = re.search(r"## 7\. VERIFICATION\s+```(?:bash|sh)?\s*(.*?)```", text, re.S)
+    if not m:
+        return None
+    block = m.group(1)
+    for line in block.splitlines():
+        line = line.strip()
+        if line.startswith("dotnet test"):
+            return line
+    return None
+
 def parse_build_log() -> Tuple[List[str], Optional[str]]:
     """Parse docs/BUILD_LOG.md.
 
@@ -413,7 +428,7 @@ def check_forbidden_patterns() -> List[str]:
     return violations
 
 
-def cmd_verify(prompt_id: Optional[str] = None) -> int:
+def cmd_verify(prompt_id: Optional[str] = None, run_integration: bool = False) -> int:
     """Run comprehensive verification for a completed prompt."""
     st = get_state()
     pid = prompt_id.upper().strip() if prompt_id else None
@@ -526,6 +541,35 @@ def cmd_verify(prompt_id: Optional[str] = None) -> int:
             except Exception as e:
                 print("FAIL")
                 errors.append(f"Domain unit test execution error: {e}")
+
+            # 7. Optional Prompt-Specific Integration Test from ## 7. VERIFICATION
+            matching = [p for p in st["index"] if p["id"] == pid]
+            prompt_path = matching[0]["path"] if matching else None
+            test_cmd = extract_verification_test(prompt_path)
+            if run_integration and test_cmd:
+                print(f"  7. Running prompt integration test ('{test_cmd}')...", end=" ", flush=True)
+                cmd_parts = test_cmd.split()
+                if "--no-restore" not in cmd_parts:
+                    cmd_parts.append("--no-restore")
+                if "--nologo" not in cmd_parts:
+                    cmd_parts.append("--nologo")
+                if "-v" not in cmd_parts:
+                    cmd_parts.extend(["-v", "q"])
+                try:
+                    i_res = subprocess.run(
+                        cmd_parts,
+                        cwd=ROOT,
+                        capture_output=True,
+                        text=True,
+                    )
+                    if i_res.returncode == 0:
+                        print("PASS")
+                    else:
+                        print("FAIL")
+                        errors.append(f"Prompt integration test failed:\n{i_res.stdout}\n{i_res.stderr}")
+                except Exception as e:
+                    print("FAIL")
+                    errors.append(f"Integration test execution error: {e}")
     # Summary
     if errors:
         print(f"\n[VERIFY FAILED] Found {len(errors)} failure(s):")
@@ -538,7 +582,7 @@ def cmd_verify(prompt_id: Optional[str] = None) -> int:
     return 0
 
 
-def cmd_commit(prompt_id: Optional[str] = None) -> int:
+def cmd_commit(prompt_id: Optional[str] = None, run_integration: bool = False) -> int:
     """Strict Commit: verify first, then create standard git commit."""
     st = get_state()
     pid = prompt_id.upper().strip() if prompt_id else None
@@ -557,7 +601,7 @@ def cmd_commit(prompt_id: Optional[str] = None) -> int:
     title = matching[0]["title"] if matching else "update"
 
     # Run verification first
-    v_ret = cmd_verify(pid)
+    v_ret = cmd_verify(pid, run_integration=run_integration)
     if v_ret != 0:
         sys.stderr.write(
             f"\n[COMMIT REJECTED] Verification failed. You cannot commit until verification passes.\n\n"
@@ -705,10 +749,16 @@ Commands:
     ver_p = sub.add_parser("verify", help="Verify prompt deliverables")
     ver_p.add_argument("prompt_id", nargs="?", help="Prompt ID being verified")
 
+    ver_p.add_argument(
+        "-i", "--integration", action="store_true", help="Run integration test from prompt's ## 7. VERIFICATION"
+    )
     # commit
     com_p = sub.add_parser("commit", help="Verify and commit prompt")
     com_p.add_argument("prompt_id", nargs="?", help="Prompt ID being committed")
 
+    com_p.add_argument(
+        "-i", "--integration", action="store_true", help="Run integration test before committing"
+    )
     # block
     blk_p = sub.add_parser("block", help="Record BLOCKED status in build log")
     blk_p.add_argument("prompt_id", help="Prompt ID that is blocked")
@@ -729,9 +779,9 @@ Commands:
     elif args.command == "gate":
         return cmd_gate(args.prompt_id)
     elif args.command == "verify":
-        return cmd_verify(args.prompt_id)
+        return cmd_verify(args.prompt_id, run_integration=args.integration)
     elif args.command == "commit":
-        return cmd_commit(args.prompt_id)
+        return cmd_commit(args.prompt_id, run_integration=args.integration)
     elif args.command == "block":
         return cmd_block(args.prompt_id, args.reason)
     elif args.command == "unblock":

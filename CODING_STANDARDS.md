@@ -92,3 +92,23 @@ In `Program.cs`, register open behaviors in the verified sequence:
 ## 5. Anti-Enumeration & Security Responses
 - Credential failures (wrong password, unknown email, inactive user) must return identical generic 401 responses with code `"invalid_credentials"` and title `"Invalid email or password."`.
 - Passwords and temporary credentials must never be logged, included in audit entries, or returned in response bodies.
+
+---
+
+## 6. Document & PDF Generation (QuestPDF)
+
+### 6.1 DTO Purity Invariant
+- PDF renderers (`InvoicePdfRenderer`, `RepairPdfRenderer`, `SupplierReturnPdfRenderer`, `ReportPdfRenderer`, etc.) must accept only flat, print-ready DTOs.
+- Renderers must NEVER accept or internally query `DbContext`, domain entities, or external storage services.
+- Entity-to-DTO mapping logic must live strictly in the calling controller or dedicated application query handler, never within renderer classes.
+- Templates must be purely deterministic DTO-to-bytes functions, enabling fast in-memory unit testing without database scaffolding.
+
+### 6.2 Shop Profile & Branding Fallback Invariant
+- Tenant-facing printable documents resolve shop branding via the branch-level `"shop_profile"` setting JSON (`ShopBrandingHelper`).
+- Missing, empty, or unparseable `"shop_profile"` settings must NEVER fail document generation:
+  - Always fall back gracefully to `Branch` master-data fields (`Name`, `Address`, `Phone`, `Email`, `Gstin`).
+  - If branch fields are also missing, default the shop name to `"StoreOS"` rather than throwing.
+
+### 6.3 Post-Commit Generation Invariant
+- Document/PDF generation is strictly read-only and occurs after business transactions are committed.
+- Printing failures must never roll back completed sales, repairs, or inventory operations.

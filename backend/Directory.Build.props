@@ -5,6 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>13.0</LangVersion>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <NoWarn>CS1591</NoWarn>
+    <NoWarn>$(NoWarn);CS1591;NU1901;NU1902;NU1903;NU1904</NoWarn>
   </PropertyGroup>
 </Project>
