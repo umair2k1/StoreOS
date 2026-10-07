@@ -4225,3 +4225,41 @@ var sgst = Money.Round2(totalGst - cgst);
   - (c) Delivering a job linked to a repair-service product (`WarrantyDays=45`) -> `WarrantyUntil` is exactly 45 days.
   - (d) Delivering with no override and no single linked service -> falls back to 30 days tenant default.
   - (e) `DeliveredAt` is set accurately with no conflicting double-write between `TransitionTo` and `Deliver`.
+
+## P-707
+### Repair Billing: Two-Step FK Resolution Linking Repair Job to Sale
+- Interfaces & Services:
+  - `StoreOS.Application.Repairs.IRepairBillingService`:
+    `Task LinkSaleAsync(Guid repairJobId, Guid saleId, string invoiceNumber, CancellationToken ct);`
+  - `StoreOS.Infrastructure.Repairs.RepairBillingService`:
+    Implementation calling `job.LinkToSale(saleId, invoiceNumber)`.
+    Registered scoped in `StoreOS.Api/Program.cs`.
+- Two-Step FK Resolution Order:
+  - Step 1: Create and insert `Sale` first via `Sale.CreateTaxInvoice(...)` with `RepairJobId = repairJobId` populated directly at construction time.
+  - Step 2: Update `RepairJob` in the same transaction via `IRepairBillingService.LinkSaleAsync(...)` setting `SaleId = sale.Id` and `InvoiceNumber = invoiceNumber`.
+  - All changes committed atomically in a single `SaveChangesAsync()` call. Avoids mutual FK insertion deadlocks and circular dependency.
+- Application Vertical Slice (`StoreOS.Application.Repairs.BillRepair`):
+  - `BillRepairCommand(Guid RepairJobId, IReadOnlyList<CheckoutPayment>? Payments = null) : IRequest<BillRepairResult>, IRequiresPermission, IIdempotentRequest`
+    - Permission: `repairs:manage`
+    - IdempotencyScope: `repairs.bill:{RepairJobId}`
+    - IdempotencyRequired: `true`
+  - `BillRepairResult(Guid SaleId, string InvoiceNumber, decimal GrandTotal, decimal AmountPaid, decimal Balance)`
+  - `BillRepairValidator`:
+    - Validates `RepairJobId` is non-empty.
+    - Validates payment amounts non-negative and mode non-empty.
+  - `BillRepairHandler`:
+    - Guards: `job.FinalTotal != null` (throws `repair_commercials_not_set` 422 if null); `job.SaleId == null` (throws `repair_job_already_billed` 422 if already billed).
+    - Constructs `SaleItem` with `PricePerUnit = job.FinalTotal`.
+    - Allocates invoice number via `IInvoiceSequenceAllocator` (`FYxx` consecutive series).
+    - Composes payments via `PaymentComposer` and posts debit/credit to customer ledger via `ICustomerLedgerService`.
+    - Links repair job and records audit log.
+- Controller & Routes (`StoreOS.Api.Controllers.RepairJobsController`):
+  - `POST /api/repair-jobs/{id}/bill` -> `BillRepair(Guid id, BillRepairBody? body, string? idempotencyKey, IdempotencyReplayFlag replayFlag)`
+  - Requires header `Idempotency-Key` (400 `idempotency_key_required` if absent).
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.BillRepairTests`):
+  - (a) Billing repair job with commercials set creates `Sale` with `RepairJobId` and sets `RepairJob.SaleId`/`InvoiceNumber` (bidirectional link verified both directions).
+  - (b) Billing job with no commercials set returns 422 `repair_commercials_not_set`.
+  - (c) Created sale's `GrandTotal` matches `job.FinalTotal`.
+  - (d) Caller without `repairs:manage` returns 403 Forbidden.
+  - (e) Replaying identical `Idempotency-Key` returns cached result without double billing (headers contain `Idempotent-Replayed: true`).
+  - (f) 10-iteration loop assertion confirms zero deadlock and zero FK-constraint failures under repeated execution.

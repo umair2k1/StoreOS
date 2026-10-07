@@ -16,6 +16,9 @@ using StoreOS.Application.Repairs.Parts.ReservePart;
 using StoreOS.Application.Repairs.Parts.ReturnPart;
 using StoreOS.Application.Repairs.Approval;
 using StoreOS.Application.Repairs.Deliver;
+using StoreOS.Application.Repairs.BillRepair;
+using StoreOS.Application.Sales.Checkout;
+using StoreOS.Application.Behaviors;
 
 namespace StoreOS.Api.Controllers;
 
@@ -142,6 +145,38 @@ public class RepairJobsController : ControllerBase
         await _mediator.Send(new DeliverRepairJobCommand(id, body?.WarrantyDaysOverride), ct);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/bill")]
+    public async Task<IActionResult> BillRepair(
+        Guid id,
+        [FromBody] BillRepairBody? body,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        [FromServices] IdempotencyReplayFlag replayFlag,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return BadRequest(new
+            {
+                code = "idempotency_key_required",
+                message = "POST /api/repair-jobs/{id}/bill requires an Idempotency-Key header."
+            });
+        }
+
+        var command = new BillRepairCommand(id, body?.Payments)
+        {
+            IdempotencyKey = idempotencyKey
+        };
+
+        var result = await _mediator.Send(command, ct);
+
+        if (replayFlag.Replayed)
+        {
+            Response.Headers["Idempotent-Replayed"] = "true";
+        }
+
+        return Ok(result);
+    }
 }
 
 public record UpdateRepairJobBody(
@@ -178,3 +213,4 @@ public record ReserveRepairPartBody(
 
 public record RecordApprovalBody(string ApprovalState);
 public record DeliverRepairJobBody(int? WarrantyDaysOverride = null);
+public record BillRepairBody(IReadOnlyList<CheckoutPayment>? Payments = null);
