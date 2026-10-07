@@ -4769,3 +4769,18 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/core/interceptors/correlation-id.interceptor.spec.ts`: Validates UUID format on headers and error object annotation.
   - `frontend/src/app/core/interceptors/idempotency.interceptor.spec.ts`: Validates header presence on all 5 allowlisted POST endpoints, absence on unlisted POSTs, and absence on GET requests.
+
+## P-1005
+### Route Guards (Auth Guard, Permission Directive *pzCan)
+- Functional Auth Guard (`frontend/src/app/core/guards/auth.guard.ts`):
+  - `authGuard: CanActivateFn`:
+    - Checks `authStore.isAuthenticated()`.
+    - Returns `true` if authenticated; returns `router.createUrlTree(['/login'])` to redirect unauthenticated navigations.
+- Structural Permission Directive (`frontend/src/app/core/directives/permission.directive.ts`):
+  - Selector: `[pzCan]`, `standalone: true`.
+  - Input: `@Input() set pzCan(permissionCode: string)`.
+  - Reactive Behavior: Uses Angular `effect()` tracking `AuthSignalStore.hasPermission(...)` and input code changes, creating or clearing embedded view reactively without requiring page reload.
+  - CRITICAL ARCHITECTURAL BOUNDARY: Explicitly designated and documented as UX-only convenience to conditionally show/hide affordances. NEVER a security boundary; server-side pipeline behaviors and live DB checks remain the authoritative enforcers.
+- Unit Tests:
+  - `frontend/src/app/core/guards/auth.guard.spec.ts`: Validates activation when authenticated and redirection to `/login` when unauthenticated.
+  - `frontend/src/app/core/directives/permission.directive.spec.ts`: Validates rendering when permission exists, hiding when permission absent, and dynamic reactivity to signal permission changes in the active session.
