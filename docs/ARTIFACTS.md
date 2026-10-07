@@ -4314,3 +4314,31 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Feature disabled by default: all 20 repair endpoints return 422 `repairs_module_disabled`.
   - (b) Enabling feature via `PATCH /api/settings/repairs-enabled` immediately activates repair operations.
   - (c) Disabling feature gates API operations without deleting or altering existing database rows (jobs, parts, history intact).
+
+## P-801
+### Dashboard Aggregate Query (ReportingDbContext)
+- Query and DTOs (`StoreOS.Application.Reporting.Dashboard`):
+  - `GetDashboardQuery(Guid[]? BranchIds = null) : IRequest<DashboardDto>, IReportingRequest`
+  - `DashboardDto(decimal TodayRevenue, int TodayInvoiceCount, decimal MonthlyProfit, int ActiveRepairsCount, int ReadyForPickupCount, IReadOnlyList<LowStockItemDto> LowStockItems, IReadOnlyList<TopSellingItemDto> TopSellingItems, IReadOnlyList<DailyRevenuePointDto> SevenDayRevenue)`
+  - `LowStockItemDto(Guid ProductId, string Name, int StockQty, int Threshold)`
+  - `TopSellingItemDto(string ItemName, int TotalQtySold)`
+  - `DailyRevenuePointDto(DateOnly Date, decimal Revenue)`
+- Handler (`StoreOS.Application.Reporting.Dashboard.GetDashboardHandler`):
+  - Implements `IRequestHandler<GetDashboardQuery, DashboardDto>` using `IReportingDbContext`, `IAccessScope`, and `IFeatureManager`.
+  - Timezone validation: resolves tenant timezone via `IAccessScope.TenantId`, supporting `Asia/Kolkata` (`India Standard Time` fallback on Windows) and throwing `unsupported_timezone` for any other configured timezone.
+  - Today's Revenue & Invoice Count: calculates `SUM(grand_total)` and `COUNT(*)` strictly for `invoice_type = 'TaxInvoice'` and `status = 'Active'` within today's business date range in Asia/Kolkata, explicitly excluding `Voided`, `Refunded`, and `Estimate` invoices.
+  - Monthly Profit: `Revenue - COGS - OperationalExpenses` for the current calendar month. Revenue sums `taxable + cgst + sgst` across Active TaxInvoices excluding gift lines (`!is_gift`). COGS sums `qty * purchase_price_snapshot` for the same lines (strictly using immutable historical snapshot `purchase_price_snapshot`, never current `products.purchase_price`). Operational expenses sum `expenses.amount` for the current month matched to `BranchIds`.
+  - Active Repairs & Ready for Pickup: gated by `IFeatureManager.IsRepairsEnabledAsync(ct)`. Returns 0 for both if repairs module is disabled for the tenant. When enabled, counts active jobs (`status != Delivered && status != Cancelled`) and ready for pickup jobs (`status == ReadyForPickup`).
+  - Low-Stock Alerts: queries `stock_qty > 0 AND stock_qty <= low_stock_threshold`, defensively excluding `RepairService` category.
+  - Top-Selling Items: aggregates top 5 items by `SUM(qty)` for current calendar month where `is_gift = false` across Active TaxInvoices.
+  - Seven-Day Revenue Chart: 7 daily revenue points ending on today in business dates, with zero revenue explicitly populated for days without sales.
+- API Route (`StoreOS.Api.Controllers.ReportsController`):
+  - `GET /api/reports/dashboard?branchIds=` -> `GetDashboard(Guid[]? branchIds, CancellationToken ct)`
+- Integration Tests (`StoreOS.IntegrationTests.Reporting.DashboardTests`):
+  - All 6 tests verified against PostgreSQL testcontainer:
+    - (a) Today's revenue and invoice count explicitly exclude Voided, Refunded, and Estimate sales.
+    - (b) Monthly profit uses `purchase_price_snapshot`, proven by modifying product `purchase_price` after sale with zero change to reported monthly profit.
+    - (c) Low-stock list matches exact boundary (`stock_qty > 0 AND stock_qty <= low_stock_threshold`).
+    - (d) Top-5 sellers excludes gift line quantities.
+    - (e) Seven-day revenue chart includes zero-revenue days explicitly.
+    - (f) Active repairs and ready for pickup return 0 when repairs feature is disabled, and accurately return counts when enabled.
