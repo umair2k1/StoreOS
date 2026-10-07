@@ -1,0 +1,11 @@
+using MediatR;
+using StoreOS.Application.Abstractions;
+
+namespace StoreOS.Application.Repairs.Parts.ReturnPart;
+
+public record ReturnPartCommand(
+    Guid RepairJobId,
+    Guid PartId) : IRequest, IRequiresPermission
+{
+    public string RequiredPermission => "repairs:manage";
+}

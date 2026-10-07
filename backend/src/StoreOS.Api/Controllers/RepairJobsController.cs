@@ -9,6 +9,11 @@ using StoreOS.Application.Repairs.Jobs.UpdateRepairJobCommercials;
 using StoreOS.Application.Repairs.Jobs.UpdateRepairJobDiagnosis;
 using StoreOS.Application.Repairs.Jobs.ChangeStatus;
 using StoreOS.Application.Repairs.Jobs.GetStatusHistory;
+using StoreOS.Application.Repairs.Parts;
+using StoreOS.Application.Repairs.Parts.ConsumePart;
+using StoreOS.Application.Repairs.Parts.GetRepairJobParts;
+using StoreOS.Application.Repairs.Parts.ReservePart;
+using StoreOS.Application.Repairs.Parts.ReturnPart;
 
 namespace StoreOS.Api.Controllers;
 
@@ -89,6 +94,38 @@ public class RepairJobsController : ControllerBase
     [HttpGet("{id:guid}/status-history")]
     public async Task<IActionResult> GetStatusHistory(Guid id, CancellationToken ct) =>
         Ok(await _mediator.Send(new GetRepairStatusHistoryQuery(id), ct));
+
+    [HttpGet("{id:guid}/parts")]
+    public async Task<IActionResult> GetParts(Guid id, CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetRepairJobPartsQuery(id), ct));
+
+    [HttpPost("{id:guid}/parts")]
+    public async Task<IActionResult> ReservePart(Guid id, [FromBody] ReserveRepairPartBody body, CancellationToken ct)
+    {
+        var partId = await _mediator.Send(new ReservePartCommand(
+            id,
+            body.ProductId,
+            body.PartName,
+            body.Quantity,
+            body.UnitCost,
+            body.ChargeAmount), ct);
+
+        return Ok(new { id = partId });
+    }
+
+    [HttpPost("{id:guid}/parts/{partId:guid}/consume")]
+    public async Task<IActionResult> ConsumePart(Guid id, Guid partId, CancellationToken ct)
+    {
+        await _mediator.Send(new ConsumePartCommand(id, partId), ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/parts/{partId:guid}/return")]
+    public async Task<IActionResult> ReturnPart(Guid id, Guid partId, CancellationToken ct)
+    {
+        await _mediator.Send(new ReturnPartCommand(id, partId), ct);
+        return NoContent();
+    }
 }
 
 public record UpdateRepairJobBody(
@@ -115,3 +152,10 @@ public record UpdateRepairJobCommercialsBody(
     decimal? AdvancePaid = null);
 
 public record ChangeRepairStatusBody(string Status, string? Notes = null);
+
+public record ReserveRepairPartBody(
+    Guid? ProductId,
+    string PartName,
+    int Quantity,
+    decimal UnitCost,
+    decimal ChargeAmount);

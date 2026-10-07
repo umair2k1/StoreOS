@@ -52,6 +52,7 @@ public class StoreOsDbContext : DbContext, StoreOS.Application.Abstractions.IApp
     public DbSet<StoreOS.Domain.FinanceOps.LiabilityPayment> LiabilityPayments => Set<StoreOS.Domain.FinanceOps.LiabilityPayment>();
     public DbSet<StoreOS.Domain.Repairs.RepairJob> RepairJobs => Set<StoreOS.Domain.Repairs.RepairJob>();
     public DbSet<StoreOS.Domain.Repairs.RepairJobStatusHistory> RepairJobStatusHistories => Set<StoreOS.Domain.Repairs.RepairJobStatusHistory>();
+    public DbSet<StoreOS.Domain.Repairs.RepairJobPart> RepairJobParts => Set<StoreOS.Domain.Repairs.RepairJobPart>();
     public Task<int> ExecuteRawSqlAsync(string sql, object[] parameters, CancellationToken ct = default)
         => Database.ExecuteSqlRawAsync(sql, parameters, ct);
     protected override void OnModelCreating(ModelBuilder modelBuilder)

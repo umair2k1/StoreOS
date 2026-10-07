@@ -4132,3 +4132,58 @@ var sgst = Money.Round2(totalGst - cgst);
   - `RepairStatusTransitionsTests` (24 passed): verifies all legal transitions pass and illegal transitions fail (terminal states, premature delivered, same-state loops).
   - `ChangeRepairStatusTests` (4 passed): legal transition creates history row; illegal transition fails 422 with zero history rows; delivered transition sets `DeliveredAt`; sequential transitions create ordered history trail.
   - `RlsCoverageTests` (5 passed): validates `repair_job_status_history` table RLS enabled, forced, and covered.
+
+## P-705
+### Repair Job Parts Entity, Migration & Stock Reservation/Consumption/Return
+- Domain Types (`StoreOS.Domain.Repairs`):
+  - `RepairPartStatus`:
+    - Constants: `Reserved`, `Consumed`, `Returned`
+    - `All`: list of 3 statuses
+    - `IsValid(string status) => All.Contains(status)`
+  - `RepairJobPart` Entity:
+    - Columns: `Id` (uuid PK), `TenantId` (uuid), `RepairJobId` (uuid FK), `ProductId` (uuid nullable), `PartName` (text), `Quantity` (int > 0), `UnitCost` (numeric 18,2), `ChargeAmount` (numeric 18,2), `Status` (text), `CreatedAt` (timestamptz).
+    - Factory: `RepairJobPart.Reserve(tenantId, repairJobId, productId, partName, quantity, unitCost, chargeAmount)`
+    - Methods:
+      - `MarkConsumed()` (guards: only from `Reserved`, throws `part_not_reserved`)
+      - `MarkReturned()` (guards: cannot return if already `Returned`, throws `part_already_returned`)
+- Stock Lifecycle Invariant:
+  - Reserving a part NEVER decrements inventory stock (soft reservation).
+  - Consuming a tracked part (`ProductId != null`) calls `IInventoryStockService.ReserveAndDecrementStockAsync` with `MovementType.RepairConsumed`. Fails atomically on insufficient stock.
+  - Returning a consumed tracked part calls `IInventoryStockService.IncreaseStockAsync` with `MovementType.RepairPartReturned`.
+  - Returning a reserved part (never consumed) does not move stock.
+  - Untracked parts (`ProductId == null`) never interact with `IInventoryStockService`.
+- Database & Migration:
+  - Table: `repair_job_parts`
+  - Migration: `20261007172323_029_RepairJobParts` (Next sequential: 029)
+  - Constraints: `CK_repair_job_parts_quantity` (`quantity > 0`), `CK_repair_job_parts_status` (`Reserved`, `Consumed`, `Returned`), FK to `repair_jobs`.
+  - RLS Archetype A: `tenant_isolation_policy` enabled and forced.
+  - QueryFilters: `ApplyFilter<RepairJobPart>(modelBuilder, scopeAccess, (p, s) => p.TenantId == s.TenantId)`.
+- Application Vertical Slices (`StoreOS.Application.Repairs.Parts`):
+  - `ReservePart`:
+    - Command: `ReservePartCommand(Guid RepairJobId, Guid? ProductId, string PartName, int Quantity, decimal UnitCost, decimal ChargeAmount) : IRequest<Guid>, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `ReservePartHandler` (creates `RepairJobPart` in `Reserved` status, zero stock movement)
+  - `ConsumePart`:
+    - Command: `ConsumePartCommand(Guid RepairJobId, Guid PartId) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `ConsumePartHandler` (decrements stock via `_stockService.ReserveAndDecrementStockAsync` if `ProductId` present, marks `Consumed`)
+  - `ReturnPart`:
+    - Command: `ReturnPartCommand(Guid RepairJobId, Guid PartId) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `ReturnPartHandler` (reverses stock via `_stockService.IncreaseStockAsync` if consumed tracked part, marks `Returned`)
+  - `GetRepairJobParts`:
+    - Query: `GetRepairJobPartsQuery(Guid RepairJobId) : IRequest<IReadOnlyList<RepairJobPartDto>>, IReadOnlyRequest`
+    - Handler: `GetRepairJobPartsHandler`
+- Controller & Routes (`StoreOS.Api.Controllers.RepairJobsController`):
+  - `GET /api/repair-jobs/{id}/parts` -> `GetParts(Guid id)`
+  - `POST /api/repair-jobs/{id}/parts` -> `ReservePart(Guid id, ReserveRepairPartBody body)`
+  - `POST /api/repair-jobs/{id}/parts/{partId}/consume` -> `ConsumePart(Guid id, Guid partId)`
+  - `POST /api/repair-jobs/{id}/parts/{partId}/return` -> `ReturnPart(Guid id, Guid partId)`
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.RepairPartsTests`):
+  - (a) Reserving tracked part does not decrement stock.
+  - (b) Consuming decrements stock atomically, and fails atomically with `insufficient_stock` rolling back.
+  - (c) Returning consumed part restores stock.
+  - (d) Returning reserved part (never consumed) does not move stock.
+  - (e) Untracked part lifecycle succeeds without stock service interaction.
+  - (f) Consuming already-consumed part throws `part_not_reserved`.
+  - `RlsCoverageTests` (5 passed): validates `repair_job_parts` table RLS enabled, forced, and covered.

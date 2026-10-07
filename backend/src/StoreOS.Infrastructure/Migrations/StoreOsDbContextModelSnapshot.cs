@@ -1328,6 +1328,73 @@ namespace StoreOS.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJobPart", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<decimal>("ChargeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("charge_amount");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("PartName")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("part_name");
+
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer")
+                        .HasColumnName("quantity");
+
+                    b.Property<Guid>("RepairJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("repair_job_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_cost");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepairJobId");
+
+                    b.HasIndex("TenantId", "ProductId")
+                        .HasDatabaseName("ix_repair_job_parts_tenant_product");
+
+                    b.HasIndex("TenantId", "RepairJobId")
+                        .HasDatabaseName("ix_repair_job_parts_tenant_job");
+
+                    b.ToTable("repair_job_parts", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_repair_job_parts_quantity", "quantity > 0");
+
+                            t.HasCheckConstraint("CK_repair_job_parts_status", "status IN ('Reserved','Consumed','Returned')");
+                        });
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJobStatusHistory", b =>
                 {
                     b.Property<long>("Id")
@@ -2377,6 +2444,15 @@ namespace StoreOS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJobPart", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Repairs.RepairJob", null)
+                        .WithMany()
+                        .HasForeignKey("RepairJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
