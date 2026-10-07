@@ -30,38 +30,44 @@ public class ReconciliationJob
         _logger = logger;
     }
 
-    public async Task RunAsync(CancellationToken ct)
+    public async Task RunAsync(string correlationId, CancellationToken ct)
     {
-        var tenants = await _db.Tenants.IgnoreQueryFilters().Where(t => t.IsActive).ToListAsync(ct);
-        foreach (var tenant in tenants)
+        using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))
         {
-            try
+            var tenants = await _db.Tenants.IgnoreQueryFilters().Where(t => t.IsActive).ToListAsync(ct);
+            foreach (var tenant in tenants)
             {
-                await _jobRunner.RunAsync(tenant.Id, async (sp, token) =>
+                try
                 {
-                    var scopedDb = sp.GetRequiredService<StoreOsDbContext>();
-                    var audit = sp.GetRequiredService<IAuditWriter>();
-
-                    var branches = await scopedDb.Branches.IgnoreQueryFilters()
-                        .Where(b => b.TenantId == tenant.Id && b.IsActive)
-                        .ToListAsync(token);
-
-                    foreach (var branch in branches)
+                    await _jobRunner.RunAsync(tenant.Id, async (sp, token) =>
                     {
-                        await ReconcileStockAsync(tenant.Id, branch.Id, scopedDb, audit, token); // Sweep 1
-                    }
+                        var correlationAccessor = sp.GetRequiredService<ICorrelationContextAccessor>();
+                        correlationAccessor.CorrelationId = correlationId;
 
-                    await ReconcileSalePaymentsAsync(tenant.Id, scopedDb, audit, token);    // Sweep 2
-                    await ReconcileCustomerRevenueAsync(tenant.Id, scopedDb, audit, token); // Sweep 3
-                    await ReconcileCustomerCreditAsync(tenant.Id, scopedDb, audit, token);  // Sweep 4
-                    await ReconcileSupplierPayablesAsync(tenant.Id, scopedDb, audit, token);// Sweep 5
+                        var scopedDb = sp.GetRequiredService<StoreOsDbContext>();
+                        var audit = sp.GetRequiredService<IAuditWriter>();
 
-                    await scopedDb.SaveChangesAsync(token);
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Reconciliation failed for tenant {TenantId}. Continuing with remaining tenants.", tenant.Id);
+                        var branches = await scopedDb.Branches.IgnoreQueryFilters()
+                            .Where(b => b.TenantId == tenant.Id && b.IsActive)
+                            .ToListAsync(token);
+
+                        foreach (var branch in branches)
+                        {
+                            await ReconcileStockAsync(tenant.Id, branch.Id, scopedDb, audit, token); // Sweep 1
+                        }
+
+                        await ReconcileSalePaymentsAsync(tenant.Id, scopedDb, audit, token);    // Sweep 2
+                        await ReconcileCustomerRevenueAsync(tenant.Id, scopedDb, audit, token); // Sweep 3
+                        await ReconcileCustomerCreditAsync(tenant.Id, scopedDb, audit, token);  // Sweep 4
+                        await ReconcileSupplierPayablesAsync(tenant.Id, scopedDb, audit, token);// Sweep 5
+
+                        await scopedDb.SaveChangesAsync(token);
+                    }, ct);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Reconciliation failed for tenant {TenantId}. Continuing with remaining tenants.", tenant.Id);
+                }
             }
         }
     }

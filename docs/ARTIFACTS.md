@@ -4654,3 +4654,26 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Deliberately seeded drift across each of the 5 sweeps detects and logs all 5 independently with exact entity IDs and expected/actual values.
   - (c) Iterates all active tenants and their branches independently.
   - (d) Failure in one tenant does not stop or abort processing for remaining tenants.
+
+## P-906
+### Hangfire Wiring + Correlation-Id Propagation into Background Jobs
+- Centralized Hangfire Setup (`StoreOS.Api.Jobs.HangfireSetup`):
+  - `public static IServiceCollection AddHangfireConfiguration(this IServiceCollection services, IConfiguration configuration)`: Registers PostgreSQL storage, Hangfire server, and background jobs (`ReconciliationJob`, `IdempotencyKeyPurgeJob`).
+  - `public static IApplicationBuilder UseHangfireConfiguration(this IApplicationBuilder app)`: Schedules recurring jobs with fresh correlation IDs on scheduled runs:
+    - `"nightly-reconciliation"`: `job => job.RunAsync(Guid.NewGuid().ToString("D"), CancellationToken.None)` (Cron.Daily).
+    - `"idempotency-key-purge"`: `job => job.RunAsync(CancellationToken.None)` (Cron.Daily).
+- Explicit-Parameter Correlation-Id Convention for Background Jobs:
+  - Rejects fragile argument scanning in favor of an explicit named parameter: every background job method that carries a correlation id accepts `string correlationId` as an explicit parameter.
+  - `ReconciliationJob.RunAsync(string correlationId, CancellationToken ct)`:
+    - Encloses execution in `using (Serilog.Context.LogContext.PushProperty("CorrelationId", correlationId))`.
+    - Sets `correlationAccessor.CorrelationId = correlationId` inside `ITenantJobRunner.RunAsync` scope so all audit entries created by `IAuditWriter` carry the exact correlation ID.
+- On-Demand Admin Trigger Route (`StoreOS.Api.Controllers.PlatformController`):
+  - `POST /api/platform/reconciliation/run-now`:
+    - Authorizes caller via `TriggerReconciliationCommand` (`IHighImpactOperation`, `settings:manage`).
+    - Inherits triggering HTTP request's correlation ID from `ICorrelationContextAccessor`.
+    - Enqueues job via `IBackgroundJobClient.Enqueue<ReconciliationJob>(job => job.RunAsync(correlation.CorrelationId, CancellationToken.None))`.
+    - Returns `Ok(new { jobId, correlationId = correlation.CorrelationId })`.
+- Integration Tests (`StoreOS.IntegrationTests.Platform.ReconciliationCorrelationTests`):
+  - (a) Triggering `run-now` with known `X-Correlation-ID` propagates that exact correlation ID into resulting audit log entries.
+  - (b) Scheduled runs generate their own distinct fresh correlation IDs.
+  - (c) Caller without `settings:manage` returns 403.

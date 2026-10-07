@@ -156,7 +156,7 @@ public class ReconciliationJobTests : IAsyncLifetime
         // Run Job
         using var scope = _factory.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<ReconciliationJob>();
-        await job.RunAsync(CancellationToken.None);
+        await job.RunAsync(Guid.NewGuid().ToString("D"), CancellationToken.None);
 
         // Assert ZERO drift detected entries in audit log
         var driftEntries = await db.AuditLogEntries.IgnoreQueryFilters()
@@ -288,7 +288,7 @@ public class ReconciliationJobTests : IAsyncLifetime
         // Run Job
         using var scope = _factory.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<ReconciliationJob>();
-        await job.RunAsync(CancellationToken.None);
+        await job.RunAsync(Guid.NewGuid().ToString("D"), CancellationToken.None);
 
         // Verify Audit Log has all 5 drifts detected
         var driftEntries = await db.AuditLogEntries.IgnoreQueryFilters()
@@ -376,7 +376,7 @@ public class ReconciliationJobTests : IAsyncLifetime
         // Run Job
         using var scope = _factory.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<ReconciliationJob>();
-        await job.RunAsync(CancellationToken.None);
+        await job.RunAsync(Guid.NewGuid().ToString("D"), CancellationToken.None);
 
         // Verify drift logged for Tenant 1
         var t1Drifts = await db.AuditLogEntries.IgnoreQueryFilters()
@@ -414,7 +414,7 @@ public class ReconciliationJobTests : IAsyncLifetime
         using var scope = _factory.Services.CreateScope();
         var job = scope.ServiceProvider.GetRequiredService<ReconciliationJob>();
 
-        var act = async () => await job.RunAsync(CancellationToken.None);
+        var act = async () => await job.RunAsync(Guid.NewGuid().ToString("D"), CancellationToken.None);
         await act.Should().NotThrowAsync();
 
         // Tenant 2 was processed successfully and drift was recorded

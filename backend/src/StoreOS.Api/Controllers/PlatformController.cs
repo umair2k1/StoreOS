@@ -1,3 +1,7 @@
+using Hangfire;
+using StoreOS.Application.Abstractions;
+using StoreOS.Application.Platform.Reconciliation;
+using StoreOS.Infrastructure.Jobs;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Behaviors;
@@ -58,5 +62,17 @@ public class PlatformController : ControllerBase
         }
 
         return Ok(result);
+    }
+
+    [HttpPost("/api/platform/reconciliation/run-now")]
+    public async Task<IActionResult> RunReconciliationNow(
+        [FromServices] ICorrelationContextAccessor correlation,
+        [FromServices] IBackgroundJobClient backgroundJobs,
+        CancellationToken ct)
+    {
+        await _mediator.Send(new TriggerReconciliationCommand(), ct);
+        var jobId = backgroundJobs.Enqueue<ReconciliationJob>(
+            job => job.RunAsync(correlation.CorrelationId, CancellationToken.None));
+        return Ok(new { jobId, correlationId = correlation.CorrelationId });
     }
 }

@@ -1,5 +1,4 @@
-using Hangfire;
-using Hangfire.PostgreSql;
+using StoreOS.Api.Jobs;
 using Amazon.S3;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
@@ -105,19 +104,8 @@ builder.Services.AddSingleton<IAmazonS3>(s3Client);
 builder.Services.AddScoped<StoreOS.Application.Abstractions.IObjectStorageService, StoreOS.Infrastructure.Platform.MinioObjectStorageService>();
 builder.Services.AddHostedService<StoreOS.Infrastructure.Platform.ObjectStorageBucketInitializer>();
 
-// Hangfire Background Jobs (P-905)
-var hangfireDbConn = builder.Configuration.GetConnectionString("Default");
-if (!string.IsNullOrWhiteSpace(hangfireDbConn))
-{
-    builder.Services.AddHangfire(config => config
-        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-        .UseSimpleAssemblyNameTypeSerializer()
-        .UseRecommendedSerializerSettings()
-        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireDbConn)));
-    builder.Services.AddHangfireServer();
-}
-builder.Services.AddScoped<StoreOS.Infrastructure.Jobs.ReconciliationJob>();
-builder.Services.AddScoped<StoreOS.Infrastructure.Jobs.IdempotencyKeyPurgeJob>();
+// Hangfire Background Jobs (P-905, P-906)
+builder.Services.AddHangfireConfiguration(builder.Configuration);
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>
@@ -263,18 +251,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = check => check.Tags.Contains("ready")
 });
 
-// Recurring Jobs (P-905)
-try
-{
-    RecurringJob.AddOrUpdate<StoreOS.Infrastructure.Jobs.ReconciliationJob>(
-        "nightly-reconciliation", job => job.RunAsync(CancellationToken.None), Cron.Daily);
-    RecurringJob.AddOrUpdate<StoreOS.Infrastructure.Jobs.IdempotencyKeyPurgeJob>(
-        "idempotency-key-purge", job => job.RunAsync(CancellationToken.None), Cron.Daily);
-}
-catch
-{
-    // Safe fallback if Hangfire storage is not initialized
-}
+// Recurring Jobs (P-905, P-906)
+app.UseHangfireConfiguration();
 
 app.Run();
 
