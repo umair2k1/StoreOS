@@ -4187,3 +4187,41 @@ var sgst = Money.Round2(totalGst - cgst);
   - (e) Untracked part lifecycle succeeds without stock service interaction.
   - (f) Consuming already-consumed part throws `part_not_reserved`.
   - `RlsCoverageTests` (5 passed): validates `repair_job_parts` table RLS enabled, forced, and covered.
+
+## P-706
+### Customer Approval & Warranty Delivery Endpoints
+- Domain Types (`StoreOS.Domain.Repairs`):
+  - `ApprovalState`:
+    - Constants: `Pending`, `Approved`, `Rejected`
+    - `All`: list of 3 states
+    - `IsValid(string state) => All.Contains(state)`
+  - `RepairJob`:
+    - Method `RecordApproval(string? approvalState, DateTimeOffset? timestamp = null)` sets `ApprovalState` and `ApprovalTimestamp`.
+    - Method `Deliver(DateTimeOffset deliveredAt, DateOnly? warrantyUntil)`:
+      - Guards: `Status == ReadyForPickup || Status == Delivered` (throws `invalid_status_for_delivery` with descriptive message if neither).
+      - Sets `DeliveredAt = deliveredAt`, `WarrantyUntil = warrantyUntil`, `Status = Delivered`.
+      - Authoritative setter for `DeliveredAt` and `WarrantyUntil` timestamps; `TransitionTo` sets `Status` and validates transition via `RepairStatusTransitions`.
+- Application Vertical Slices (`StoreOS.Application.Repairs`):
+  - `RecordApproval`:
+    - Command: `RecordApprovalCommand(Guid RepairJobId, string ApprovalState) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `RecordApprovalValidator` validates `ApprovalState` is non-empty and in `ApprovalState.All` (400 on invalid).
+    - Handler: `RecordApprovalHandler` loads job and calls `job.RecordApproval(request.ApprovalState, DateTimeOffset.UtcNow)`.
+  - `DeliverRepairJob`:
+    - Command: `DeliverRepairJobCommand(Guid RepairJobId, int? WarrantyDaysOverride = null) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `DeliverRepairJobValidator` validates `WarrantyDaysOverride >= 0` if specified.
+    - Handler: `DeliverRepairJobHandler`:
+      - Calls `job.TransitionTo(RepairStatus.Delivered)` (validates status transition, throws `illegal_status_transition` 422 if not from `ReadyForPickup`).
+      - Computes warranty: `request.WarrantyDaysOverride ?? (single linked repair service Product.WarrantyDays ?? 30)`.
+      - Calls `job.Deliver(now, warrantyUntil)`.
+      - Appends `RepairJobStatusHistory` audit row for `Delivered`.
+- Controller & Routes (`StoreOS.Api.Controllers.RepairJobsController`):
+  - `POST /api/repair-jobs/{id}/approval` -> `RecordApproval(Guid id, RecordApprovalBody body)`
+  - `POST /api/repair-jobs/{id}/deliver` -> `Deliver(Guid id, DeliverRepairJobBody? body)`
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.ApprovalAndDeliveryTests`):
+  - (a) Invalid `ApprovalState` -> 400; valid `ApprovalState` persists with timestamp.
+  - (b) Delivering a job not in `ReadyForPickup` -> 422 `illegal_status_transition`.
+  - (c) Delivering a job linked to a repair-service product (`WarrantyDays=45`) -> `WarrantyUntil` is exactly 45 days.
+  - (d) Delivering with no override and no single linked service -> falls back to 30 days tenant default.
+  - (e) `DeliveredAt` is set accurately with no conflicting double-write between `TransitionTo` and `Deliver`.

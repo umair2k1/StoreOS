@@ -216,7 +216,7 @@ public class RepairJob
 
     public void Deliver(DateTimeOffset deliveredAt, DateOnly? warrantyUntil)
     {
-        if (Status != RepairStatus.ReadyForPickup)
+        if (Status != RepairStatus.ReadyForPickup && Status != RepairStatus.Delivered)
         {
             throw new DomainValidationException("invalid_status_for_delivery",
                 $"Cannot deliver a repair job with status '{Status}'. Only jobs in '{RepairStatus.ReadyForPickup}' can be delivered.");

@@ -14,6 +14,8 @@ using StoreOS.Application.Repairs.Parts.ConsumePart;
 using StoreOS.Application.Repairs.Parts.GetRepairJobParts;
 using StoreOS.Application.Repairs.Parts.ReservePart;
 using StoreOS.Application.Repairs.Parts.ReturnPart;
+using StoreOS.Application.Repairs.Approval;
+using StoreOS.Application.Repairs.Deliver;
 
 namespace StoreOS.Api.Controllers;
 
@@ -126,6 +128,20 @@ public class RepairJobsController : ControllerBase
         await _mediator.Send(new ReturnPartCommand(id, partId), ct);
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/approval")]
+    public async Task<IActionResult> RecordApproval(Guid id, [FromBody] RecordApprovalBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new RecordApprovalCommand(id, body.ApprovalState), ct);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/deliver")]
+    public async Task<IActionResult> Deliver(Guid id, [FromBody] DeliverRepairJobBody? body, CancellationToken ct)
+    {
+        await _mediator.Send(new DeliverRepairJobCommand(id, body?.WarrantyDaysOverride), ct);
+        return NoContent();
+    }
 }
 
 public record UpdateRepairJobBody(
@@ -159,3 +175,6 @@ public record ReserveRepairPartBody(
     int Quantity,
     decimal UnitCost,
     decimal ChargeAmount);
+
+public record RecordApprovalBody(string ApprovalState);
+public record DeliverRepairJobBody(int? WarrantyDaysOverride = null);
