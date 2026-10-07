@@ -4426,3 +4426,30 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Requesting category subset (`["Accessory"]`) returns only physical items of that category.
   - (e) CSV format export verified for UTF-8 BOM, RFC 4180 headers, and Content-Disposition header.
   - (f) Caller lacking `inventory:cost:view` permission receives `PurchasePrice == 0m`.
+
+## P-805
+### GSTR-1 Export Grouped by Branch GSTIN
+- Query and DTOs (`StoreOS.Application.Reporting.Gstr1Export`):
+  - `GetGstr1ExportQuery(DateOnly From, DateOnly To) : IRequest<Gstr1ExportDto>, IReportingRequest`
+  - `Gstr1RowDto(string InvoiceNumber, DateOnly Date, string CustomerName, string? CustomerGstin, decimal TaxableValue, decimal Cgst, decimal Sgst, decimal TotalValue, string? HsnOrSac, string Category)`
+  - `Gstr1GroupDto(string Gstin, IReadOnlyList<Gstr1RowDto> Rows, decimal TotalTaxable, decimal TotalCgst, decimal TotalSgst, decimal GrandTotal)`
+  - `Gstr1ExportDto(IReadOnlyList<Gstr1GroupDto> ByGstin)`
+- CSV Writer Helper (`StoreOS.Application.Reporting.Gstr1Export.Gstr1CsvWriter`):
+  - `public static string ToCsv(Gstr1ExportDto export)`
+  - Emits leading `Gstin` column (`Gstin,InvoiceNumber,Date,CustomerName,CustomerGstin,Hsn,Category,TaxableValue,Cgst,Sgst,TotalValue`), one row per invoice sorted by GSTIN then invoice number, plus a `TOTAL` row per GSTIN group.
+- Handler (`StoreOS.Application.Reporting.Gstr1Export.GetGstr1ExportHandler`):
+  - Implements `IRequestHandler<GetGstr1ExportQuery, Gstr1ExportDto>` using `IReportingDbContext` and `IAccessScope`.
+  - Date bounds in Asia/Kolkata tenant timezone converted to UTC for database queries.
+  - Explicit Three-Way Exclusion: filters active tax invoices within `[From, To]` date range, explicitly excluding Estimates, Voided, and Refunded sales.
+  - Selling Branch GSTIN Grouping: groups rows by the SELLING branch's GSTIN (`branches.gstin`, Plan Section 2 Decision 7), NOT customer GSTIN. Multiple branches sharing the same GSTIN are merged into a single group.
+  - Calculates exact group subtotals: `TotalTaxable`, `TotalCgst`, `TotalSgst`, `GrandTotal`.
+- API Route (`StoreOS.Api.Controllers.ExportsController`):
+  - `GET /api/exports/gstr1?from=&to=&format=csv|json` -> `ExportGstr1`
+  - Default CSV output with UTF-8 BOM preamble and `Content-Disposition: attachment; filename="gstr1-<from>-<to>.csv"`, or JSON DTO when requested via `format=json` or `Accept: application/json`.
+- Integration Tests (`StoreOS.IntegrationTests.Reporting.Gstr1ExportTests`):
+  - (a) Sales across two branches with different GSTINs produce distinct groups with accurate subtotals.
+  - (b) Two branches sharing the same GSTIN are combined into one group.
+  - (c) Estimates, Voided sales, and Refunded sales within the date range are excluded.
+  - (d) Sales outside the `[From, To]` date range are excluded.
+  - (e) Each group's subtotals exactly match the sum of its own invoice rows.
+  - (f) CSV format export verified for UTF-8 BOM, headers, invoice rows, and TOTAL rows.
