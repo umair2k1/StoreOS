@@ -1,4 +1,5 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+import { DynamicManifestService } from './core/branding/dynamic-manifest.service';
 import { RouterOutlet } from '@angular/router';
 
 @Component({
@@ -9,4 +10,5 @@ import { RouterOutlet } from '@angular/router';
 })
 export class App {
   protected readonly title = signal('storeos-web');
+  private readonly manifestService = inject(DynamicManifestService);
 }

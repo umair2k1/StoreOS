@@ -4837,3 +4837,21 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/features/onboarding/onboarding-wizard.component.spec.ts`: Validates multi-step form progression, HTTP call dispatch to both endpoints with correctly shaped payloads, and branding store update.
   - `frontend/src/app/core/guards/onboarding.guard.spec.ts`: Validates four distinct branches (admin zero-branch redirect, cashier zero-branch redirect, branch-present allow, and unauthenticated login redirect).
+
+## P-1008
+### Dynamic W3C Manifest Endpoint + Angular Link Wiring
+- Dynamic Manifest Controller (`backend/src/StoreOS.Api/Controllers/ManifestController.cs`):
+  - Endpoint: `GET /api/tenant/manifest.webmanifest`
+  - Authorization: `[AllowAnonymous]`, cached with `[ResponseCache(Duration = 300, VaryByHeader = "Host")]`.
+  - Tenant Resolution: Resolves tenant identity either from optional `[FromQuery] Guid? tenantId` or from `Request.Host.Value` via `ITenantResolver` (supporting `<subdomain>.localhost` and `<subdomain>.pos.storeos.io`).
+  - Response Payload: Compliant W3C web manifest (`application/manifest+json`) with dynamic `name`, `short_name` (max 12 chars), `start_url`, `theme_color`, `background_color`, and icon definitions pointing to `/api/tenant/logo.png`.
+  - White-Labeling Guarantee: Payload is derived dynamically from tenant metadata and never contains "StoreOS" for any onboarded tenant.
+- Backend Integration Tests (`backend/tests/StoreOS.IntegrationTests/Platform/ManifestTests.cs`):
+  - `GetManifest_WithValidTenantId_ReturnsCorrectManifestWithoutStoreOS`: Confirms 200 OK, `application/manifest+json`, tenant name, and absence of "StoreOS".
+  - `GetManifest_WithInvalidTenantId_ReturnsNotFound`: Confirms 404 for unknown tenant ID.
+  - `GetManifest_WithHostHeader_ResolvesTenantFromSubdomain`: Confirms Host-based subdomain resolution.
+- Frontend Dynamic Manifest Service (`frontend/src/app/core/branding/dynamic-manifest.service.ts`):
+  - `DynamicManifestService`: Injected in `App` root component. Reactive `effect()` tracks `AuthSignalStore.tenantId()` and rewrites `<link rel="manifest">` `href` in document DOM to `/api/tenant/manifest.webmanifest?tenantId=<id>`.
+  - Unit Tests: `frontend/src/app/core/branding/dynamic-manifest.service.spec.ts` verifies DOM manifest link manipulation upon session authentication and reset upon logout.
+- HTML Manifest Wiring:
+  - `frontend/src/index.html` updated with `<link rel="manifest" href="/api/tenant/manifest.webmanifest" />`.
