@@ -65,6 +65,36 @@ public class AuthController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Quick dev helper to generate a Bearer token with full permissions for testing in Swagger.
+    /// </summary>
+    [HttpPost("dev-token")]
+    [AllowAnonymous]
+    public IActionResult GenerateDevToken(
+        [FromServices] StoreOS.Application.Abstractions.IJwtTokenService jwtService,
+        [FromQuery] Guid? tenantId = null,
+        [FromQuery] Guid? userId = null,
+        [FromQuery] Guid? branchId = null)
+    {
+        var tId = tenantId ?? Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var uId = userId ?? Guid.Parse("22222222-2222-2222-2222-222222222222");
+        var bId = branchId ?? Guid.Parse("33333333-3333-3333-3333-333333333333");
+
+        var allPerms = StoreOS.Domain.Identity.PermissionCatalog.All;
+        var (token, expires) = jwtService.IssueAccessToken(
+            uId, tId, allBranches: true, new[] { bId }, allPerms, tokenVersion: 1);
+
+        return Ok(new
+        {
+            accessToken = token,
+            expiresAt = expires,
+            tenantId = tId,
+            userId = uId,
+            branchId = bId,
+            note = "Copy accessToken and click 'Authorize' in Swagger UI. Enter: Bearer <accessToken>"
+        });
+    }
+
     [HttpPost("refresh")]
     [AllowAnonymous]
     public async Task<IActionResult> Refresh(CancellationToken ct)
