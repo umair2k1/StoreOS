@@ -5,11 +5,12 @@ import { Router } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { BranchesClient, SettingsClient } from '../../core/api/generated-client';
 import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
+import { LogoUploaderComponent } from './logo-uploader.component';
 
 @Component({
   selector: 'app-onboarding-wizard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, LogoUploaderComponent],
   template: `
     <div class="wizard-container">
       <h1>Welcome to StoreOS</h1>
@@ -42,6 +43,10 @@ import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
             <input id="receiptFooter" type="text" formControlName="receiptFooter" placeholder="e.g. Thank you for shopping with us!" />
           </div>
 
+          <div class="form-group">
+            <label>Store Logo (Optional)</label>
+            <app-logo-uploader (logoUploaded)="onLogoUploaded($event)" />
+          </div>
           <div class="actions">
             <button type="button" class="btn-primary" (click)="goToNextStep()" [disabled]="form.get('shopName')?.invalid">
               Next: Branch Setup
@@ -92,6 +97,12 @@ export class OnboardingWizardComponent {
     branchCode: ['', [Validators.required, Validators.minLength(2)]]
   });
 
+  readonly logoUrl = signal<string | null>(null);
+
+  onLogoUploaded(url: string): void {
+    this.logoUrl.set(url);
+  }
+
   goToNextStep(): void {
     if (this.form.get('shopName')?.valid) {
       this.currentStep.set(2);
@@ -133,7 +144,8 @@ export class OnboardingWizardComponent {
       next: () => {
         this.brandingStore.setBranding({
           tenantName: val.shopName,
-          activeBranchName: val.branchName
+          activeBranchName: val.branchName,
+          logoUrl: this.logoUrl()
         });
         this.isSubmitting.set(false);
         this.router.navigateByUrl('/pos');

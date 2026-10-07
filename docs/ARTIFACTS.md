@@ -4855,3 +4855,28 @@ var sgst = Money.Round2(totalGst - cgst);
   - Unit Tests: `frontend/src/app/core/branding/dynamic-manifest.service.spec.ts` verifies DOM manifest link manipulation upon session authentication and reset upon logout.
 - HTML Manifest Wiring:
   - `frontend/src/index.html` updated with `<link rel="manifest" href="/api/tenant/manifest.webmanifest" />`.
+
+## P-1009
+### Tenant Logo Upload (Validation, ImageSharp Resize) Endpoint + Angular Uploader
+- Backend Logo Upload Command & Pipeline (`backend/src/StoreOS.Application/Platform/LogoUpload/`):
+  - `UploadLogoCommand(byte[] FileBytes, string DeclaredContentType) : IRequest<UploadLogoResult>, IRequiresPermission`:
+    - Required Permission: `settings:manage`
+    - Validation Pipeline:
+      1. MIME allowlist: Only `image/png`, `image/jpeg`, `image/webp`. Unconditionally rejects `image/svg+xml` to eliminate stored-XSS attack vectors.
+      2. Max size: 2 MB (`logo_too_large`).
+      3. Magic bytes: Inspects leading bytes (`PNG: 89 50 4E 47`, `JPEG: FF D8 FF`, `WebP: RIFF...WEBP`). Mismatches rejected with `logo_magic_bytes_mismatch`.
+      4. ImageSharp Processing: Resizes to max 512x512 (aspect-ratio preserved), strips EXIF metadata (`ExifProfile = null`), re-encodes as WebP.
+      5. Storage & Persistence: Saves to `storeos-media` bucket at `tenants/{tenantId}/branding/logo_{hash}.webp`, and records object key into `branding.logo_key` in the `settings` table.
+  - `GetTenantLogoQuery(int Size, Guid TenantId) : IRequest<LogoImage>, IReadOnlyRequest, IAnonymousTenantRequest`:
+    - Validates size is within `{192, 512, 1024}`.
+    - Reads `branding.logo_key` from settings and fetches object from storage; re-encodes as square PNG (contain/transparent padding) with ETag.
+    - If tenant has no logo: generates an in-memory solid `#1e293b` PNG without third-party artwork.
+- Controller Endpoints (`backend/src/StoreOS.Api/Controllers/PlatformController.cs`):
+  - `POST /api/tenants/me/logo`: Consumes `multipart/form-data`, validates input file, and dispatches `UploadLogoCommand`.
+  - `GET /api/tenant/logo` & `GET /api/tenant/logo.png`: Anonymous endpoint with Host/ID tenant resolution, size validation, and 3600-second cache header.
+- Backend Integration Tests (`backend/tests/StoreOS.IntegrationTests/Platform/UploadLogoTests.cs`):
+  - Validates successful small PNG upload, WebP storage in S3, <=512px constraint, EXIF stripping, 2MB size rejection, magic-byte mismatch rejection, SVG content-type rejection, and 403 authorization enforcement.
+- Frontend Angular Logo Uploader Component (`frontend/src/app/features/onboarding/`):
+  - `LogoUploaderComponent`: Standalone component supporting file selection, local image preview, upload progress indication, multipart form transmission, and 422 error display.
+  - Embedded in `OnboardingWizardComponent` (Step 1) with optional logo selection.
+  - Unit Tests: `frontend/src/app/features/onboarding/logo-uploader.component.spec.ts` verifies multipart upload dispatch, preview URL update, event emission, and 422 error rendering.

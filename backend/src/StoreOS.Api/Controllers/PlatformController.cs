@@ -7,7 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using StoreOS.Application.Behaviors;
 using StoreOS.Application.Platform.BackupExport;
 using StoreOS.Application.Platform.BackupImport;
-
+using Microsoft.AspNetCore.Authorization;
+using StoreOS.Application.Platform.LogoUpload;
 namespace StoreOS.Api.Controllers;
 
 [ApiController]
@@ -74,5 +75,58 @@ public class PlatformController : ControllerBase
         var jobId = backgroundJobs.Enqueue<ReconciliationJob>(
             job => job.RunAsync(correlation.CorrelationId, CancellationToken.None));
         return Ok(new { jobId, correlationId = correlation.CorrelationId });
+    }
+
+    [HttpPost("/api/tenants/me/logo")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadLogo(IFormFile? file, CancellationToken ct)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new { code = "file_required", message = "A logo file is required." });
+        }
+
+        using var memoryStream = new MemoryStream();
+        await file.CopyToAsync(memoryStream, ct);
+        var fileBytes = memoryStream.ToArray();
+
+        var result = await _mediator.Send(new UploadLogoCommand(fileBytes, file.ContentType), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("logo")]
+    [HttpGet("logo.png")]
+    [AllowAnonymous]
+    [ResponseCache(Duration = 3600, VaryByHeader = "Host")]
+    public async Task<IActionResult> GetLogo(
+        [FromQuery] int size = 512,
+        [FromQuery] Guid? tenantId = null,
+        [FromServices] ITenantResolver resolver = null!,
+        CancellationToken ct = default)
+    {
+        if (size != 192 && size != 512 && size != 1024)
+        {
+            return BadRequest(new { code = "invalid_size", message = "Size must be 192, 512, or 1024." });
+        }
+
+        TenantPublicProfile? tenant = null;
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            tenant = await resolver.ResolveByIdAsync(tenantId.Value, ct);
+        }
+        else if (Request.Host.HasValue)
+        {
+            tenant = await resolver.ResolveFromHostAsync(Request.Host.Value, ct);
+        }
+
+        if (tenant is null || !tenant.IsActive)
+        {
+            return NotFound();
+        }
+
+        var result = await _mediator.Send(new GetTenantLogoQuery(size, tenant.TenantId), ct);
+        Response.Headers.CacheControl = "public, max-age=3600";
+        Response.Headers.ETag = result.ETag;
+        return File(result.Bytes, result.ContentType);
     }
 }
