@@ -1,0 +1,21 @@
+<div class="pz-toast-container" role="region" aria-label="Notifications" aria-live="polite">
+  @for (toast of toastService.toasts(); track toast.id) {
+  <div class="pz-toast-item pz-toast-{{ toast.severity }}" role="alert">
+    <div class="toast-icon-wrapper" aria-hidden="true">
+      <span class="toast-icon">{{ getSeverityIcon(toast.severity) }}</span>
+    </div>
+    <div class="toast-content">
+      <div class="toast-message">{{ toast.message }}</div>
+      @if (toast.correlationId) {
+      <div class="toast-correlation-id">
+        <span class="correlation-label">Ref:</span>
+        <code>{{ toast.correlationId }}</code>
+      </div>
+      }
+    </div>
+    <button type="button" class="toast-dismiss-btn" aria-label="Dismiss notification" (click)="onDismiss(toast)">
+      &times;
+    </button>
+  </div>
+  }
+</div>

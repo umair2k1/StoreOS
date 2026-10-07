@@ -1,0 +1,12 @@
+<div class="empty-state-card">
+  @if (icon) {
+  <div class="empty-state-icon" aria-hidden="true">{{ icon }}</div>
+  }
+  @if (title) {
+  <h3 class="empty-state-title">{{ title }}</h3>
+  }
+  <p class="empty-state-message">{{ message }}</p>
+  <div class="empty-state-actions">
+    <ng-content />
+  </div>
+</div>

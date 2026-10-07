@@ -1,0 +1,24 @@
+<div class="pz-form-field" [class.has-error]="hasError()" [class.is-required]="required">
+  @if (label) {
+  <label class="pz-label" [attr.for]="forId || null">
+    <span class="label-text">{{ label }}</span>
+    @if (required) {
+    <span class="required-indicator" aria-hidden="true">*</span>
+    }
+  </label>
+  }
+
+  <div class="pz-control-wrapper">
+    <ng-content />
+  </div>
+
+  @if (hasError()) {
+  <div class="pz-error-message" role="alert">
+    {{ errorMessage }}
+  </div>
+  } @else if (hint) {
+  <div class="pz-hint-message">
+    {{ hint }}
+  </div>
+  }
+</div>

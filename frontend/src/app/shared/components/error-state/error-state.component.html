@@ -1,0 +1,21 @@
+<div class="error-state-card" role="alert">
+  @if (icon) {
+  <div class="error-state-icon" aria-hidden="true">{{ icon }}</div>
+  }
+  @if (title) {
+  <h3 class="error-state-title">{{ title }}</h3>
+  }
+  <p class="error-state-message">{{ message }}</p>
+
+  @if (retryable) {
+  <div class="error-state-actions">
+    <button type="button" class="error-retry-btn" (click)="onRetry()">
+      {{ retryLabel }}
+    </button>
+  </div>
+  }
+
+  <div class="error-state-extra">
+    <ng-content />
+  </div>
+</div>

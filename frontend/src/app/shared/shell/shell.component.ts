@@ -6,11 +6,12 @@ import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 import { BranchSwitcherComponent } from './branch-switcher.component';
 import { LockScreenComponent } from '../../features/auth/lock-screen.component';
 import { LockScreenOverlayService } from '../../features/auth/lock-screen-overlay.service';
+import { ToastContainerComponent } from '../components/toast-container/toast-container.component';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, BranchSwitcherComponent, LockScreenComponent],
+  imports: [RouterOutlet, RouterLink, BranchSwitcherComponent, LockScreenComponent, ToastContainerComponent],
   template: `
     <header class="shell-header">
       <span class="brand-name">{{ branding.tenantName() }}</span>
@@ -30,6 +31,7 @@ import { LockScreenOverlayService } from '../../features/auth/lock-screen-overla
     @if (lockOverlay.isVisible()) {
       <app-lock-screen />
     }
+    <app-toast-container />
   `,
   styleUrl: './shell.component.scss'
 })

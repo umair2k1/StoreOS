@@ -1,0 +1,22 @@
+<div class="pz-dialog-panel" role="dialog" [attr.aria-label]="title || 'Dialog'">
+  @if (title || showCloseButton) {
+  <header class="pz-dialog-header">
+    @if (title) {
+    <h2 class="pz-dialog-title">{{ title }}</h2>
+    }
+    @if (showCloseButton) {
+    <button type="button" class="pz-dialog-close-btn" aria-label="Close dialog" (click)="onClose()">
+      &times;
+    </button>
+    }
+  </header>
+  }
+
+  <div class="pz-dialog-body">
+    <ng-content />
+  </div>
+
+  <footer class="pz-dialog-actions">
+    <ng-content select="[pz-dialog-actions], .pz-dialog-actions" />
+  </footer>
+</div>

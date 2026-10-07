@@ -1,0 +1,110 @@
+.pz-table-container {
+  width: 100%;
+  overflow-x: auto;
+  background-color: var(--surface, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  position: relative;
+}
+
+.pz-table-loading-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent, #2563eb) 0%, #60a5fa 50%, var(--accent, #2563eb) 100%);
+  background-size: 200% 100%;
+  animation: pz-table-loading 1.5s infinite linear;
+  z-index: 2;
+}
+
+@keyframes pz-table-loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.pz-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--fg, #0f172a);
+
+  thead {
+    background-color: var(--muted-bg, #f8fafc);
+    border-bottom: 1px solid var(--border, #e2e8f0);
+
+    th {
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: var(--muted, #64748b);
+      user-select: none;
+      white-space: nowrap;
+
+      &.sortable {
+        cursor: pointer;
+
+        &:hover {
+          color: var(--fg, #0f172a);
+          background-color: var(--surface-hover, #f1f5f9);
+        }
+      }
+
+      &.sorted {
+        color: var(--accent, #2563eb);
+      }
+
+      .th-content {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+
+        .sort-indicator {
+          font-size: 0.75rem;
+          line-height: 1;
+
+          .active-sort {
+            color: var(--accent, #2563eb);
+          }
+
+          .idle-sort {
+            color: #94a3b8;
+          }
+        }
+      }
+    }
+  }
+
+  tbody {
+    tr {
+      border-bottom: 1px solid var(--border, #e2e8f0);
+      transition: background-color 0.15s ease;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background-color: var(--surface-hover, #f1f5f9);
+      }
+
+      td {
+        padding: 0.75rem 1rem;
+        vertical-align: middle;
+
+        &.empty-cell {
+          text-align: center;
+          padding: 3rem 1rem;
+          color: var(--muted, #64748b);
+          font-style: italic;
+        }
+      }
+    }
+  }
+}

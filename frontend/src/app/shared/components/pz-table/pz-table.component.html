@@ -1,0 +1,56 @@
+<div class="pz-table-container">
+  @if (loading) {
+  <div class="pz-table-loading-bar" aria-hidden="true"></div>
+  }
+  <table class="pz-table">
+    <thead>
+      <tr>
+        @for (col of columns; track col.key) {
+        <th [class.sortable]="col.sortable" [class.sorted]="sortColumn === col.key" [style.width]="col.width"
+          [style.text-align]="col.align || 'left'" (click)="onHeaderClick(col)"
+          [attr.aria-sort]="sortColumn === col.key ? (sortDirection === 'asc' ? 'ascending' : 'descending') : null">
+          <div class="th-content"
+            [style.justify-content]="col.align === 'right' ? 'flex-end' : col.align === 'center' ? 'center' : 'flex-start'">
+            <span class="col-label">{{ col.label }}</span>
+            @if (col.sortable) {
+            <span class="sort-indicator" aria-hidden="true">
+              @if (sortColumn === col.key) {
+              <span class="active-sort">{{ sortDirection === 'asc' ? '▲' : '▼' }}</span>
+              } @else {
+              <span class="idle-sort">↕</span>
+              }
+            </span>
+            }
+          </div>
+        </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      @if (loading && rows.length === 0) {
+      <tr>
+        <td [attr.colspan]="columns.length || 1" class="empty-cell">
+          <span class="loading-text">Loading...</span>
+        </td>
+      </tr>
+      } @else if (rows.length === 0) {
+      <tr>
+        <td [attr.colspan]="columns.length || 1" class="empty-cell">
+          {{ emptyMessage }}
+        </td>
+      </tr>
+      } @else {
+      @for (row of rows; track getRowKey(row, $index)) {
+      <tr (click)="onRowClick(row)">
+        @for (col of columns; track col.key) {
+        <td [style.text-align]="col.align || 'left'">
+          {{ getCellValue(row, col) }}
+        </td>
+        }
+      </tr>
+      }
+      }
+    </tbody>
+  </table>
+  <ng-content />
+</div>

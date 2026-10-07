@@ -4901,3 +4901,60 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/features/auth/login.component.spec.ts`: Validates credential submission, `withCredentials: true`, `AuthSignalStore` population, route transition to `/pos`, 401 error message rendering, and invalid form button disabling.
   - `frontend/src/app/features/auth/lock-screen.component.spec.ts`: Validates re-authentication with password, store update, overlay dismissal, and error handling for bad password.
+
+## P-1011
+### Shared Design System: pz-table, pz-form-field, pz-dialog, money pipe, date pipe, empty/loading/error states, toast service
+- NPM Dependency:
+  - `@angular/cdk`: `21.2.0` (pinned exact matching Angular 21 installed version).
+  - Overlay styles imported in `frontend/src/styles.scss` alongside design tokens / CSS variables.
+- Money Pipes (`frontend/src/app/shared/pipes/money.pipe.ts`):
+  - `PzMoneyPipe`: Standalone pipe (`name: 'money'`). Transforms `number | string | null | undefined` into Indian Rupee (`en-IN`) formatted currency via `Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 })`.
+  - `PzMoneyAliasPipe`: Standalone alias pipe (`name: 'pzMoney'`).
+  - Unit Tests: `frontend/src/app/shared/pipes/money.pipe.spec.ts` (verifies zero, small/medium, negative, large lakhs/crores numbers, numeric strings, and null/undefined handling).
+- Date Pipes (`frontend/src/app/shared/pipes/ist-date.pipe.ts`):
+  - `PzDatePipe`: Standalone pipe (`name: 'istDate'`). Formats Date, timestamp, or ISO string to Indian convention (default `DD-MMM-YYYY`, e.g. `15-Jan-2025`). Supports date-only ISO strings without UTC day-shifts and custom format strings (e.g. `DD-MMM-YYYY HH:mm`).
+  - `PzDateAliasPipe`: Standalone alias pipe (`name: 'pzDate'`).
+  - Unit Tests: `frontend/src/app/shared/pipes/ist-date.pipe.spec.ts` (verifies Date object, date-only string, date-time format, timestamp, and invalid/null handling).
+- Table Component (`frontend/src/app/shared/components/pz-table/pz-table.component.ts`):
+  - `PzTableColumn<T = object>`: `{ key: string; label: string; sortable?: boolean; align?: 'left' | 'center' | 'right'; width?: string; formatter?: (value: unknown, row: T) => string; }`.
+  - `PzTableSortEvent`: `{ column: string; direction: 'asc' | 'desc'; }`.
+  - `PzTableComponent<T extends object = Record<string, unknown>>`: Standalone component (`selector: 'pz-table'`).
+    - Inputs: `columns: PzTableColumn<T>[]`, `rows: T[]`, `sortColumn?: string`, `sortDirection: 'asc' | 'desc' | null`, `emptyMessage: string`, `trackByKey?: string`, `loading: boolean`.
+    - Outputs: `sort: EventEmitter<PzTableSortEvent>`, `rowClick: EventEmitter<T>`.
+    - Template & Styles: `pz-table.component.html`, `pz-table.component.scss` (supports responsive container, sortable headers with indicators, row click, loading indicator, and empty state cell).
+  - Unit Tests: `frontend/src/app/shared/components/pz-table/pz-table.component.spec.ts`.
+- Form Field Component (`frontend/src/app/shared/components/pz-form-field/pz-form-field.component.ts`):
+  - `PzFormFieldComponent`: Standalone component (`selector: 'pz-form-field'`).
+    - Inputs: `label: string`, `control: AbstractControl | null`, `errorMessages: Record<string, string>`, `hint: string`, `required: boolean`, `forId: string`.
+    - Methods: `hasError(): boolean`, `get errorMessage(): string`.
+    - Template & Styles: `pz-form-field.component.html`, `pz-form-field.component.scss` (labeled wrapper around `ng-content`, displays required asterisk, hint, and error alert when control is invalid and touched/dirty).
+  - Unit Tests: `frontend/src/app/shared/components/pz-form-field/pz-form-field.component.spec.ts`.
+- Dialog Service & Component (`frontend/src/app/shared/components/pz-dialog/`):
+  - `PZ_DIALOG_DATA`: `InjectionToken<unknown>`.
+  - `PzDialogConfig<D = unknown>`: `{ data?: D; width?: string; maxWidth?: string; hasBackdrop?: boolean; disableClose?: boolean; panelClass?: string | string[]; }`.
+  - `PzDialogRef<T = unknown, R = unknown>`:
+    - Properties: `componentInstance: T | null`, `readonly isOpen: Signal<boolean>`.
+    - Methods: `close(result?: R): void`, `afterClosed(): Observable<R | undefined>`.
+  - `PzDialogService`: `@Injectable({ providedIn: 'root' })`.
+    - Signals: `activeDialogs: Signal<PzDialogRef<unknown, unknown>[]>`, `hasOpenDialogs: Signal<boolean>`.
+    - Methods: `open<T, D = unknown, R = unknown>(component: Type<T>, configOrData?: PzDialogConfig<D> | D): PzDialogRef<T, R>`, `closeAll(): void`. Renders via Angular CDK `Overlay` and `ComponentPortal` with custom injector. Handles backdrop and Escape dismissals.
+  - `PzDialogComponent`: Standalone container shell (`selector: 'pz-dialog'`) with title, close button, body slot, and `[pz-dialog-actions]` footer slot.
+  - Unit Tests: `frontend/src/app/shared/components/pz-dialog/pz-dialog.service.spec.ts`.
+- State Components (`frontend/src/app/shared/components/`):
+  - `EmptyStateComponent` (`empty-state/`): Standalone (`selector: 'pz-empty-state, app-empty-state'`). Inputs: `message: string`, `title?: string`, `icon: string`. Slot for action buttons.
+  - `LoadingStateComponent` (`loading-state/`): Standalone (`selector: 'pz-loading-state, app-loading-state'`). Inputs: `message: string`, `icon?: string`. Animated spinner or custom icon.
+  - `ErrorStateComponent` (`error-state/`): Standalone (`selector: 'pz-error-state, app-error-state'`). Inputs: `message: string`, `title: string`, `icon: string`, `retryable: boolean`, `retryLabel: string`. Output: `retry: EventEmitter<void>`.
+  - Unit Tests: `empty-state.component.spec.ts`, `loading-state.component.spec.ts`, `error-state.component.spec.ts`.
+- Toast Service & Container (`frontend/src/app/shared/`):
+  - `ToastSeverity`: `'info' | 'success' | 'warning' | 'error'`.
+  - `ToastMessage`: `{ id: string; message: string; severity: ToastSeverity; duration: number; correlationId?: string; timestamp: number; }`.
+  - `ToastService` (`services/toast.service.ts`): `@Injectable({ providedIn: 'root' })`.
+    - Signal: `readonly toasts: Signal<ToastMessage[]>`.
+    - Methods: `show(message, severity?, duration?)`, `info(message, duration?)`, `success(message, duration?)`, `warning(message, duration?)`, `error(message, duration?)`, `showWithCorrelationId(message, correlationId, severity?, duration?)`, `dismiss(id)`, `clear()`.
+  - `ToastContainerComponent` (`components/toast-container/toast-container.component.ts`):
+    - Standalone (`selector: 'pz-toast-container, app-toast-container'`).
+    - Fixed position container rendering toast queue with severity icons, correlation ID badges, and dismiss buttons.
+    - Mounted once in `ShellComponent` (`frontend/src/app/shared/shell/shell.component.ts`).
+  - Unit Tests: `services/toast.service.spec.ts`, `components/toast-container/toast-container.component.spec.ts`.
+- Barrel Export:
+  - `frontend/src/app/shared/index.ts`: Re-exports all components, pipes, services, and types for Phase 11 feature screens.
