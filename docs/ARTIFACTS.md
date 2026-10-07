@@ -4578,3 +4578,29 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Unrecognized `SchemaVersion` fails cleanly with `Success: false` and leaves database completely untouched.
   - (c) Mid-import failure (simulated FK violation) rolls back entire transaction, leaving pre-import data fully intact (Invariant 12).
   - (d) Caller without `settings:manage` returns 403.
+
+## P-903
+### Desktop Migration Tool (pz-migrate): Schema Detect + Dry-Run + Reconciliation Report
+- Console Application (`tools/pz-migrate`):
+  - Project: `tools/pz-migrate/pz-migrate.csproj` (`net10.0`, references `StoreOS.Domain`, `StoreOS.Application`, `StoreOS.Infrastructure`).
+  - Test Project: `tools/pz-migrate.Tests/pz-migrate.Tests.csproj` (`net10.0`, xUnit + FluentAssertions).
+- Desktop Schema Models (`PzMigrate.DesktopBackupSchema`):
+  - POCOs matching SQLite desktop backup format: `DesktopBackup`, `DesktopSetting`, `DesktopItem`, `DesktopPurchase`, `DesktopSale`, `DesktopSaleItem`, `DesktopCustomer`, `DesktopCustomerPayment`, `DesktopExpense`, `DesktopSupplier`, `DesktopSupplierTransaction`, `DesktopLiability`, `DesktopLiabilityPayment`, `DesktopInventoryImei`, `DesktopSupplierReturn`, `DesktopSupplierReturnItem`, `DesktopRepairService`, `DesktopRepairJob`, `DesktopRepairJobPart`, `DesktopRepairJobStatusHistory`.
+- Reconciliation Report (`PzMigrate`):
+  - `ReconciliationReport(Dictionary<string, int> RecordCountsByTable, decimal SumSaleGrandTotals, decimal SumPayments, int SumStockQty, decimal SumActiveCreditBalances)`:
+    - `SumSaleGrandTotals`: Sum of `Sales.GrandTotal`.
+    - `SumPayments`: Sum of `CustomerPayments.Amount`.
+    - `SumStockQty`: Sum of `Items.StockQty`.
+    - `SumActiveCreditBalances`: Sum of `Customers.CreditBalance` where `CreditBalance > 0`.
+    - `RecordCountsByTable`: Counts for all 19 desktop tables.
+- Migration Service (`PzMigrate.DesktopMigrationService`):
+  - `DetectSchemaOrThrow(string json)`: Validates that input is a valid JSON object containing desktop backup top-level keys (`items`, `sales`, `customers`) and rejects cloud backup shapes (`schemaVersion`) or malformed files with clear errors.
+  - `RunDryRun(string backupPath)`: Parses desktop JSON file, detects schema, computes `ReconciliationReport`, writes `reconciliation-report.json` next to the backup, and outputs zero database connections.
+- CLI Syntax (`tools/pz-migrate/Program.cs`):
+  - `pz-migrate import --backup <path> --tenant-name <name> [--dry-run]`
+  - `pz-migrate reconcile-customers --tenant <id> [--dry-run]`
+- Unit Tests (`tools/pz-migrate.Tests/DryRunImportTests.cs`):
+  - (a) Well-formed realistic desktop backup produces exact hand-computed reconciliation sums and creates `reconciliation-report.json`.
+  - (b) Unrecognized/malformed JSON files are rejected with clear error messages without creating any report file.
+  - (c) Dry-run operates purely on the input file with zero database connections.
+  - (d) CLI invocation via `Program.Main` succeeds with exit code 0.
