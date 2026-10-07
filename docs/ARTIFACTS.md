@@ -3964,3 +3964,47 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) `PATCH /api/liabilities/{id}` updating title/lender leaves `TotalPrincipal` and `CurrentBalance` intact.
   - (e) Repayment of `50000.01` exceeding remaining balance throws `422` with `repayment_exceeds_balance`.
   - (f) Caller without `liabilities:manage` receives `403 Forbidden` on all five routes.
+
+## P-701
+### Repair Services CRUD & Query Endpoints (Catalog Overlay)
+- Architecture Invariant:
+  - Repair services are modeled as `products` rows with `category = 'RepairService'` (no new `repair_services` table, per Plan Section 8.4).
+  - Never assigned branch inventory rows (`branch_inventory` invariant maintained).
+- Domain Extensions (`StoreOS.Domain.Catalog.Product`):
+  - Added `SetTaxable(bool isTaxable)` to mutate `IsTaxable`.
+  - Added `SetHsnCode(string? hsnCode)` to mutate `HsnCode` (used as SAC for repair services).
+- DTOs (`StoreOS.Application.Repairs.Services`):
+  - `RepairServiceDto(Guid Id, string Name, string? Description, decimal StandardCharge, bool Taxable, decimal GstRate, string? SacCode, int? EstimatedDurationMinutes, int? WarrantyDays, bool IsActive)`
+- Application Vertical Slices (`StoreOS.Application.Repairs.Services`):
+  - `CreateRepairService`:
+    - Command: `CreateRepairServiceCommand(string Name, string? Description, decimal StandardCharge, bool Taxable, decimal? GstRate, string? SacCode, int? EstimatedDurationMinutes, int? WarrantyDays) : IRequest<Guid>, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `CreateRepairServiceValidator`
+    - Handler: `CreateRepairServiceHandler` (calls `Product.Create` with defaults: SAC `998713`, GST `18%`, duration `60`, warranty `30`)
+  - `GetRepairServices`:
+    - Query: `GetRepairServicesQuery(bool? IsActive = true, int Page = 1, int PageSize = 50) : IRequest<PagedResult<RepairServiceDto>>, IReadOnlyRequest`
+    - Handler: `GetRepairServicesHandler` (filters `category == ProductCategory.RepairService`, defaults `IsActive = true` excluding inactive; passing `IsActive = false` includes inactive)
+  - `GetRepairServiceById`:
+    - Query: `GetRepairServiceByIdQuery(Guid Id) : IRequest<RepairServiceDto>, IReadOnlyRequest`
+    - Handler: `GetRepairServiceByIdHandler`
+  - `UpdateRepairService`:
+    - Command: `UpdateRepairServiceCommand(Guid Id, string? Name = null, string? Description = null, decimal? StandardCharge = null, bool? Taxable = null, decimal? GstRate = null, string? SacCode = null, int? EstimatedDurationMinutes = null, int? WarrantyDays = null, bool? IsActive = null) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `UpdateRepairServiceValidator`
+    - Handler: `UpdateRepairServiceHandler`
+  - `DeactivateRepairService`:
+    - Command: `DeactivateRepairServiceCommand(Guid Id) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Handler: `DeactivateRepairServiceHandler` (calls `product.Deactivate()`, preserving historical usage)
+- Controller & Routes (`StoreOS.Api.Controllers.RepairServicesController`):
+  - `GET /api/repair-services` -> `List(bool? isActive = true, int page = 1, int pageSize = 50)`
+  - `GET /api/repair-services/{id}` -> `GetById(Guid id)`
+  - `POST /api/repair-services` -> `Create(CreateRepairServiceCommand)`
+  - `PATCH /api/repair-services/{id}` -> `Update(Guid id, UpdateRepairServiceBody)`
+  - `POST /api/repair-services/{id}/deactivate` -> `Deactivate(Guid id)`
+- Integration Tests (`StoreOS.IntegrationTests.Repairs.RepairServicesTests`):
+  - (a) Creating repair service with minimal input gets defaults (SAC 998713, GST 18%, duration 60, warranty 30).
+  - (b) Creating with explicit overrides respects them.
+  - (c) `GET /api/repair-services` excludes inactive by default; `isActive=false` includes them.
+  - (d) Deactivating service used in historical sale line leaves sale snapshot data unchanged.
+  - (e) Creating repair service never creates a `branch_inventory` row.

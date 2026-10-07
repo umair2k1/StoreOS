@@ -79,6 +79,10 @@ public class Product
         Name = name.Trim();
     }
 
+    public void SetTaxable(bool isTaxable) => IsTaxable = isTaxable;
+
+    public void SetHsnCode(string? hsnCode) => HsnCode = hsnCode;
+
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
 }
