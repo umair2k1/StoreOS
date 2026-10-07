@@ -29,6 +29,21 @@ public class User
         };
     }
 
+    public static User Rehydrate(Guid id, Guid tenantId, string email, string passwordHash, string displayName, int tokenVersion, bool isActive, DateTimeOffset createdAt)
+    {
+        return new User
+        {
+            Id = id,
+            TenantId = tenantId,
+            Email = email,
+            PasswordHash = passwordHash,
+            DisplayName = displayName,
+            TokenVersion = tokenVersion,
+            IsActive = isActive,
+            CreatedAt = createdAt
+        };
+    }
+
     public void ChangePasswordHash(string newHash)
     {
         if (string.IsNullOrWhiteSpace(newHash)) throw new ArgumentException("Password hash required.", nameof(newHash));

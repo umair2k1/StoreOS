@@ -34,8 +34,14 @@ public class Product
 
         var product = new Product
         {
-            Id = Guid.NewGuid(), TenantId = tenantId, Name = name.Trim(), Category = category,
-            SellPrice = sellPrice, PurchasePrice = purchasePrice, GstRate = gstRate, HsnCode = hsnCode,
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Name = name.Trim(),
+            Category = category,
+            SellPrice = sellPrice,
+            PurchasePrice = purchasePrice,
+            GstRate = gstRate,
+            HsnCode = hsnCode,
             CreatedAt = DateTimeOffset.UtcNow
         };
         if (category == ProductCategory.RepairService)
@@ -46,6 +52,32 @@ public class Product
             product.WarrantyDays = 30;
         }
         return product;
+    }
+
+    public static Product Rehydrate(
+        Guid id, Guid tenantId, string name, string category, decimal sellPrice,
+        decimal purchasePrice, decimal gstRate, bool isTaxable, bool isMarginScheme,
+        string? hsnCode, string? description, int? estimatedDurationMinutes,
+        int? warrantyDays, bool isActive, DateTimeOffset createdAt)
+    {
+        return new Product
+        {
+            Id = id,
+            TenantId = tenantId,
+            Name = name,
+            Category = category,
+            SellPrice = sellPrice,
+            PurchasePrice = purchasePrice,
+            GstRate = gstRate,
+            IsTaxable = isTaxable,
+            IsMarginScheme = isMarginScheme,
+            HsnCode = hsnCode,
+            Description = description,
+            EstimatedDurationMinutes = estimatedDurationMinutes,
+            WarrantyDays = warrantyDays,
+            IsActive = isActive,
+            CreatedAt = createdAt
+        };
     }
 
     public void SetMarginScheme(bool enabled)

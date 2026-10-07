@@ -70,6 +70,26 @@ public class CustomerLedgerEntry
         };
     }
 
+    public static CustomerLedgerEntry Rehydrate(
+        long id, Guid tenantId, Guid customerId, Guid? saleId, string entryType,
+        decimal debit, decimal credit, Guid? branchId, DateOnly entryDate, string? refId, DateTimeOffset createdAt)
+    {
+        return new CustomerLedgerEntry
+        {
+            Id = id,
+            TenantId = tenantId,
+            CustomerId = customerId,
+            SaleId = saleId,
+            EntryType = entryType,
+            Debit = debit,
+            Credit = credit,
+            BranchId = branchId,
+            EntryDate = entryDate,
+            RefId = refId,
+            CreatedAt = createdAt
+        };
+    }
+
     private static void Validate(string entryType, decimal amount)
     {
         if (!CustomerLedgerEntryType.All.Contains(entryType))

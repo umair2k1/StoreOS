@@ -115,6 +115,69 @@ public class RepairJob
         return job;
     }
 
+    public static RepairJob Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, string jobNumber, Guid? customerId,
+        string? customerName, string? customerPhone, string? customerAddress, string? deviceBrand,
+        string? deviceModel, string? deviceType, string? serialNumber, string? imei1, string? imei2,
+        string? deviceCondition, string? accessoriesReceived, string? problemDescription,
+        string? customerNotes, string? diagnosis, string? technicianNotes, string? internalNotes,
+        string? technician, decimal? estimatedCost, decimal? approvedCost, decimal? partsCost,
+        decimal? laborCharge, decimal? discount, decimal? tax, decimal? finalTotal,
+        decimal? advancePaid, decimal? balanceDue, string status, DateTimeOffset? receivedAt,
+        DateTimeOffset? expectedCompletion, DateTimeOffset? completedAt, DateTimeOffset? deliveredAt,
+        DateOnly? warrantyUntil, string? approvalState, DateTimeOffset? approvalTimestamp,
+        string? cancellationReason, string? invoiceNumber, Guid? saleId,
+        DateTimeOffset createdAt, DateTimeOffset updatedAt)
+    {
+        return new RepairJob
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            JobNumber = jobNumber,
+            CustomerId = customerId,
+            CustomerName = customerName,
+            CustomerPhone = customerPhone,
+            CustomerAddress = customerAddress,
+            DeviceBrand = deviceBrand,
+            DeviceModel = deviceModel,
+            DeviceType = deviceType,
+            SerialNumber = serialNumber,
+            Imei1 = imei1,
+            Imei2 = imei2,
+            DeviceCondition = deviceCondition,
+            AccessoriesReceived = accessoriesReceived,
+            ProblemDescription = problemDescription,
+            CustomerNotes = customerNotes,
+            Diagnosis = diagnosis,
+            TechnicianNotes = technicianNotes,
+            InternalNotes = internalNotes,
+            Technician = technician,
+            EstimatedCost = estimatedCost,
+            ApprovedCost = approvedCost,
+            PartsCost = partsCost,
+            LaborCharge = laborCharge,
+            Discount = discount,
+            Tax = tax,
+            FinalTotal = finalTotal,
+            AdvancePaid = advancePaid,
+            BalanceDue = balanceDue,
+            Status = status,
+            ReceivedAt = receivedAt,
+            ExpectedCompletion = expectedCompletion,
+            CompletedAt = completedAt,
+            DeliveredAt = deliveredAt,
+            WarrantyUntil = warrantyUntil,
+            ApprovalState = approvalState,
+            ApprovalTimestamp = approvalTimestamp,
+            CancellationReason = cancellationReason,
+            InvoiceNumber = invoiceNumber,
+            SaleId = saleId,
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt
+        };
+    }
+
     public void RecordDiagnosis(string? diagnosis, string? technicianNotes, string? internalNotes, string? technician)
     {
         Diagnosis = diagnosis;

@@ -18,6 +18,23 @@ public class BranchInventory
     public static BranchInventory Create(Guid tenantId, Guid branchId, Guid productId)
         => new() { Id = Guid.NewGuid(), TenantId = tenantId, BranchId = branchId, ProductId = productId };
 
+    public static BranchInventory Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, Guid productId,
+        int stockQty, decimal costPrice, decimal? sellPriceOverride, int lowStockThreshold)
+    {
+        return new BranchInventory
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ProductId = productId,
+            StockQty = stockQty,
+            CostPrice = costPrice,
+            SellPriceOverride = sellPriceOverride,
+            LowStockThreshold = lowStockThreshold
+        };
+    }
+
     public void IncreaseStock(int qty, decimal? newCostPrice = null)
     {
         if (qty <= 0) throw new DomainValidationException("invalid_quantity", "Quantity must be positive.");

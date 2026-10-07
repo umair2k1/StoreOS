@@ -73,6 +73,25 @@ public class SupplierLedgerEntry
         };
     }
 
+    public static SupplierLedgerEntry Rehydrate(
+        long id, Guid tenantId, Guid supplierId, Guid? branchId, string entryType,
+        decimal debit, decimal credit, DateOnly entryDate, string? refId, DateTimeOffset createdAt)
+    {
+        return new SupplierLedgerEntry
+        {
+            Id = id,
+            TenantId = tenantId,
+            SupplierId = supplierId,
+            BranchId = branchId,
+            EntryType = entryType,
+            Debit = debit,
+            Credit = credit,
+            EntryDate = entryDate,
+            RefId = refId,
+            CreatedAt = createdAt
+        };
+    }
+
     private static void Validate(string entryType, decimal amount)
     {
         if (!SupplierLedgerEntryType.IsValid(entryType))

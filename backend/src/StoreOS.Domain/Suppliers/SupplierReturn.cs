@@ -65,6 +65,32 @@ public class SupplierReturn
         };
     }
 
+    public static SupplierReturn Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, string returnNumber, DateOnly returnDate,
+        Guid supplierId, string? supplierPhone, string? supplierAddress, int totalQty,
+        decimal totalAmount, string settlementType, string? reason, string? notes,
+        Guid createdBy, DateTimeOffset createdAt)
+    {
+        return new SupplierReturn
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ReturnNumber = returnNumber,
+            ReturnDate = returnDate,
+            SupplierId = supplierId,
+            SupplierPhone = supplierPhone,
+            SupplierAddress = supplierAddress,
+            TotalQty = totalQty,
+            TotalAmount = totalAmount,
+            SettlementType = settlementType,
+            Reason = reason,
+            Notes = notes,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt
+        };
+    }
+
     public void AddItem(SupplierReturnItem item)
     {
         if (item == null) throw new ArgumentNullException(nameof(item));

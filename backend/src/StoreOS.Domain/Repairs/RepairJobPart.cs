@@ -37,6 +37,25 @@ public class RepairJobPart
         };
     }
 
+    public static RepairJobPart Rehydrate(
+        Guid id, Guid tenantId, Guid repairJobId, Guid? productId, string partName,
+        int quantity, decimal unitCost, decimal chargeAmount, string status, DateTimeOffset createdAt)
+    {
+        return new RepairJobPart
+        {
+            Id = id,
+            TenantId = tenantId,
+            RepairJobId = repairJobId,
+            ProductId = productId,
+            PartName = partName,
+            Quantity = quantity,
+            UnitCost = unitCost,
+            ChargeAmount = chargeAmount,
+            Status = status,
+            CreatedAt = createdAt
+        };
+    }
+
     public void MarkConsumed()
     {
         if (Status != RepairPartStatus.Reserved)

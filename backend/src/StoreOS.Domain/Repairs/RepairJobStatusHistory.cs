@@ -36,4 +36,21 @@ public class RepairJobStatusHistory
             ChangedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static RepairJobStatusHistory Rehydrate(
+        long id, Guid tenantId, Guid repairJobId, string? fromStatus, string toStatus,
+        string? notes, Guid? changedBy, DateTimeOffset changedAt)
+    {
+        return new RepairJobStatusHistory
+        {
+            Id = id,
+            TenantId = tenantId,
+            RepairJobId = repairJobId,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            Notes = notes,
+            ChangedBy = changedBy,
+            ChangedAt = changedAt
+        };
+    }
 }

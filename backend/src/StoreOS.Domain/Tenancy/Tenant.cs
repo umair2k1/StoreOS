@@ -27,6 +27,20 @@ public class Tenant
         };
     }
 
+    public static Tenant Rehydrate(Guid id, string name, string subdomain, bool isActive, string timezone, string featuresJson, DateTimeOffset createdAt)
+    {
+        return new Tenant
+        {
+            Id = id,
+            Name = name,
+            Subdomain = subdomain,
+            IsActive = isActive,
+            Timezone = timezone,
+            FeaturesJson = featuresJson,
+            CreatedAt = createdAt
+        };
+    }
+
     public void Rename(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

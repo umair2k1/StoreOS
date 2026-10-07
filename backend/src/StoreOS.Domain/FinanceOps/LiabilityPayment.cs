@@ -41,4 +41,21 @@ public class LiabilityPayment
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static LiabilityPayment Rehydrate(
+        Guid id, Guid tenantId, Guid liabilityId, decimal amount,
+        string paymentMode, DateOnly paymentDate, string? notes, DateTimeOffset createdAt)
+    {
+        return new LiabilityPayment
+        {
+            Id = id,
+            TenantId = tenantId,
+            LiabilityId = liabilityId,
+            Amount = amount,
+            PaymentMode = paymentMode,
+            PaymentDate = paymentDate,
+            Notes = notes,
+            CreatedAt = createdAt
+        };
+    }
 }

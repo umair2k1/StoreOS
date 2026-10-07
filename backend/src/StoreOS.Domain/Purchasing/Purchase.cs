@@ -55,4 +55,33 @@ public class Purchase
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static Purchase Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, Guid productId, int qty,
+        decimal purchaseRate, Guid? supplierId, string? supplierName, string? supplierPhone,
+        string? supplierAddress, string? sellerName, string? sellerPhone, string? sellerAddress,
+        string? supplierInvoiceNo, Guid? importBatchId, DateOnly purchaseDate, Guid createdBy, DateTimeOffset createdAt)
+    {
+        return new Purchase
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ProductId = productId,
+            Qty = qty,
+            PurchaseRate = purchaseRate,
+            SupplierId = supplierId,
+            SupplierName = supplierName,
+            SupplierPhone = supplierPhone,
+            SupplierAddress = supplierAddress,
+            SellerName = sellerName,
+            SellerPhone = sellerPhone,
+            SellerAddress = sellerAddress,
+            SupplierInvoiceNo = supplierInvoiceNo,
+            ImportBatchId = importBatchId,
+            PurchaseDate = purchaseDate,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt
+        };
+    }
 }

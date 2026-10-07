@@ -58,4 +58,30 @@ public class SaleItem
             Imei = imei
         };
     }
+
+    public static SaleItem Rehydrate(
+        Guid id, Guid tenantId, Guid saleId, Guid? productId, string itemName, string category,
+        int qty, decimal pricePerUnit, decimal? purchasePriceSnapshot, string? hsnSnapshot,
+        bool isMarginScheme, bool isGift, decimal taxable, decimal cgst, decimal sgst, string? imei)
+    {
+        return new SaleItem
+        {
+            Id = id,
+            TenantId = tenantId,
+            SaleId = saleId,
+            ProductId = productId,
+            ItemName = itemName,
+            Category = category,
+            Qty = qty,
+            PricePerUnit = pricePerUnit,
+            PurchasePriceSnapshot = purchasePriceSnapshot,
+            HsnSnapshot = hsnSnapshot,
+            IsMarginScheme = isMarginScheme,
+            IsGift = isGift,
+            Taxable = taxable,
+            Cgst = cgst,
+            Sgst = sgst,
+            Imei = imei
+        };
+    }
 }

@@ -33,4 +33,21 @@ public class CustomerPayment
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static CustomerPayment Rehydrate(
+        Guid id, Guid tenantId, Guid saleId, decimal amount,
+        string paymentMode, DateOnly paymentDate, Guid receivedBy, DateTimeOffset createdAt)
+    {
+        return new CustomerPayment
+        {
+            Id = id,
+            TenantId = tenantId,
+            SaleId = saleId,
+            Amount = amount,
+            PaymentMode = paymentMode,
+            PaymentDate = paymentDate,
+            ReceivedBy = receivedBy,
+            CreatedAt = createdAt
+        };
+    }
 }

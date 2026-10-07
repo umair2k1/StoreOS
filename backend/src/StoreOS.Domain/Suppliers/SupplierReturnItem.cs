@@ -57,6 +57,25 @@ public class SupplierReturnItem
         };
     }
 
+    public static SupplierReturnItem Rehydrate(
+        Guid id, Guid tenantId, Guid returnId, Guid? productId, string itemName,
+        int qty, decimal purchasePrice, decimal returnRate, decimal lineTotal, string[]? imeiNumbers)
+    {
+        return new SupplierReturnItem
+        {
+            Id = id,
+            TenantId = tenantId,
+            ReturnId = returnId,
+            ProductId = productId,
+            ItemName = itemName,
+            Qty = qty,
+            PurchasePrice = purchasePrice,
+            ReturnRate = returnRate,
+            LineTotal = lineTotal,
+            ImeiNumbers = imeiNumbers
+        };
+    }
+
     public static SupplierReturnItem Create(
         Guid tenantId,
         Guid returnId,

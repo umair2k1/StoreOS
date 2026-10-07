@@ -29,6 +29,23 @@ public class Customer
         };
     }
 
+    public static Customer Rehydrate(
+        Guid id, Guid tenantId, string name, string? phone, string? gstin,
+        decimal totalPurchases, decimal? creditLimit, DateTimeOffset createdAt)
+    {
+        return new Customer
+        {
+            Id = id,
+            TenantId = tenantId,
+            Name = name,
+            Phone = phone,
+            Gstin = gstin,
+            TotalPurchases = totalPurchases,
+            CreditLimit = creditLimit,
+            CreatedAt = createdAt
+        };
+    }
+
     public void UpdateProfile(string name, string? phone, string? gstin)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Customer name is required.", nameof(name));

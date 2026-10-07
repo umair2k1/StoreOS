@@ -43,4 +43,26 @@ public class InventoryMovement
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static InventoryMovement Rehydrate(
+        long id, Guid tenantId, Guid branchId, Guid productId, Guid? imeiId,
+        string movementType, int qtyDelta, decimal unitCost, string refType, string refId,
+        DateTimeOffset createdAt, Guid? createdBy)
+    {
+        return new InventoryMovement
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ProductId = productId,
+            ImeiId = imeiId,
+            MovementType = movementType,
+            QtyDelta = qtyDelta,
+            UnitCost = unitCost,
+            RefType = refType,
+            RefId = refId,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt
+        };
+    }
 }

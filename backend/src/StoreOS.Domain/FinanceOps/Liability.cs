@@ -50,6 +50,25 @@ public class Liability
         };
     }
 
+    public static Liability Rehydrate(
+        Guid id, Guid tenantId, string title, string type, string? lenderName,
+        decimal totalPrincipal, DateOnly? dueDate, string? status, string? notes, DateTimeOffset createdAt)
+    {
+        return new Liability
+        {
+            Id = id,
+            TenantId = tenantId,
+            Title = title,
+            Type = type,
+            LenderName = lenderName,
+            TotalPrincipal = totalPrincipal,
+            DueDate = dueDate,
+            Status = status,
+            Notes = notes,
+            CreatedAt = createdAt
+        };
+    }
+
     public void UpdateDescriptiveData(string title, string? lenderName, DateOnly? dueDate, string? status, string? notes)
     {
         if (string.IsNullOrWhiteSpace(title))

@@ -32,6 +32,23 @@ public class Branch
         };
     }
 
+    public static Branch Rehydrate(Guid id, Guid tenantId, string code, string name, string? address, string? phone, string? email, string? gstin, bool isActive, DateTimeOffset createdAt)
+    {
+        return new Branch
+        {
+            Id = id,
+            TenantId = tenantId,
+            Code = code,
+            Name = name,
+            Address = address,
+            Phone = phone,
+            Email = email,
+            Gstin = gstin,
+            IsActive = isActive,
+            CreatedAt = createdAt
+        };
+    }
+
     public void UpdateProfile(string name, string? address, string? phone, string? email, string? gstin)
     {
         if (string.IsNullOrWhiteSpace(name))

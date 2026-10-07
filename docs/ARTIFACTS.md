@@ -4553,3 +4553,28 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Serialized JSON is uploaded to MinIO bucket and matches returned DTO.
   - (e) Caller without `settings:manage` returns 403.
   - (f) `MinioObjectStorageService` round trip test (upload, get, missing returns null).
+
+## P-902
+### JSON Restore/Import (tenant/import)
+- Import Command & Result DTO (`StoreOS.Application.Platform.BackupImport`):
+  - `ImportTenantDataCommand(TenantBackupDto Backup) : IRequest<ImportResultDto>, IRequiresPermission, IHighImpactOperation, IIdempotentRequest`:
+    - `RequiredPermission => "settings:manage"`
+    - `IdempotencyScope => "tenant.import"`
+    - `IdempotencyRequired => true`
+  - `ImportResultDto(bool Success, Dictionary<string, int> RecordCounts, string? ErrorMessage)`
+- API Route (`StoreOS.Api.Controllers.PlatformController`):
+  - `POST /api/tenant/import`: Accepts `TenantBackupDto`, enforces mandatory `Idempotency-Key` header, returns `200 OK` on success or `400 Bad Request` on validation failure.
+- Transactional Staging & Restore Mechanism:
+  - Runs inside the ambient transaction from `TransactionBehavior` (Invariant 12: all or nothing).
+  - Sets `SET LOCAL app.all_branches = 'true'` to allow cross-branch replacement while preserving strict `app.tenant_id` RLS scoping.
+  - Reverse-dependency deletion: Uses `delete_tenant_data_for_restore(uuid)` (a `SECURITY DEFINER` function in PostgreSQL) which safely purges existing tenant rows across all ~28 child tables while honoring the append-only invariant on ledger tables.
+  - Forward-dependency insertion: Deserializes backup DTO arrays and rehydrates entities via factory variants, inserting in order: `branches`, `settings`, `roles`, `role_permissions`, `users`, `user_branches`, `user_role_assignments`, `products`, `branch_inventory`, `purchases`, `inventory_imeis`, `inventory_movements`, `customers`, `sales`, `sale_items`, `customer_payments`, `customer_ledger_entries`, `suppliers`, `supplier_transactions`, `supplier_ledger_entries`, `supplier_returns`, `supplier_return_items`, `expenses`, `liabilities`, `liability_payments`, `repair_jobs`, `repair_job_parts`, `repair_job_status_history`.
+- Entity `Rehydrate(...)` Variants:
+  - Added `Rehydrate(...)` static factory variants to all domain entities whose standard `Create` method generates new GUIDs or validates "new business object" rules that would reject historical backup records: `Tenant`, `Branch`, `User`, `Role`, `Product`, `BranchInventory`, `Purchase`, `InventoryImei`, `InventoryMovement`, `Sale`, `SaleItem`, `CustomerPayment`, `Customer`, `CustomerLedgerEntry`, `Supplier`, `SupplierTransaction`, `SupplierLedgerEntry`, `SupplierReturn`, `SupplierReturnItem`, `Expense`, `Liability`, `LiabilityPayment`, `RepairJob`, `RepairJobPart`, `RepairJobStatusHistory`.
+- Database Migration:
+  - Migration: `20261007201557_030_TenantRestoreFunction` (`dotnet ef migrations add 030_TenantRestoreFunction --context StoreOsDbContext`) adds the `public.delete_tenant_data_for_restore(p_tenant_id uuid)` function and grants execute to `storeos_app`.
+- Integration Tests (`StoreOS.IntegrationTests.Platform.ImportTenantDataTests`):
+  - (a) Full round-trip: export seeded tenant data, import into same tenant, and verify all table row counts match pre-export state exactly.
+  - (b) Unrecognized `SchemaVersion` fails cleanly with `Success: false` and leaves database completely untouched.
+  - (c) Mid-import failure (simulated FK violation) rolls back entire transaction, leaving pre-import data fully intact (Invariant 12).
+  - (d) Caller without `settings:manage` returns 403.

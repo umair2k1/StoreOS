@@ -108,6 +108,52 @@ public class Sale
         };
     }
 
+    public static Sale Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, string invoiceNumber, string invoiceType,
+        DateTimeOffset saleDate, Guid? customerId, string? customerName, string? customerGstin,
+        decimal totalTaxable, decimal totalCgst, decimal totalSgst, decimal grandTotal,
+        decimal discount, decimal amountPaid, string status, string? paymentMode,
+        string? financeProvider, string? financerName, decimal? downPayment,
+        string? emiDetailsJson, string? giftDetailsJson, string? description,
+        Guid? repairJobId, string? irn, string? irnAckNo, string? irnQrData,
+        Guid createdBy, DateTimeOffset createdAt, Guid? convertedFromEstimateId, Guid? linkedTaxInvoiceId)
+    {
+        return new Sale
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            InvoiceNumber = invoiceNumber,
+            InvoiceType = invoiceType,
+            SaleDate = saleDate,
+            CustomerId = customerId,
+            CustomerName = customerName,
+            CustomerGstin = customerGstin,
+            TotalTaxable = totalTaxable,
+            TotalCgst = totalCgst,
+            TotalSgst = totalSgst,
+            GrandTotal = grandTotal,
+            Discount = discount,
+            AmountPaid = amountPaid,
+            Status = status,
+            PaymentMode = paymentMode,
+            FinanceProvider = financeProvider,
+            FinancerName = financerName,
+            DownPayment = downPayment,
+            EmiDetailsJson = emiDetailsJson,
+            GiftDetailsJson = giftDetailsJson,
+            Description = description,
+            RepairJobId = repairJobId,
+            Irn = irn,
+            IrnAckNo = irnAckNo,
+            IrnQrData = irnQrData,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt,
+            ConvertedFromEstimateId = convertedFromEstimateId,
+            LinkedTaxInvoiceId = linkedTaxInvoiceId
+        };
+    }
+
     public static Sale CreateTaxInvoice(
         Guid tenantId,
         Guid branchId,

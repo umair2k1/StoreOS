@@ -41,6 +41,29 @@ public class InventoryImei
         };
     }
 
+    public static InventoryImei Rehydrate(
+        Guid id, Guid tenantId, Guid branchId, Guid productId, Guid? purchaseId,
+        string imei, string status, Guid? saleId, Guid? saleItemId, Guid? returnId,
+        DateOnly? purchaseDate, decimal? purchasePrice, DateTimeOffset createdAt)
+    {
+        return new InventoryImei
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            ProductId = productId,
+            PurchaseId = purchaseId,
+            Imei = imei,
+            Status = status,
+            SaleId = saleId,
+            SaleItemId = saleItemId,
+            ReturnId = returnId,
+            PurchaseDate = purchaseDate,
+            PurchasePrice = purchasePrice,
+            CreatedAt = createdAt
+        };
+    }
+
     public void MarkSold(Guid saleId, Guid saleItemId)
     {
         if (Status != ImeiStatus.InStock)

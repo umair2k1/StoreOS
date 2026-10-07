@@ -20,6 +20,16 @@ public class Role
         };
     }
 
+    public static Role Rehydrate(Guid id, Guid tenantId, string name)
+    {
+        return new Role
+        {
+            Id = id,
+            TenantId = tenantId,
+            Name = name
+        };
+    }
+
     public void Rename(string name)
     {
         if (string.IsNullOrWhiteSpace(name))

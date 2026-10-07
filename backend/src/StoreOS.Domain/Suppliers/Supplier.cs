@@ -30,6 +30,23 @@ public class Supplier
         };
     }
 
+    public static Supplier Rehydrate(
+        Guid id, Guid tenantId, string name, string? phone, string? address,
+        string? brandOrCategory, string? notes, DateTimeOffset createdAt)
+    {
+        return new Supplier
+        {
+            Id = id,
+            TenantId = tenantId,
+            Name = name,
+            Phone = phone,
+            Address = address,
+            BrandOrCategory = brandOrCategory,
+            Notes = notes,
+            CreatedAt = createdAt
+        };
+    }
+
     public void UpdateProfile(string name, string? phone, string? address, string? brandOrCategory, string? notes)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Supplier name is required.", nameof(name));

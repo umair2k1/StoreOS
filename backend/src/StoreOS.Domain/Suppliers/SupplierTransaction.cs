@@ -63,4 +63,26 @@ public class SupplierTransaction
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static SupplierTransaction Rehydrate(
+        Guid id, Guid tenantId, Guid supplierId, Guid? branchId, string type,
+        decimal amount, string? paymentMode, string? referenceNo, DateOnly txnDate,
+        string? notes, Guid createdBy, DateTimeOffset createdAt)
+    {
+        return new SupplierTransaction
+        {
+            Id = id,
+            TenantId = tenantId,
+            SupplierId = supplierId,
+            BranchId = branchId,
+            Type = type,
+            Amount = amount,
+            PaymentMode = paymentMode,
+            ReferenceNo = referenceNo,
+            TxnDate = txnDate,
+            Notes = notes,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt
+        };
+    }
 }

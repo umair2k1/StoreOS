@@ -53,4 +53,24 @@ public class Expense
             CreatedAt = DateTimeOffset.UtcNow
         };
     }
+
+    public static Expense Rehydrate(
+        Guid id, Guid tenantId, Guid? branchId, string description,
+        decimal amount, string category, DateOnly expenseDate, string? notes,
+        Guid createdBy, DateTimeOffset createdAt)
+    {
+        return new Expense
+        {
+            Id = id,
+            TenantId = tenantId,
+            BranchId = branchId,
+            Description = description,
+            Amount = amount,
+            Category = category,
+            ExpenseDate = expenseDate,
+            Notes = notes,
+            CreatedBy = createdBy,
+            CreatedAt = createdAt
+        };
+    }
 }
