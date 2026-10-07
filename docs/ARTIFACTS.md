@@ -4699,3 +4699,35 @@ var sgst = Money.Round2(totalGst - cgst);
   - `frontend/src/app/app.config.ts`: Added `provideApiConfig()` to root application providers.
 - CI Drift-Check:
   - `.github/workflows/ci.yml`: Added `dotnet build backend/src/StoreOS.Api/StoreOS.Api.csproj`, `npm run --prefix frontend generate-client`, and `git diff --exit-code frontend/src/app/core/api/generated-client.ts` to `frontend-build` job to fail on client drift.
+
+## P-1002
+### AuthSignalStore (In-Memory Access Token) + Auth Interceptor
+- In-Memory Auth Signal Store (`frontend/src/app/core/auth/auth-signal-store.ts`):
+  - `interface AuthState`: `{ accessToken: string | null; expiresAt: string | null; userId: string | null; displayName: string | null; tenantId: string | null; allBranches: boolean; branchIds: string[]; permissions: string[]; }`.
+  - `AuthSignalStore`:
+    - `readonly isAuthenticated = computed(() => this.state().accessToken !== null);`
+    - `readonly accessToken = computed(() => this.state().accessToken);`
+    - `readonly displayName = computed(() => this.state().displayName);`
+    - `readonly permissions = computed(() => this.state().permissions);`
+    - `readonly branchIds = computed(() => this.state().branchIds);`
+    - `readonly allBranches = computed(() => this.state().allBranches);`
+    - `readonly userId = computed(() => this.state().userId);`
+    - `readonly tenantId = computed(() => this.state().tenantId);`
+    - `setAuthenticated(data: Omit<AuthState, never>): void`: Updates in-memory reactive state.
+    - `clear(): void`: Resets state to empty defaults.
+    - `hasPermission(code: string): boolean`: Checks whether code is included in permissions.
+  - Security Invariant: Zero persistent token storage (`localStorage`, `sessionStorage` never touched).
+- Silent Auth Refresh Service (`frontend/src/app/core/auth/auth-refresh.service.ts`):
+  - `AuthRefreshService`:
+    - `refresh(): Observable<void>`: Sends `POST /api/auth/refresh` with `withCredentials: true` (attaching HttpOnly cookie). On success, updates `AuthSignalStore`. On failure, clears `AuthSignalStore` and propagates error.
+- Reactive 401 Buffering Interceptor (`frontend/src/app/core/interceptors/auth.interceptor.ts`):
+  - Functional HTTP interceptor `authInterceptor: HttpInterceptorFn`:
+    - Attaches `Authorization: Bearer <token>` when access token exists in `AuthSignalStore`.
+    - Excludes `/api/auth/refresh` and `/api/auth/login` from 401 retry loops.
+    - On 401, coordinates single in-flight refresh via `AuthRefreshService.refresh()`, buffering concurrent requests.
+    - On refresh success, replays the original request and all buffered concurrent requests with the newly minted access token.
+    - On refresh failure, clears auth state and propagates error downstream.
+    - `resetAuthInterceptorState()`: Test seam for test isolation.
+  - Registered in `frontend/src/app/app.config.ts` via `provideApiConfig(withInterceptors([authInterceptor]))`.
+- Unit Tests (`frontend/src/app/core/interceptors/auth.interceptor.spec.ts`):
+  - Verified: (a) Bearer token attached; (b) 1 refresh for 3 concurrent 401s (buffering proof); (c) all 3 retried with new token; (d) failed refresh clears store and propagates error; (e) no refresh triggered on auth endpoints.
