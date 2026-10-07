@@ -1,3 +1,4 @@
+using Amazon.S3;
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
@@ -87,6 +88,20 @@ builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.InvoicePdfRenderer
 builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.RepairPdfRenderer>();
 builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.SupplierReturnPdfRenderer>();
 builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.ReportPdfRenderer>();
+
+// Object Storage (P-901)
+var s3Config = new AmazonS3Config
+{
+    ServiceURL = builder.Configuration["ObjectStorage:ServiceUrl"] ?? "http://localhost:9000",
+    ForcePathStyle = true
+};
+var s3Client = new AmazonS3Client(
+    builder.Configuration["ObjectStorage:AccessKey"] ?? "storeos_minio",
+    builder.Configuration["ObjectStorage:SecretKey"] ?? "storeos_minio_password",
+    s3Config);
+builder.Services.AddSingleton<IAmazonS3>(s3Client);
+builder.Services.AddScoped<StoreOS.Application.Abstractions.IObjectStorageService, StoreOS.Infrastructure.Platform.MinioObjectStorageService>();
+builder.Services.AddHostedService<StoreOS.Infrastructure.Platform.ObjectStorageBucketInitializer>();
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>

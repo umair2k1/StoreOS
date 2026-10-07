@@ -4526,3 +4526,30 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) All 3 endpoints return 200 with `Content-Type: application/pdf` and valid `%PDF` bytes (>100 bytes) for fully-populated records.
   - (b) Invoice PDF endpoint succeeds when no `"shop_profile"` setting exists, falling back to branch master data.
   - (c) Nonexistent ID on any of the three endpoints returns 404 (reusing existing not-found handling).
+
+## P-901
+### JSON Backup Export (tenant/export) & Object Storage
+- Storage Abstractions & Service (`StoreOS.Application.Abstractions` / `StoreOS.Infrastructure.Platform`):
+  - `IObjectStorageService`:
+    - `Task<string> UploadAsync(string bucket, string key, byte[] content, string contentType, CancellationToken ct)`
+    - `Task<StoredObject?> GetAsync(string bucket, string key, CancellationToken ct)`
+    - `Task EnsureBucketsAsync(CancellationToken ct = default)`
+  - `StoredObject(byte[] Content, string ContentType)`
+  - `MinioObjectStorageService`: Implements `IObjectStorageService` using `IAmazonS3` client pointed at MinIO dev container (`http://localhost:9000`, `storeos_minio` credentials, `ForcePathStyle = true`).
+  - `ObjectStorageBucketInitializer`: `IHostedService` ensuring `storeos-media` and `storeos-backups` buckets exist on startup.
+  - MinIO Bucket convention: `"storeos-backups"`, Key convention: `"{tenantId}/backup-{timestamp}.json"`.
+- Backup Command & DTOs (`StoreOS.Application.Platform.BackupExport`):
+  - `ExportTenantDataCommand() : IRequest<TenantBackupDto>, IRequiresPermission, IHighImpactOperation`: Requires permission `"settings:manage"`.
+  - `TenantBackupDto(string SchemaVersion, DateTimeOffset ExportedAt, Guid TenantId, object Tenant, object[] Branches, object[] Settings, object[] Users, object[] Roles, object[] RolePermissions, object[] UserBranches, object[] UserRoleAssignments, object[] Products, object[] BranchInventories, object[] Purchases, object[] InventoryImeis, object[] InventoryMovements, object[] Sales, object[] SaleItems, object[] CustomerPayments, object[] Customers, object[] CustomerLedgerEntries, object[] Suppliers, object[] SupplierTransactions, object[] SupplierLedgerEntries, object[] SupplierReturns, object[] SupplierReturnItems, object[] Expenses, object[] Liabilities, object[] LiabilityPayments, object[] RepairJobs, object[] RepairJobParts, object[] RepairJobStatusHistory)`: SchemaVersion is `"1.0"`.
+  - Flat table DTOs: `BackupTenantDto`, `BackupBranchDto`, `BackupSettingDto`, `BackupUserDto` (exposing Argon2 `password_hash` and `passwordHash` alias), `BackupRoleDto`, `BackupRolePermissionDto`, `BackupUserBranchDto`, `BackupUserRoleAssignmentDto`, `BackupProductDto`, `BackupBranchInventoryDto`, `BackupPurchaseDto`, `BackupInventoryImeiDto`, `BackupInventoryMovementDto`, `BackupSaleDto`, `BackupSaleItemDto`, `BackupCustomerPaymentDto`, `BackupCustomerDto`, `BackupCustomerLedgerEntryDto`, `BackupSupplierDto`, `BackupSupplierTransactionDto`, `BackupSupplierLedgerEntryDto`, `BackupSupplierReturnDto`, `BackupSupplierReturnItemDto`, `BackupExpenseDto`, `BackupLiabilityDto`, `BackupLiabilityPaymentDto`, `BackupRepairJobDto`, `BackupRepairJobPartDto`, `BackupRepairJobStatusHistoryDto`.
+- Sanctioned `IgnoreQueryFilters()` Exception:
+  - `ExportTenantDataHandler` executes `SET LOCAL app.all_branches = 'true'` inside the transaction and uses `IgnoreQueryFilters()` with explicit `tenant_id` scoping to export all branches' data regardless of the exporting user's branch scope. Documented as a sanctioned, narrow exception alongside P-303, P-507, P-606, P-708.
+- API Route (`StoreOS.Api.Controllers.PlatformController`):
+  - `POST /api/tenant/export`: Invokes `ExportTenantDataCommand` and returns `ActionResult<TenantBackupDto>`.
+- Integration Tests (`StoreOS.IntegrationTests.Platform.ExportTenantDataTests`):
+  - (a) Multi-branch export with single-branch scoped user successfully exports all branches' data.
+  - (b) `SchemaVersion` is present and `"1.0"`.
+  - (c) `password_hash` values are present and Argon2-formatted strings.
+  - (d) Serialized JSON is uploaded to MinIO bucket and matches returned DTO.
+  - (e) Caller without `settings:manage` returns 403.
+  - (f) `MinioObjectStorageService` round trip test (upload, get, missing returns null).
