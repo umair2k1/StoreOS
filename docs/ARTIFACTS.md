@@ -4092,3 +4092,43 @@ var sgst = Money.Round2(totalGst - cgst);
   - (c) Status filter `Active` returns only jobs not in `Delivered` or `Cancelled`.
   - (d) Updating diagnosis and commercials persists correctly and recomputes `BalanceDue`.
   - (e) Caller without `repairs:manage` receives 403 Forbidden on mutations, but can read via list and detail queries.
+
+## P-704
+### Repair Job Status History Entity, State Machine & Status Endpoints
+- Domain Types (`StoreOS.Domain.Repairs`):
+  - `RepairStatusTransitions`:
+    - Terminal states: `Delivered`, `Cancelled` (never transition further).
+    - Non-terminal states: `Received`, `Diagnosing`, `WaitingForApproval`, `WaitingForParts`, `InRepair`, `ReadyForPickup`.
+    - Rules:
+      - Terminal states cannot transition to anything (`from in Terminal => false`).
+      - `Delivered` reachable only from `ReadyForPickup`.
+      - `Cancelled` reachable from any non-terminal state.
+      - Transitions between any distinct non-terminal states are fully permitted in either direction.
+      - `IsLegal(string from, string to)` evaluates the rule set.
+  - `RepairJobStatusHistory` (Append-only Entity):
+    - Columns: `Id` (bigint identity), `TenantId` (uuid), `RepairJobId` (uuid FK), `FromStatus` (text), `ToStatus` (text), `Notes` (text), `ChangedBy` (uuid), `ChangedAt` (timestamptz).
+    - Factory: `RepairJobStatusHistory.Create(tenantId, repairJobId, fromStatus, toStatus, notes, changedBy)`.
+  - `RepairJob` Entity Extension:
+    - `TransitionTo(string newStatus)` validates legal transition via `RepairStatusTransitions.IsLegal` (throws `DomainValidationException` on illegal), sets `Status`, sets `DeliveredAt = UtcNow` if reaching `Delivered`, updates `UpdatedAt`.
+- Database & Migration:
+  - Table: `repair_job_status_history`
+  - Migration: `20261007171447_028_RepairStatusHistory`
+  - RLS Archetype A: `tenant_isolation_policy` enabled and forced.
+  - QueryFilters: `ApplyFilter<RepairJobStatusHistory>(modelBuilder, scopeAccess, (h, s) => h.TenantId == s.TenantId)`.
+- Application Vertical Slices (`StoreOS.Application.Repairs.Jobs`):
+  - `ChangeStatus`:
+    - Command: `ChangeRepairStatusCommand(Guid RepairJobId, string NewStatus, string? Notes = null) : IRequest, IRequiresPermission`
+    - Permission: `repairs:manage`
+    - Validator: `ChangeRepairStatusValidator`
+    - Handler: `ChangeRepairStatusHandler` (transitions job, records history entry atomically)
+  - `GetStatusHistory`:
+    - Query: `GetRepairStatusHistoryQuery(Guid RepairJobId) : IRequest<IReadOnlyList<RepairStatusHistoryDto>>, IReadOnlyRequest`
+    - DTO: `RepairStatusHistoryDto(long Id, Guid RepairJobId, string? FromStatus, string ToStatus, string? Notes, Guid? ChangedBy, DateTimeOffset ChangedAt)`
+    - Handler: `GetRepairStatusHistoryHandler`
+- Controller & Routes (`StoreOS.Api.Controllers.RepairJobsController`):
+  - `POST /api/repair-jobs/{id}/status` -> `ChangeStatus(Guid id, ChangeRepairStatusBody body)`
+  - `GET /api/repair-jobs/{id}/status-history` -> `GetStatusHistory(Guid id)`
+- Tests:
+  - `RepairStatusTransitionsTests` (24 passed): verifies all legal transitions pass and illegal transitions fail (terminal states, premature delivered, same-state loops).
+  - `ChangeRepairStatusTests` (4 passed): legal transition creates history row; illegal transition fails 422 with zero history rows; delivered transition sets `DeliveredAt`; sequential transitions create ordered history trail.
+  - `RlsCoverageTests` (5 passed): validates `repair_job_status_history` table RLS enabled, forced, and covered.

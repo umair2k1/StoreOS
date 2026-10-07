@@ -64,6 +64,7 @@ public static class QueryFilters
         ApplyFilter<StoreOS.Domain.FinanceOps.Liability>(modelBuilder, scopeAccess, (l, s) => l.TenantId == s.TenantId);
         ApplyFilter<StoreOS.Domain.FinanceOps.LiabilityPayment>(modelBuilder, scopeAccess, (lp, s) => lp.TenantId == s.TenantId);
         ApplyFilter<StoreOS.Domain.Repairs.RepairJob>(modelBuilder, scopeAccess, (rj, s) => rj.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(rj.BranchId)));
+        ApplyFilter<StoreOS.Domain.Repairs.RepairJobStatusHistory>(modelBuilder, scopeAccess, (h, s) => h.TenantId == s.TenantId);
     }
     private static void ApplyFilter<TEntity>(
         ModelBuilder modelBuilder,

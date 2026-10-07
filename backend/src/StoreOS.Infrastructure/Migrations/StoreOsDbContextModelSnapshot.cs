@@ -1328,6 +1328,56 @@ namespace StoreOS.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJobStatusHistory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("ChangedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("changed_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<Guid?>("ChangedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("changed_by");
+
+                    b.Property<string>("FromStatus")
+                        .HasColumnType("text")
+                        .HasColumnName("from_status");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("text")
+                        .HasColumnName("notes");
+
+                    b.Property<Guid>("RepairJobId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("repair_job_id");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("to_status");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RepairJobId");
+
+                    b.HasIndex("TenantId", "RepairJobId")
+                        .HasDatabaseName("ix_repair_job_status_history_tenant_job");
+
+                    b.ToTable("repair_job_status_history", "public");
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Sales.CustomerPayment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2327,6 +2377,15 @@ namespace StoreOS.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ProductId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJobStatusHistory", b =>
+                {
+                    b.HasOne("StoreOS.Domain.Repairs.RepairJob", null)
+                        .WithMany()
+                        .HasForeignKey("RepairJobId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 

@@ -7,6 +7,8 @@ using StoreOS.Application.Repairs.Jobs.GetRepairJobs;
 using StoreOS.Application.Repairs.Jobs.UpdateRepairJob;
 using StoreOS.Application.Repairs.Jobs.UpdateRepairJobCommercials;
 using StoreOS.Application.Repairs.Jobs.UpdateRepairJobDiagnosis;
+using StoreOS.Application.Repairs.Jobs.ChangeStatus;
+using StoreOS.Application.Repairs.Jobs.GetStatusHistory;
 
 namespace StoreOS.Api.Controllers;
 
@@ -76,6 +78,17 @@ public class RepairJobsController : ControllerBase
 
         return NoContent();
     }
+
+    [HttpPost("{id:guid}/status")]
+    public async Task<IActionResult> ChangeStatus(Guid id, [FromBody] ChangeRepairStatusBody body, CancellationToken ct)
+    {
+        await _mediator.Send(new ChangeRepairStatusCommand(id, body.Status, body.Notes), ct);
+        return NoContent();
+    }
+
+    [HttpGet("{id:guid}/status-history")]
+    public async Task<IActionResult> GetStatusHistory(Guid id, CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetRepairStatusHistoryQuery(id), ct));
 }
 
 public record UpdateRepairJobBody(
@@ -100,3 +113,5 @@ public record UpdateRepairJobCommercialsBody(
     decimal? Tax = null,
     decimal? FinalTotal = null,
     decimal? AdvancePaid = null);
+
+public record ChangeRepairStatusBody(string Status, string? Notes = null);

@@ -187,6 +187,21 @@ public class RepairJob
         UpdatedAt = DateTimeOffset.UtcNow;
     }
 
+    public void TransitionTo(string newStatus)
+    {
+        if (!RepairStatusTransitions.IsLegal(Status, newStatus))
+        {
+            throw new DomainValidationException("illegal_status_transition",
+                $"Cannot transition repair job from '{Status}' to '{newStatus}'.");
+        }
+        Status = newStatus;
+        if (newStatus == RepairStatus.Delivered)
+        {
+            DeliveredAt = DateTimeOffset.UtcNow;
+        }
+        UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
     public void Cancel(string reason)
     {
         if (Status == RepairStatus.Delivered)
