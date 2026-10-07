@@ -4,11 +4,13 @@ import { Title } from '@angular/platform-browser';
 import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
 import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 import { BranchSwitcherComponent } from './branch-switcher.component';
+import { LockScreenComponent } from '../../features/auth/lock-screen.component';
+import { LockScreenOverlayService } from '../../features/auth/lock-screen-overlay.service';
 
 @Component({
   selector: 'app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, BranchSwitcherComponent],
+  imports: [RouterOutlet, RouterLink, BranchSwitcherComponent, LockScreenComponent],
   template: `
     <header class="shell-header">
       <span class="brand-name">{{ branding.tenantName() }}</span>
@@ -25,6 +27,9 @@ import { BranchSwitcherComponent } from './branch-switcher.component';
       </nav>
     </header>
     <main><router-outlet /></main>
+    @if (lockOverlay.isVisible()) {
+      <app-lock-screen />
+    }
   `,
   styleUrl: './shell.component.scss'
 })
@@ -32,6 +37,7 @@ export class ShellComponent {
   branding = inject(BrandingSignalStore);
   private titleService = inject(Title);
   private auth = inject(AuthSignalStore);
+  readonly lockOverlay = inject(LockScreenOverlayService);
 
   constructor() {
     effect(() => {

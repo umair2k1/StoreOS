@@ -55,4 +55,32 @@ public class ManifestController : ControllerBase
 
         return new JsonResult(manifest) { ContentType = "application/manifest+json" };
     }
+
+    [HttpGet("/api/tenant/public-profile")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetPublicProfile([FromQuery] Guid? tenantId, CancellationToken ct)
+    {
+        TenantPublicProfile? tenant = null;
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            tenant = await _resolver.ResolveByIdAsync(tenantId.Value, ct);
+        }
+        else if (Request.Host.HasValue)
+        {
+            tenant = await _resolver.ResolveFromHostAsync(Request.Host.Value, ct);
+        }
+
+        if (tenant is null || !tenant.IsActive)
+        {
+            return NotFound();
+        }
+
+        return Ok(new
+        {
+            tenantId = tenant.TenantId,
+            name = tenant.Name,
+            subdomain = tenant.Subdomain,
+            logoUrl = "/api/tenant/logo.png?size=512"
+        });
+    }
 }

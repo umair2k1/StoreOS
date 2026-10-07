@@ -1,0 +1,38 @@
+<div class="login-container">
+  <div class="login-card">
+    <div class="brand-header">
+      @if (branding.logoUrl()) {
+      <img [src]="branding.logoUrl()" alt="Store Logo" class="brand-logo" />
+      }
+      <h1 class="brand-name">{{ branding.tenantName() }}</h1>
+    </div>
+
+    @if (errorMessage()) {
+    <div class="error-alert" role="alert">
+      {{ errorMessage() }}
+    </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-group">
+        <label for="email">Email Address</label>
+        <input id="email" type="email" formControlName="email" placeholder="name@company.com" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input id="password" type="password" formControlName="password" placeholder="••••••••"
+          autocomplete="current-password" />
+      </div>
+
+      <div class="form-group">
+        <label for="tenantId">Tenant ID (Optional)</label>
+        <input id="tenantId" type="text" formControlName="tenantId" placeholder="Enter Tenant ID if required" />
+      </div>
+
+      <button type="submit" class="submit-btn" [disabled]="form.invalid || isSubmitting()">
+        {{ isSubmitting() ? 'Signing in...' : 'Sign In' }}
+      </button>
+    </form>
+  </div>
+</div>

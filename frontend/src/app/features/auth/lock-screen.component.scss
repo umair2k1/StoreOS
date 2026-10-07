@@ -1,0 +1,114 @@
+.lock-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1.5rem;
+}
+
+.lock-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface, #ffffff);
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+  text-align: center;
+
+  .brand-header {
+    margin-bottom: 1.5rem;
+
+    .brand-logo {
+      max-height: 40px;
+      margin-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--fg, #0f172a);
+      margin: 0 0 0.5rem;
+    }
+
+    .user-greeting {
+      font-size: 0.875rem;
+      color: var(--muted, #64748b);
+      margin: 0;
+    }
+  }
+
+  .form-group {
+    margin-bottom: 1.25rem;
+    text-align: left;
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 600;
+      margin-bottom: 0.35rem;
+      color: var(--fg, #334155);
+    }
+
+    input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border, #cbd5e1);
+      border-radius: 4px;
+      font-size: 0.875rem;
+      box-sizing: border-box;
+
+      &:focus {
+        outline: none;
+        border-color: var(--accent, #3b82f6);
+      }
+    }
+  }
+
+  .error-alert {
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border-radius: 4px;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #b91c1c;
+    font-size: 0.875rem;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem;
+
+    button {
+      flex: 1;
+      padding: 0.6rem;
+      border-radius: 4px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+
+      &.btn-unlock {
+        background-color: var(--accent, #2563eb);
+        color: #ffffff;
+        border: none;
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+      }
+
+      &.btn-logout {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+      }
+    }
+  }
+}

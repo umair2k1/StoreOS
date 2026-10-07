@@ -5,6 +5,10 @@ import { onboardingGuard } from './core/guards/onboarding.guard';
 
 export const routes: Routes = [
   {
+    path: 'login',
+    loadComponent: () => import('./features/auth/login.component').then(m => m.LoginComponent)
+  },
+  {
     path: 'onboarding',
     loadComponent: () => import('./features/onboarding/onboarding-wizard.component').then(m => m.OnboardingWizardComponent),
     canActivate: [authGuard]

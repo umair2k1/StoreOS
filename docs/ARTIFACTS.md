@@ -4880,3 +4880,24 @@ var sgst = Money.Round2(totalGst - cgst);
   - `LogoUploaderComponent`: Standalone component supporting file selection, local image preview, upload progress indication, multipart form transmission, and 422 error display.
   - Embedded in `OnboardingWizardComponent` (Step 1) with optional logo selection.
   - Unit Tests: `frontend/src/app/features/onboarding/logo-uploader.component.spec.ts` verifies multipart upload dispatch, preview URL update, event emission, and 422 error rendering.
+
+## P-1010
+### Login Screen + Lock Screen Components
+- Backend Public Profile Endpoint (`backend/src/StoreOS.Api/Controllers/ManifestController.cs`):
+  - `GET /api/tenant/public-profile`: Anonymous endpoint resolving tenant metadata (`tenantId`, `name`, `subdomain`, `logoUrl`) from Host header via `ITenantResolver` without requiring manual tenant GUID input.
+- Frontend Login Component (`frontend/src/app/features/auth/login.component.ts`):
+  - Standalone component bound to `login.component.html` and `login.component.scss`.
+  - Reactive form (`email`, `password`, optional `tenantId`).
+  - White-label branding integration: Uses `BrandingSignalStore` for tenant name and logo display.
+  - Issues `POST /api/auth/login` with `{ withCredentials: true }` to securely exchange the refresh-token HTTP-only cookie.
+  - On success: Populates `AuthSignalStore` with JWT access token and user claims, navigating to `/pos`.
+  - On error: Displays user-facing error message without navigation.
+- Lock Screen Overlay Component & Service (`frontend/src/app/features/auth/`):
+  - `LockScreenOverlayService`: Signal-based visibility service (`isVisible: Signal<boolean>`, `show()`, `hide()`).
+  - `LockScreenComponent`: Password re-authentication prompt for idle re-verification. Reuses current `AuthSignalStore` user context to issue re-auth call with `{ withCredentials: true }`. On success, dismisses overlay and restores active session. On error, highlights credential failure. Includes fallback Logout action.
+  - Embedded conditionally in `ShellComponent` header layout.
+- Route Configuration (`frontend/src/app/app.routes.ts`):
+  - Added top-level, unguarded `/login` lazy-loaded route.
+- Unit Tests:
+  - `frontend/src/app/features/auth/login.component.spec.ts`: Validates credential submission, `withCredentials: true`, `AuthSignalStore` population, route transition to `/pos`, 401 error message rendering, and invalid form button disabling.
+  - `frontend/src/app/features/auth/lock-screen.component.spec.ts`: Validates re-authentication with password, store update, overlay dismissal, and error handling for bad password.

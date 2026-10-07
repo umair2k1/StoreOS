@@ -1,0 +1,34 @@
+<div class="lock-screen-overlay" data-testid="lock-screen-overlay">
+  <div class="lock-card">
+    <div class="brand-header">
+      @if (branding.logoUrl()) {
+      <img [src]="branding.logoUrl()" alt="Store Logo" class="brand-logo" />
+      }
+      <h2>{{ branding.tenantName() }}</h2>
+      <p class="user-greeting">Welcome back, {{ authStore.displayName() || 'User' }}</p>
+    </div>
+
+    @if (errorMessage()) {
+    <div class="error-alert" role="alert">
+      {{ errorMessage() }}
+    </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-group">
+        <label for="lock-password">Enter your password to unlock</label>
+        <input id="lock-password" type="password" formControlName="password" placeholder="••••••••"
+          autocomplete="current-password" autofocus />
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-logout" (click)="logout()">
+          Log Out
+        </button>
+        <button type="submit" class="btn-unlock" [disabled]="form.invalid || isSubmitting()">
+          {{ isSubmitting() ? 'Unlocking...' : 'Unlock' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
