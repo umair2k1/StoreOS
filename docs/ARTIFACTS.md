@@ -4813,3 +4813,27 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/shared/shell/shell.component.spec.ts`: Validates document title reactive synchronization with store changes.
   - `frontend/src/app/shared/shell/branch-switcher.component.spec.ts`: Validates conditional visibility (hidden for single-branch, visible for multi-branch) and branch selection updating `BranchContextService`.
+
+## P-1007
+### Onboarding Wizard (Shop Name + Branding Prompt on First Run)
+- Generic Settings PATCH Endpoint:
+  - Route: `PATCH /api/settings/{key}`
+  - Command: `PatchSettingCommand(string Key, string ValueJson, Guid? BranchId = null) : IRequest<Unit>, IRequiresPermission`
+  - Required Permission: `settings:manage`
+  - Upsert Implementation: Uses PostgreSQL `INSERT INTO settings ... ON CONFLICT (tenant_id, branch_id_key, key) DO UPDATE SET value = EXCLUDED.value` via raw SQL (per `CODING_STANDARDS.md Section 3.2`) to cleanly manage branch-nullable composite keys with zero-sentinel `branch_id_key`.
+  - Integration Tests: `backend/tests/StoreOS.IntegrationTests/Settings/PatchSettingTests.cs` (create-if-absent, update-if-present, branch-scoped upsert, and permission enforcement).
+- Client-Side Onboarding Heuristic & Route Guard (`frontend/src/app/core/guards/onboarding.guard.ts`):
+  - Pragmatic client-side inference: A brand-new tenant is identified by `GET /api/branches` returning 0 branches.
+  - `onboardingGuard: CanActivateFn`:
+    - If branch count == 0 and user has `branches:manage`: redirects to `/onboarding`.
+    - If branch count == 0 and user lacks `branches:manage`: redirects to `/awaiting-setup`.
+    - If branch count > 0: allows route activation (`true`).
+- Onboarding UI Components:
+  - `OnboardingWizardComponent` (`frontend/src/app/features/onboarding/onboarding-wizard.component.ts`): Multi-step form capturing shop name, GSTIN, phone, address, receipt footer, and initial branch (name + code). Submits `POST /api/branches` and `PATCH /api/settings/shop_profile` concurrently via `forkJoin`, updates `BrandingSignalStore`, and navigates to `/pos`.
+  - `AwaitingSetupComponent` (`frontend/src/app/features/onboarding/awaiting-setup.component.ts`): Informational placeholder for non-admin cashiers when the tenant is not yet onboarded.
+- Route Wiring (`frontend/src/app/app.routes.ts`):
+  - Added lazy-loaded `/onboarding` and `/awaiting-setup` routes with `authGuard`.
+  - Root shell protected by `[authGuard, onboardingGuard]`.
+- Unit Tests:
+  - `frontend/src/app/features/onboarding/onboarding-wizard.component.spec.ts`: Validates multi-step form progression, HTTP call dispatch to both endpoints with correctly shaped payloads, and branding store update.
+  - `frontend/src/app/core/guards/onboarding.guard.spec.ts`: Validates four distinct branches (admin zero-branch redirect, cashier zero-branch redirect, branch-present allow, and unauthenticated login redirect).

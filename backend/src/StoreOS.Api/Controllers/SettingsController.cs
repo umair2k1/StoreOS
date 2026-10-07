@@ -55,6 +55,14 @@ public class SettingsController : ControllerBase
         await _mediator.Send(new SetRepairsEnabledCommand(body.Enabled), ct);
         return NoContent();
     }
+
+    [HttpPatch("{key}")]
+    public async Task<IActionResult> PatchSetting(string key, [FromBody] System.Text.Json.JsonElement body, [FromQuery] Guid? branchId, CancellationToken ct)
+    {
+        var rawJson = body.GetRawText();
+        await _mediator.Send(new StoreOS.Application.Settings.PatchSetting.PatchSettingCommand(key, rawJson, branchId), ct);
+        return NoContent();
+    }
 }
 
 public record SetRepairsEnabledBody(bool Enabled);
