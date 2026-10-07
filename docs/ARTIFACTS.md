@@ -4473,3 +4473,20 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Rendering well-formed `InvoicePdfDto` produces valid PDF byte array starting with `%PDF` magic bytes.
   - (b) Rendering succeeds when every optional field is null (minimal cash walk-in sale).
   - (c) Rendering with Gift and IMEI line items produces valid PDF with appropriate size expansion.
+
+## P-807
+### QuestPDF Repair Ticket/Invoice & Supplier Return Note Templates
+- Printing DTOs (`StoreOS.Infrastructure.Printing`):
+  - `RepairPartLineDto(string PartName, int Quantity, decimal ChargeAmount)`
+  - `RepairPdfDto(string ShopName, string? ShopAddress, string? ShopPhone, string JobNumber, DateTimeOffset ReceivedAt, string CustomerName, string? CustomerPhone, string? DeviceBrand, string? DeviceModel, string? SerialNumber, string? Imei1, string? ProblemDescription, string Status, decimal? EstimatedCost, decimal? FinalTotal, decimal? AdvancePaid, decimal? BalanceDue, DateOnly? WarrantyUntil, IReadOnlyList<RepairPartLineDto> Parts, string? InvoiceNumber)`
+  - `SupplierReturnLineDto(string ItemName, int Qty, decimal ReturnRate, decimal LineTotal, string[]? ImeiNumbers)`
+  - `SupplierReturnPdfDto(string ShopName, string ReturnNumber, DateOnly ReturnDate, string SupplierName, string? SupplierPhone, string? SupplierAddress, IReadOnlyList<SupplierReturnLineDto> Lines, decimal TotalAmount, string SettlementType, string? Reason)`
+- Renderers (`StoreOS.Infrastructure.Printing`):
+  - `RepairPdfRenderer`: `public byte[] Render(RepairPdfDto dto)` (Header with shop info + job number + status + customer, Content with device details and parts table, Footer with commercials, warranty, and linked invoice number). Registered as singleton in `Program.cs`.
+  - `SupplierReturnPdfRenderer`: `public byte[] Render(SupplierReturnPdfDto dto)` (Header with shop + return number + date + supplier info, Content with lines table including IMEIs, Footer with total amount, settlement type, and reason). Registered as singleton in `Program.cs`.
+- DTO Purity Rule:
+  - Both renderers take only flat, print-ready DTOs without any entity or database awareness.
+- Integration Tests (`StoreOS.IntegrationTests.Printing.RepairAndSupplierReturnPdfTests`):
+  - (a) `RepairPdfRenderer` renders successfully with full data (device, parts table, advance, balance, warranty, invoice reference).
+  - (b) `RepairPdfRenderer` renders successfully when all optional fields are null (newly received job with no commercials yet).
+  - (c) `SupplierReturnPdfRenderer` renders successfully with multiple lines including IMEI-bearing lines.

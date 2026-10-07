@@ -84,6 +84,8 @@ builder.Services.AddScoped<StoreOS.Application.Repairs.IRepairBillingService, St
 builder.Services.AddScoped<StoreOS.Application.Platform.IFeatureManager, StoreOS.Infrastructure.Platform.TenantFeatureManager>();
 
 builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.InvoicePdfRenderer>();
+builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.RepairPdfRenderer>();
+builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.SupplierReturnPdfRenderer>();
 // MediatR Pipeline & Behaviors (P-109, P-114, P-307)
 builder.Services.AddMemoryCache();
 builder.Services.AddMediatR(cfg =>
