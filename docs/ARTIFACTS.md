@@ -4342,3 +4342,35 @@ var sgst = Money.Round2(totalGst - cgst);
     - (d) Top-5 sellers excludes gift line quantities.
     - (e) Seven-day revenue chart includes zero-revenue days explicitly.
     - (f) Active repairs and ready for pickup return 0 when repairs feature is disabled, and accurately return counts when enabled.
+
+## P-802
+### Daily Sales Audit Report (ReportingDbContext)
+- Query and DTOs (`StoreOS.Application.Reporting.DailySales`):
+  - `GetDailySalesReportQuery(DateOnly Date, Guid[]? BranchIds = null) : IRequest<DailySalesReportDto>, IReportingRequest`
+  - `DailySalesReportDto(DateOnly Date, SalesSummaryDto Sales, InventorySummaryDto Inventory, PaymentBreakdownDto Payments, IReadOnlyList<CategorySalesDto> ByCategory, IReadOnlyList<ItemizedSaleLineDto> ItemizedLog, decimal CollectedAmount, decimal OutstandingAmount)`
+  - `SalesSummaryDto(decimal Revenue, decimal BuyingCost, decimal Profit, decimal GstCollected, int InvoiceCount, int ItemsSold)`
+  - `InventorySummaryDto(int TotalStockVolume, decimal StockWorthAtCost, decimal RetailValuation, int LowStockCount, int OutOfStockCount)`
+  - `PaymentBreakdownDto(decimal Cash, decimal Upi, decimal Finance, decimal Other, decimal Total)`
+  - `CategorySalesDto(string Category, decimal Revenue, int ItemsSold)`
+  - `ItemizedSaleLineDto(string InvoiceNumber, DateOnly Date, string CustomerName, string ItemName, int Qty, decimal SellingValue, decimal CostValue, decimal Gst, string? Imei, string? PaymentMode)`
+- Handler (`StoreOS.Application.Reporting.DailySales.GetDailySalesReportHandler`):
+  - Implements `IRequestHandler<GetDailySalesReportQuery, DailySalesReportDto>` using `IReportingDbContext` and `IAccessScope`.
+  - Timezone & Date Range: resolves tenant timezone via `IAccessScope.TenantId` (Asia/Kolkata), computing exact UTC boundaries for the business date.
+  - Sales Summary: calculates `Revenue` (Active TaxInvoices `SUM(grand_total)`), `BuyingCost` (using historical snapshot `purchase_price_snapshot` exclusively, excluding gift lines), `Profit = Revenue - BuyingCost`, `GstCollected` (`SUM(cgst + sgst)`), `InvoiceCount`, and `ItemsSold` (`SUM(qty)` strictly excluding non-revenue gift lines).
+  - Inventory Summary: reuses `ValuationCalculator.Calculate` for non-RepairService lines as of report runtime across requested branches, computing `TotalStockVolume`, `StockWorthAtCost`, `RetailValuation`, `LowStockCount` (`stock_qty > 0 AND stock_qty <= low_stock_threshold`), and `OutOfStockCount` (`stock_qty <= 0`).
+  - Payment Breakdown & Dual Interpretation:
+    - Buckets payments recorded on `Date` into `Cash`, `UPI`, `Finance`, and `Other` (all other modes including `Card` and `Credit`), with `Total = Cash + UPI + Finance + Other`.
+    - `CollectedAmount` = broader same-day collected figure (total payments recorded today across all sales, including installments on older sales).
+    - `OutstandingAmount` = narrower same-day-sale figure = `Revenue - CollectedForTodaySales` specifically for today's active invoices.
+  - Sales by Category: groups line-item revenue and items sold across categories, covering at minimum `NewPhone`, `UsedPhone`, `Accessory`, and `RepairService` with zero-fill for categories with no sales that day.
+  - Itemized Sales Log: provides granular audit lines for every item sold with invoice number, date, customer name, item name, quantity, selling value, cost value (snapshot), GST, IMEI, and payment mode.
+- API Route (`StoreOS.Api.Controllers.ReportsController`):
+  - `GET /api/reports/daily-sales?date=&branchIds=` -> `GetDailySales(DateOnly? date, Guid[]? branchIds, CancellationToken ct)` (defaults to current date if omitted).
+- Integration Tests (`StoreOS.IntegrationTests.Reporting.DailySalesReportTests`):
+  - All 6 tests verified against PostgreSQL testcontainer:
+    - (a) Sales summary profit uses snapshot cost (proven unchanged after modifying product master purchase price) and excludes gift lines from items sold count.
+    - (b) Inventory summary excludes RepairService products.
+    - (c) Payment breakdown correctly buckets Card and Credit into Other.
+    - (d) Sale-value vs. collected vs. outstanding dual interpretation verified with exact mathematical precision.
+    - (e) Category breakdown zero-fills categories with no sales.
+    - (f) Itemized log includes every line with correct IMEI and payment mode detail.
