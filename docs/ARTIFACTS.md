@@ -4008,3 +4008,40 @@ var sgst = Money.Round2(totalGst - cgst);
   - (c) `GET /api/repair-services` excludes inactive by default; `isActive=false` includes them.
   - (d) Deactivating service used in historical sale line leaves sale snapshot data unchanged.
   - (e) Creating repair service never creates a `branch_inventory` row.
+
+## P-702
+### Repair Jobs Entity, Migration & Job Number Sequence
+- Domain Types (`StoreOS.Domain.Repairs`):
+  - `RepairStatus`:
+    - Constants: `Received`, `Diagnosing`, `WaitingForApproval`, `WaitingForParts`, `InRepair`, `ReadyForPickup`, `Delivered`, `Cancelled`
+    - `All`: list of 8 statuses
+    - `IsValid(string status) => All.Contains(status)`
+    - `IsActive(string status) => status != Delivered && status != Cancelled`
+  - `RepairJobNumberFormatter`:
+    - `string Format(string branchCode, DateOnly date, int seq)` producing `REP-{branchCode}-{date:yyyyMMdd}-{seq:D4}`
+  - `RepairJob` (Aggregate Root):
+    - Properties: `Id`, `TenantId`, `BranchId`, `JobNumber`, `CustomerId`, `CustomerName`, `CustomerPhone`, `CustomerAddress`, `DeviceBrand`, `DeviceModel`, `DeviceType`, `SerialNumber`, `Imei1`, `Imei2`, `DeviceCondition`, `AccessoriesReceived`, `ProblemDescription`, `CustomerNotes`, `Diagnosis`, `TechnicianNotes`, `InternalNotes`, `Technician`, `EstimatedCost`, `ApprovedCost`, `PartsCost`, `LaborCharge`, `Discount`, `Tax`, `FinalTotal`, `AdvancePaid`, `BalanceDue`, `Status`, `ReceivedAt`, `ExpectedCompletion`, `CompletedAt`, `DeliveredAt`, `WarrantyUntil`, `ApprovalState`, `ApprovalTimestamp`, `CancellationReason`, `InvoiceNumber`, `SaleId`, `CreatedAt`, `UpdatedAt`.
+    - Factory: `RepairJob Intake(...)` sets `Status = Received`, `ReceivedAt = UtcNow`, `CreatedAt = UtcNow`, `UpdatedAt = UtcNow`, and computes initial `BalanceDue` if estimated cost and advance paid are provided.
+    - Methods:
+      - `RecordDiagnosis(diagnosis, technicianNotes, internalNotes, technician)`
+      - `SetCommercials(estimatedCost, approvedCost, partsCost, laborCharge, discount, tax, finalTotal, advancePaid)` auto-computing `BalanceDue = finalTotal - advancePaid`
+      - `RecordApproval(approvalState, timestamp)`
+      - `SetExpectedCompletion(dateTime)`
+      - `Cancel(reason)` (throws `DomainValidationException` if job is `Delivered`)
+      - `Deliver(deliveredAt, warrantyUntil)` (throws `DomainValidationException` if not in `ReadyForPickup`)
+      - `LinkToSale(saleId, invoiceNumber)`
+- Numbering Allocation:
+  - Reuses `InvoiceSequenceAllocator` (from P-501) with series key `$"REP-{branchCode}-{date:yyyyMMdd}"`, atomic daily-resetting sequence.
+- Entity Framework & Schema:
+  - Table: `repair_jobs`
+  - Migration: `20261007165937_027_RepairJobs`
+  - Check constraint: `CK_repair_jobs_status` on 8 allowed statuses
+  - Unique constraint: `ix_repair_jobs_tenant_job_number` on `(tenant_id, job_number)`
+  - Indexes: `ix_repair_jobs_tenant_branch_status` on `(tenant_id, branch_id, status)` and `ix_repair_jobs_tenant_branch_customer` on `(tenant_id, branch_id, customer_id)`
+  - RLS Archetype B: `tenant_branch_isolation_policy` enabled and forced.
+  - QueryFilters: `rj.TenantId == s.TenantId && (s.AllBranches || s.BranchIds.Contains(rj.BranchId))`
+- Tests:
+  - `RepairJobNumberFormatterTests` (2 passed): verifies format matches `REP-{branchCode}-{yyyyMMdd}-{XXXX}`.
+  - `RepairJobTests` (6 passed): intake status/received_at, commercials balance_due, cancel delivered throws, deliver non-ready throws, deliver ready succeeds, active status definition.
+  - `RepairJobNumberConcurrencyTests` (1 passed): 20 concurrent intakes generate strictly sequential and distinct job numbers.
+  - `RlsCoverageTests` (5 passed): validates `repair_jobs` table RLS enabled, forced, and covered.

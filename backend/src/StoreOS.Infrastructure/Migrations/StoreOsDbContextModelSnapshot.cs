@@ -1116,6 +1116,218 @@ namespace StoreOS.Infrastructure.Migrations
                     b.ToTable("purchases", "public");
                 });
 
+            modelBuilder.Entity("StoreOS.Domain.Repairs.RepairJob", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("AccessoriesReceived")
+                        .HasColumnType("text")
+                        .HasColumnName("accessories_received");
+
+                    b.Property<decimal?>("AdvancePaid")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("advance_paid");
+
+                    b.Property<string>("ApprovalState")
+                        .HasColumnType("text")
+                        .HasColumnName("approval_state");
+
+                    b.Property<DateTimeOffset?>("ApprovalTimestamp")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("approval_timestamp");
+
+                    b.Property<decimal?>("ApprovedCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("approved_cost");
+
+                    b.Property<decimal?>("BalanceDue")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("balance_due");
+
+                    b.Property<Guid>("BranchId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("branch_id");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text")
+                        .HasColumnName("cancellation_reason");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("completed_at");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("CustomerAddress")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_address");
+
+                    b.Property<Guid?>("CustomerId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("CustomerName")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_name");
+
+                    b.Property<string>("CustomerNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_notes");
+
+                    b.Property<string>("CustomerPhone")
+                        .HasColumnType("text")
+                        .HasColumnName("customer_phone");
+
+                    b.Property<DateTimeOffset?>("DeliveredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("delivered_at");
+
+                    b.Property<string>("DeviceBrand")
+                        .HasColumnType("text")
+                        .HasColumnName("device_brand");
+
+                    b.Property<string>("DeviceCondition")
+                        .HasColumnType("text")
+                        .HasColumnName("device_condition");
+
+                    b.Property<string>("DeviceModel")
+                        .HasColumnType("text")
+                        .HasColumnName("device_model");
+
+                    b.Property<string>("DeviceType")
+                        .HasColumnType("text")
+                        .HasColumnName("device_type");
+
+                    b.Property<string>("Diagnosis")
+                        .HasColumnType("text")
+                        .HasColumnName("diagnosis");
+
+                    b.Property<decimal?>("Discount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("discount");
+
+                    b.Property<decimal?>("EstimatedCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("estimated_cost");
+
+                    b.Property<DateTimeOffset?>("ExpectedCompletion")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expected_completion");
+
+                    b.Property<decimal?>("FinalTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("final_total");
+
+                    b.Property<string>("Imei1")
+                        .HasColumnType("text")
+                        .HasColumnName("imei1");
+
+                    b.Property<string>("Imei2")
+                        .HasColumnType("text")
+                        .HasColumnName("imei2");
+
+                    b.Property<string>("InternalNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("internal_notes");
+
+                    b.Property<string>("InvoiceNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("invoice_number");
+
+                    b.Property<string>("JobNumber")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("job_number");
+
+                    b.Property<decimal?>("LaborCharge")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("labor_charge");
+
+                    b.Property<decimal?>("PartsCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("parts_cost");
+
+                    b.Property<string>("ProblemDescription")
+                        .HasColumnType("text")
+                        .HasColumnName("problem_description");
+
+                    b.Property<DateTimeOffset?>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid?>("SaleId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("sale_id");
+
+                    b.Property<string>("SerialNumber")
+                        .HasColumnType("text")
+                        .HasColumnName("serial_number");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<decimal?>("Tax")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("tax");
+
+                    b.Property<string>("Technician")
+                        .HasColumnType("text")
+                        .HasColumnName("technician");
+
+                    b.Property<string>("TechnicianNotes")
+                        .HasColumnType("text")
+                        .HasColumnName("technician_notes");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tenant_id");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<DateOnly?>("WarrantyUntil")
+                        .HasColumnType("date")
+                        .HasColumnName("warranty_until");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "JobNumber")
+                        .IsUnique()
+                        .HasDatabaseName("ix_repair_jobs_tenant_job_number");
+
+                    b.HasIndex("TenantId", "BranchId", "CustomerId")
+                        .HasDatabaseName("ix_repair_jobs_tenant_branch_customer");
+
+                    b.HasIndex("TenantId", "BranchId", "Status")
+                        .HasDatabaseName("ix_repair_jobs_tenant_branch_status");
+
+                    b.ToTable("repair_jobs", "public", t =>
+                        {
+                            t.HasCheckConstraint("CK_repair_jobs_status", "status IN ('Received','Diagnosing','WaitingForApproval','WaitingForParts','InRepair','ReadyForPickup','Delivered','Cancelled')");
+                        });
+                });
+
             modelBuilder.Entity("StoreOS.Domain.Sales.CustomerPayment", b =>
                 {
                     b.Property<Guid>("Id")
