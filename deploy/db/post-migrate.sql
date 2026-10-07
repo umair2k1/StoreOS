@@ -53,3 +53,6 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.delete_tenant_data_for_restore(uuid) TO storeos_app;
+
+CREATE SCHEMA IF NOT EXISTS hangfire;
+GRANT ALL ON SCHEMA hangfire TO storeos_app;

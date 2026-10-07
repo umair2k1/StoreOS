@@ -4631,3 +4631,26 @@ var sgst = Money.Round2(totalGst - cgst);
   - (d) Phone collision edge case logs to `migration-conflicts.json` and skips without batch abortion.
   - (e) Customer merge re-points sales and ledger entries and deletes duplicate.
   - (f) CLI commands execution passes.
+
+## P-905
+### Nightly Reconciliation Hangfire Job (5 Sweeps)
+- Reconciliation Job (`StoreOS.Infrastructure.Jobs.ReconciliationJob`):
+  - `Task RunAsync(CancellationToken ct)`: Enumerate active tenants, runs sweeps inside `ITenantJobRunner.RunAsync` with per-tenant transaction and error isolation.
+  - 5 Consistency Sweeps:
+    - `Task ReconcileStockAsync(Guid tenantId, Guid branchId, StoreOsDbContext db, IAuditWriter audit, CancellationToken ct)` (Sweep 1): Compares `branch_inventory.stock_qty` with `SUM(inventory_movements.qty_delta)` per product/branch.
+    - `Task ReconcileSalePaymentsAsync(Guid tenantId, StoreOsDbContext db, IAuditWriter audit, CancellationToken ct)` (Sweep 2): Compares `sales.amount_paid` with `SUM(customer_payments.amount)` per sale.
+    - `Task ReconcileCustomerRevenueAsync(Guid tenantId, StoreOsDbContext db, IAuditWriter audit, CancellationToken ct)` (Sweep 3): Compares `customers.total_purchases` with `SUM(sales.grand_total WHERE status='Active')` per customer.
+    - `Task ReconcileCustomerCreditAsync(Guid tenantId, StoreOsDbContext db, IAuditWriter audit, CancellationToken ct)` (Sweep 4): Compares derived unpaid sales balance (`SUM(sales.grand_total - sales.amount_paid)`) with customer ledger net balance (`SUM(customer_ledger_entries.debit - credit)`).
+    - `Task ReconcileSupplierPayablesAsync(Guid tenantId, StoreOsDbContext db, IAuditWriter audit, CancellationToken ct)` (Sweep 5): Compares derived net purchase liability (`SUM(purchases.qty * purchases.purchase_rate) - SUM(supplier_transactions.amount WHERE type='Payment')`) with supplier ledger net payable (`SUM(supplier_ledger_entries.credit - debit)`).
+  - Discrepancy Alerting: Logs high-severity audit entries via `IAuditWriter.WriteAsync` with action `"reconciliation.drift_detected"` containing entity type, ID, expected, and actual values.
+  - Metrics: Emits OpenTelemetry counter `reconciliation_drift_total` via Meter `"StoreOS.Reconciliation"`.
+- Idempotency Key Purge Job (`StoreOS.Infrastructure.Jobs.IdempotencyKeyPurgeJob`):
+  - `Task RunAsync(CancellationToken ct)`: Deletes `idempotency_keys` older than 7 days per tenant using `ITenantJobRunner`.
+- Hangfire Setup (`StoreOS.Api.Program`):
+  - Registered `AddHangfire` with PostgreSQL storage and `AddHangfireServer`.
+  - Registered recurring jobs: `"nightly-reconciliation"` (Cron.Daily) and `"idempotency-key-purge"` (Cron.Daily).
+- Integration Tests (`StoreOS.IntegrationTests.Platform.ReconciliationJobTests`):
+  - (a) Consistent dataset produces zero drift entries across all 5 sweeps.
+  - (b) Deliberately seeded drift across each of the 5 sweeps detects and logs all 5 independently with exact entity IDs and expected/actual values.
+  - (c) Iterates all active tenants and their branches independently.
+  - (d) Failure in one tenant does not stop or abort processing for remaining tenants.

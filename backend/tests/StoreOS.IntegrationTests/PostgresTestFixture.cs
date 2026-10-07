@@ -27,8 +27,9 @@ public sealed class PostgresTestFixture : IAsyncLifetime
         {
             await conn.OpenAsync();
             await Exec(conn, $"CREATE ROLE storeos_app LOGIN PASSWORD '{AppPassword}' NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE");
-            await Exec(conn, "GRANT CONNECT ON DATABASE storeos_test TO storeos_app");
+            await Exec(conn, "GRANT CONNECT, CREATE ON DATABASE storeos_test TO storeos_app");
             await Exec(conn, "GRANT USAGE ON SCHEMA public TO storeos_app");
+            await Exec(conn, "CREATE SCHEMA IF NOT EXISTS hangfire; GRANT ALL ON SCHEMA hangfire TO storeos_app;");
             await Exec(conn, "ALTER DEFAULT PRIVILEGES FOR ROLE storeos_owner IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO storeos_app");
             await Exec(conn, "ALTER DEFAULT PRIVILEGES FOR ROLE storeos_owner IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO storeos_app");
         }

@@ -17,8 +17,9 @@
     <PackageReference Include="Swashbuckle.AspNetCore" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="Hangfire.AspNetCore" />
+    <PackageReference Include="Hangfire.PostgreSql" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\StoreOS.Modules\StoreOS.Modules.csproj" />
     <ProjectReference Include="..\StoreOS.Application\StoreOS.Application.csproj" />
