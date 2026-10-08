@@ -35,7 +35,7 @@ public class SettingsController : ControllerBase
         return Ok();
     }
 
-    [HttpDelete("{normalizedName}")]
+    [HttpDelete("finance-providers/{normalizedName}")]
     public async Task<IActionResult> RemoveFinanceProvider(string normalizedName, CancellationToken ct)
     {
         await _mediator.Send(new RemoveFinanceProviderCommand(normalizedName), ct);

@@ -47,6 +47,7 @@ public static class SeedDemoTenant
             // Wipe existing tenant: delete imeis & purchases first to satisfy fk_purchases_supplier, then delete_tenant_data_for_restore
             await db.ExecuteRawSqlAsync("DELETE FROM public.inventory_imeis WHERE tenant_id = {0}", new object[] { existing.Id }, ct);
             await db.ExecuteRawSqlAsync("DELETE FROM public.purchases WHERE tenant_id = {0}", new object[] { existing.Id }, ct);
+            await db.ExecuteRawSqlAsync("DELETE FROM public.invoice_sequences WHERE tenant_id = {0}", new object[] { existing.Id }, ct);
             await db.ExecuteRawSqlAsync("SELECT public.delete_tenant_data_for_restore({0})", new object[] { existing.Id }, ct);
             await db.ExecuteRawSqlAsync("DELETE FROM public.tenants WHERE id = {0}", new object[] { existing.Id }, ct);
         }

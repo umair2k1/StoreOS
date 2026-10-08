@@ -6,16 +6,24 @@ namespace StoreOS.Api.Jobs;
 
 public static class HangfireSetup
 {
+    private static readonly object _schemaLock = new();
+
     public static IServiceCollection AddHangfireConfiguration(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("Default");
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
-            services.AddHangfire(config => config
-                .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-                .UseSimpleAssemblyNameTypeSerializer()
-                .UseRecommendedSerializerSettings()
-                .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString)));
+            services.AddHangfire((_, config) =>
+            {
+                lock (_schemaLock)
+                {
+                    config
+                        .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                        .UseSimpleAssemblyNameTypeSerializer()
+                        .UseRecommendedSerializerSettings()
+                        .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(connectionString));
+                }
+            });
             services.AddHangfireServer();
         }
 
