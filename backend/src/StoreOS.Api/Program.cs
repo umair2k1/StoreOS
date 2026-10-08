@@ -94,7 +94,9 @@ builder.Services.AddSingleton<StoreOS.Infrastructure.Printing.ReportPdfRenderer>
 var s3Config = new AmazonS3Config
 {
     ServiceURL = builder.Configuration["ObjectStorage:ServiceUrl"] ?? "http://localhost:9000",
-    ForcePathStyle = true
+    ForcePathStyle = true,
+    Timeout = TimeSpan.FromSeconds(3),
+    MaxErrorRetry = 1
 };
 var s3Client = new AmazonS3Client(
     builder.Configuration["ObjectStorage:AccessKey"] ?? "storeos_minio",
@@ -245,12 +247,12 @@ app.MapControllers();
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
     Predicate = _ => false
-});
+}).AllowAnonymous();
 
 app.MapHealthChecks("/health/ready", new HealthCheckOptions
 {
     Predicate = check => check.Tags.Contains("ready")
-});
+}).AllowAnonymous();
 
 // Recurring Jobs (P-905, P-906)
 app.UseHangfireConfiguration();

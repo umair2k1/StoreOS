@@ -22,9 +22,11 @@ public class ObjectStorageBucketInitializer : IHostedService
     {
         try
         {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(2));
             using var scope = _serviceProvider.CreateScope();
             var storage = scope.ServiceProvider.GetRequiredService<IObjectStorageService>();
-            await storage.EnsureBucketsAsync(cancellationToken);
+            await storage.EnsureBucketsAsync(cts.Token);
         }
         catch (Exception ex)
         {

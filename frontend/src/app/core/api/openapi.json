@@ -3129,6 +3129,54 @@
         }
       }
     },
+    "/api/reports/daily-sales.pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "Reports_GetDailySalesPdf",
+        "parameters": [
+          {
+            "name": "date",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "nullable": true
+            },
+            "x-position": 1
+          },
+          {
+            "name": "branchIds",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "string",
+                "format": "guid"
+              }
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/reports/compare": {
       "get": {
         "tags": [
@@ -4263,6 +4311,27 @@
             "x-position": 1
           }
         ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inventory/transfers/pending": {
+      "get": {
+        "tags": [
+          "Transfers"
+        ],
+        "operationId": "Transfers_GetPending",
         "responses": {
           "200": {
             "description": "",
