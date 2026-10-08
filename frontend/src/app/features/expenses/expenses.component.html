@@ -1,0 +1,161 @@
+<div class="expenses-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Operating Expenses</h1>
+      <p class="page-subtitle">Track overhead, utility bills, salaries, and operational costs</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-create-expense" (click)="openCreateModal()">
+        + Record Expense
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Prominent Monthly Total Display Card -->
+  <section class="card monthly-total-card">
+    <div class="monthly-stat-box">
+      <span class="stat-label">Current Month Operating Expenses</span>
+      <span class="stat-value text-danger monthly-total-value">
+        {{ monthlyTotal() | pzMoney }}
+      </span>
+      <span class="stat-hint">Authoritative monthly expenditure aggregation</span>
+    </div>
+  </section>
+
+  <!-- Date Range & Category Filter Bar -->
+  <section class="card filter-card">
+    <div class="filter-grid">
+      <div class="form-group">
+        <label class="form-label" for="filterFrom">From Date</label>
+        <input id="filterFrom" type="date" class="form-control input-filter-from" [ngModel]="fromDate()"
+          (ngModelChange)="fromDate.set($event); onFilterChange()" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="filterTo">To Date</label>
+        <input id="filterTo" type="date" class="form-control input-filter-to" [ngModel]="toDate()"
+          (ngModelChange)="toDate.set($event); onFilterChange()" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="filterCategory">Category Filter</label>
+        <input id="filterCategory" type="text" class="form-control input-filter-category"
+          placeholder="All categories or filter by name..." list="filter-category-suggestions"
+          [ngModel]="selectedCategory()" (ngModelChange)="selectedCategory.set($event); onFilterChange()" />
+        <datalist id="filter-category-suggestions">
+          <option *ngFor="let cat of suggestedCategories" [value]="cat"></option>
+        </datalist>
+      </div>
+    </div>
+  </section>
+
+  <!-- Expenses Table Card -->
+  <section class="card table-card">
+    <div *ngIf="isLoading()" class="loading-state">
+      <span>Loading expenses...</span>
+    </div>
+
+    <div *ngIf="!isLoading() && expenses().length === 0" class="empty-state">
+      <p class="empty-title">No expenses found</p>
+      <p class="empty-subtitle">No operating expenditures logged within the specified date range.</p>
+    </div>
+
+    <div *ngIf="!isLoading() && expenses().length > 0" class="table-responsive">
+      <table class="table expenses-table">
+        <thead>
+          <tr>
+            <th class="col-date">Date</th>
+            <th class="col-desc">Description</th>
+            <th class="col-category">Category</th>
+            <th class="col-amount">Amount</th>
+            <th class="col-notes">Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let e of expenses()" class="expense-row">
+            <td class="col-date">
+              {{ e.expenseDate | pzDate }}
+            </td>
+            <td class="col-desc">
+              <strong>{{ e.description }}</strong>
+            </td>
+            <td class="col-category">
+              <span class="badge-category">{{ e.category }}</span>
+            </td>
+            <td class="col-amount">
+              <span class="amount-value text-danger">{{ e.amount | pzMoney }}</span>
+            </td>
+            <td class="col-notes">
+              {{ e.notes || '—' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Create Expense Modal -->
+  <div *ngIf="isCreateModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Record Operating Expense</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="expenseDesc">Description <span class="required">*</span></label>
+          <input id="expenseDesc" type="text" class="form-control input-new-desc"
+            placeholder="e.g. Electricity Bill - October" [ngModel]="newDescription()"
+            (ngModelChange)="newDescription.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="expenseAmt">Amount (₹) <span class="required">*</span></label>
+          <input id="expenseAmt" type="number" min="1" step="0.01" class="form-control input-new-amount"
+            [ngModel]="newAmount()" (ngModelChange)="newAmount.set($event)" />
+        </div>
+
+        <!-- Category Input with Datalist Suggestions (Accepts ANY free-text input) -->
+        <div class="form-group">
+          <label class="form-label" for="expenseCat">Category <span class="required">*</span></label>
+          <input id="expenseCat" type="text" class="form-control input-new-category"
+            placeholder="Select suggestion or enter custom category..." list="create-category-suggestions"
+            [ngModel]="newCategory()" (ngModelChange)="newCategory.set($event)" />
+          <datalist id="create-category-suggestions">
+            <option *ngFor="let cat of suggestedCategories" [value]="cat"></option>
+          </datalist>
+          <small class="field-hint">Choose from suggestions or type any custom category.</small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="expenseDate">Expense Date <span class="required">*</span></label>
+          <input id="expenseDate" type="date" class="form-control input-new-date" [ngModel]="newExpenseDate()"
+            (ngModelChange)="newExpenseDate.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="expenseNotes">Notes</label>
+          <input id="expenseNotes" type="text" class="form-control input-new-notes"
+            placeholder="Additional notes or payment reference..." [ngModel]="newNotes()"
+            (ngModelChange)="newNotes.set($event)" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-new-expense"
+          [disabled]="!newDescription().trim() || !newCategory().trim() || newAmount() <= 0 || isCreating()"
+          (click)="submitCreateExpense()">
+          {{ isCreating() ? 'Saving...' : 'Record Expense' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

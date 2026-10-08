@@ -5376,3 +5376,19 @@ var sgst = Money.Round2(totalGst - cgst);
   - `frontend/src/app/features/suppliers/suppliers-list.component.spec.ts`: Validates searching suppliers and submitting supplier creation form.
   - `frontend/src/app/features/suppliers/detail/supplier-detail.component.spec.ts`: Validates that recording a transaction invokes the endpoint and live-updates the displayed payable balance directly from the server query.
   - `frontend/src/app/features/suppliers/returns/create-return.component.spec.ts`: Validates submitting the return form with correctly structured line items, rates, and nested IMEI string arrays.
+
+## P-1115
+### Expenses Screen (Date-Range Filter, Free-Text Category Suggestions, Monthly Total)
+- Expenses Component (`frontend/src/app/features/expenses/expenses.component.ts`, `.html`, `.scss`):
+  - `ExpensesComponent`: Standalone Angular component (`selector: 'app-expenses'`).
+  - Route: `/expenses` (registered in `frontend/src/app/app.routes.ts`).
+  - **Documented Backend Default Range (P-609)**: Defaults to first-of-month through today (`computeFirstOfMonth()` to `computeToday()`).
+  - Prominent Monthly Total Display: Queries `ExpensesClient.getMonthlyTotal(year, month)` to display server-authoritative monthly expenditures.
+  - Date Range and Category Filters: Filters expenses table via `ExpensesClient.list(from, to, category, ...)`.
+  - **Hard Constraint — Extensible Free-Text Category Input (Requirements §18.3)**:
+    The category input in both filter and creation forms accepts any free-text category without restriction. Suggested categories (`Rent`, `Utilities`, `Salaries`, `Miscellaneous`) are provided as a convenience autocomplete `<datalist>` only.
+  - Record Expense Action: Submits `CreateExpenseCommand` (description, amount, category, expenseDate, notes) to `POST /api/expenses` via `ExpensesClient.create(command)` and refreshes expenses table and monthly total.
+- Unit Tests (`frontend/src/app/features/expenses/expenses.component.spec.ts`):
+  - Validates that the default date range matches the backend's documented default (first-of-month through today).
+  - Validates that entering a novel category not in the suggestion list still submits successfully.
+  - Validates that the monthly total display matches the fetched backend value.
