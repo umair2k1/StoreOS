@@ -1,0 +1,186 @@
+<div class="import-container">
+  <div class="page-header">
+    <h1 class="page-title">Supplier Invoice Import</h1>
+    <p class="page-subtitle">Deterministic product matching for supplier purchases and bills</p>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <div *ngIf="successSummary()" class="alert alert-success success-summary" role="alert">
+    {{ successSummary() }}
+  </div>
+
+  <!-- Invoice Meta Header -->
+  <section class="card invoice-meta-card">
+    <h2 class="card-title">Invoice Information</h2>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label" for="supplierSelect">Supplier <span class="required">*</span></label>
+        <select id="supplierSelect" class="form-control" [ngModel]="supplierId()"
+          (ngModelChange)="onSupplierSelect($event)">
+          <option value="">Select Supplier</option>
+          <option *ngFor="let s of suppliers()" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+
+      <div class="form-group" *ngIf="!supplierId()">
+        <label class="form-label" for="supplierNameInput">Supplier Name (Manual)</label>
+        <input id="supplierNameInput" type="text" class="form-control" placeholder="Enter supplier name"
+          [ngModel]="supplierName()" (ngModelChange)="supplierName.set($event)" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="invoiceNo">Invoice Number <span class="required">*</span></label>
+        <input id="invoiceNo" type="text" class="form-control" placeholder="e.g. INV-2026-001"
+          [ngModel]="supplierInvoiceNo()" (ngModelChange)="supplierInvoiceNo.set($event)" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="invoiceDate">Invoice Date <span class="required">*</span></label>
+        <input id="invoiceDate" type="date" class="form-control" [ngModel]="invoiceDate()"
+          (ngModelChange)="invoiceDate.set($event)" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="sourceRef">Source Ref (Optional)</label>
+        <input id="sourceRef" type="text" class="form-control" placeholder="Batch tracking ref" [ngModel]="sourceRef()"
+          (ngModelChange)="sourceRef.set($event)" />
+      </div>
+    </div>
+  </section>
+
+  <!-- Line Item Repeatable Grid -->
+  <section class="card lines-card">
+    <div class="card-header-flex">
+      <h2 class="card-title">Line Items</h2>
+      <button type="button" class="btn btn-secondary btn-sm btn-add-row" (click)="addRow()">
+        + Add Line
+      </button>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table lines-table">
+        <thead>
+          <tr>
+            <th class="col-product">Product Name <span class="required">*</span></th>
+            <th class="col-hsn">HSN Code</th>
+            <th class="col-qty">Qty <span class="required">*</span></th>
+            <th class="col-rate">Rate <span class="required">*</span></th>
+            <th class="col-imei">IMEI (Optional)</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows(); let i = index" class="line-row">
+            <td>
+              <input type="text" class="form-control input-product-name" placeholder="Raw product name"
+                [(ngModel)]="row.productNameRaw" />
+            </td>
+            <td>
+              <input type="text" class="form-control input-hsn" placeholder="HSN" [(ngModel)]="row.hsnCode" />
+            </td>
+            <td>
+              <input type="number" class="form-control input-qty" min="1" [(ngModel)]="row.qty" />
+            </td>
+            <td>
+              <input type="number" class="form-control input-rate" min="0" step="0.01" [(ngModel)]="row.rate" />
+            </td>
+            <td>
+              <input type="text" class="form-control input-imei" placeholder="15-digit IMEI" [(ngModel)]="row.imei" />
+            </td>
+            <td class="cell-actions">
+              <button type="button" class="btn btn-danger btn-sm btn-remove-row" [disabled]="rows().length <= 1"
+                (click)="removeRow(i)">
+                Remove
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-primary btn-import-submit" [disabled]="!isFormValid() || isSubmitting()"
+        (click)="submitImport()">
+        {{ isSubmitting() ? 'Importing...' : 'Import Invoice' }}
+      </button>
+    </div>
+  </section>
+
+  <!-- Ambiguous Lines Confirmation UI -->
+  <section *ngIf="hasAmbiguousLines()" class="card ambiguous-confirmation-section">
+    <div class="ambiguous-header">
+      <h2 class="card-title text-warning">Ambiguous Lines Confirmation</h2>
+      <p class="ambiguous-subtitle">
+        Deterministic matching surfaced lines that cannot be automatically imported. Confirm manual resolution below.
+      </p>
+    </div>
+
+    <div class="ambiguous-lines-list">
+      <div *ngFor="let item of ambiguousLines()" class="ambiguous-line-card"
+        [class.no-match-line]="item.candidateProductIds.length === 0"
+        [class.multiple-matches-line]="item.candidateProductIds.length > 1" [class.line-resolved]="item.isResolved">
+
+        <div class="line-card-header">
+          <div class="line-name-badge">
+            <span class="product-raw-name">{{ item.productNameRaw }}</span>
+            <span class="status-pill status-unmatched"
+              *ngIf="item.candidateProductIds.length === 0 && !item.isResolved">
+              No Match
+            </span>
+            <span class="status-pill status-multiple" *ngIf="item.candidateProductIds.length > 1 && !item.isResolved">
+              Multiple Matches ({{ item.candidateProductIds.length }})
+            </span>
+            <span class="status-pill status-resolved badge-resolved" *ngIf="item.isResolved">
+              Resolved & Stocked In
+            </span>
+          </div>
+
+          <div class="line-meta" *ngIf="item.originalRow">
+            Qty: {{ item.originalRow.qty }} | Rate: {{ item.originalRow.rate }}
+          </div>
+        </div>
+
+        <div class="line-card-body">
+          <!-- Case A: No match found -->
+          <div *ngIf="item.candidateProductIds.length === 0" class="no-match-action">
+            <p class="no-match-text">
+              No catalog product exists matching "{{ item.productNameRaw }}". Create a new product to resolve.
+            </p>
+            <a class="btn btn-secondary btn-create-product" [routerLink]="['/inventory']"
+              [queryParams]="{ name: item.productNameRaw }">
+              Create new product
+            </a>
+          </div>
+
+          <!-- Case B: Multiple matches found -->
+          <div *ngIf="item.candidateProductIds.length > 1 && !item.isResolved" class="multiple-match-action">
+            <p class="multiple-match-text">
+              Multiple products match "{{ item.productNameRaw }}". Select the correct product to stock in:
+            </p>
+            <div class="resolution-controls">
+              <select class="form-control candidate-select" [ngModel]="item.selectedProductId"
+                (ngModelChange)="item.selectedProductId = $event">
+                <option value="" disabled>Select candidate product...</option>
+                <option *ngFor="let id of item.candidateProductIds" [value]="id">
+                  {{ id }}
+                </option>
+              </select>
+
+              <button type="button" class="btn btn-primary btn-retry"
+                [disabled]="!item.selectedProductId || item.isRetrying" (click)="retryLine(item)">
+                {{ item.isRetrying ? 'Retrying...' : 'Retry import for this line' }}
+              </button>
+            </div>
+
+            <div *ngIf="item.errorMessage" class="line-error-msg">
+              {{ item.errorMessage }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

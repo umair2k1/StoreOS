@@ -5287,3 +5287,22 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Changing quantity field dynamically adds/removes IMEI input rows to match.
   - (b) Entering duplicate IMEI values across rows highlights both rows as invalid and disables the submit button.
   - (c) Submitting a valid form calls `PurchasesClient.stockIn` with the expected payload shape and emits completion.
+
+## P-1111
+### Supplier Invoice Import Screen (Upload, Line-Item Grid, Ambiguous Mapping Confirmation)
+- Supplier Invoice Import Component (`frontend/src/app/features/purchases/import/supplier-invoice-import.component.ts`, `.html`, `.scss`):
+  - `SupplierInvoiceImportComponent`: Standalone Angular component (`selector: 'app-supplier-invoice-import'`).
+  - Route: `/purchases/import` (registered in `frontend/src/app/app.routes.ts`).
+  - Invoice Metadata: Supplier selection / manual name, Supplier Invoice Number, Invoice Date, Source Ref.
+  - Line Item Repeatable Grid: Product Name (`productNameRaw`), HSN Code (`hsnCode`), Quantity (`qty`), Purchase Rate (`rate`), optional serial/IMEI (`imei`). Add/Remove row actions with reactive form validation.
+  - Submission: Invokes `ImportsClient.importSupplierInvoice(command)` submitting `ImportSupplierInvoiceCommand`.
+  - Success Summary: Displayed on responses with zero ambiguous lines or after all ambiguous lines are resolved.
+  - **Architecture Invariant — Deterministic Matching & Confirmation UI (Requirements §11 & P-412)**:
+    No fuzzy/AI matching is performed. Ambiguous lines returned by the server are surfaced directly:
+    - "No match" lines (`candidateProductIds.length === 0`) render a shortcut linking to the product-creation form (`/inventory`) with query parameter `name` pre-filled with the raw product name.
+    - "Multiple matches" lines (`candidateProductIds.length > 1`) render candidate product selection dropdown and a "Retry import for this line" action.
+    - Retrying an ambiguous line invokes `POST /api/purchases` (`PurchasesClient.stockIn`) specifically for the single resolved line rather than re-submitting the whole batch.
+- Unit Tests (`frontend/src/app/features/purchases/import/supplier-invoice-import.component.spec.ts`):
+  - (a) A response with zero ambiguous lines displays a success summary banner.
+  - (b) A response with ambiguous lines renders the correct confirmation UI per line type (no-match shortcut vs multiple-match dropdown & disabled retry button).
+  - (c) Disambiguating a multiple-match line and clicking "Retry" calls `PurchasesClient.stockIn` with the selected product ID, quantity, rate, invoice number, and IMEI.

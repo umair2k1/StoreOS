@@ -46,6 +46,12 @@ export const routes: Routes = [
           { path: ':id', loadComponent: () => import('./features/inventory/detail/inventory-detail.component').then(m => m.InventoryDetailComponent) }
         ]
       },
+      {
+        path: 'purchases',
+        children: [
+          { path: 'import', loadComponent: () => import('./features/purchases/import/supplier-invoice-import.component').then(m => m.SupplierInvoiceImportComponent) }
+        ]
+      },
       { path: 'customers', children: [] },
       { path: 'reports', children: [] },
     ]
