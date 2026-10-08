@@ -164,9 +164,13 @@ export class PosComponent implements AfterViewInit {
   }
 
   async submitCheckout(): Promise<void> {
+    const activePayments = this.payments().filter(p => (p.amount ?? 0) > 0);
+    const paymentsToSend = activePayments.length > 0
+      ? activePayments
+      : [{ paymentMode: 'Cash', amount: this.financeDetails() ? (this.financeDetails()?.downPayment ?? 0) : this.cartState.subtotal() }];
     await this.checkoutService.checkout({
       customer: this.selectedCustomer(),
-      payments: this.payments(),
+      payments: paymentsToSend,
       finance: this.financeDetails(),
       invoiceDiscount: 0
     });

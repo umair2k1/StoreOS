@@ -186,10 +186,11 @@ export class PaymentPanelComponent {
   }
 
   private emitPayments(lines: PaymentLine[]): void {
+    const modeMap: Record<PaymentMode, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', credit: 'Credit' };
     const mapped: CheckoutPayment[] = lines
       .filter(l => l.amount > 0)
       .map(l => ({
-        paymentMode: l.mode,
+        paymentMode: modeMap[l.mode] ?? 'Cash',
         amount: l.amount
       }));
     this.paymentsChange.emit(mapped);

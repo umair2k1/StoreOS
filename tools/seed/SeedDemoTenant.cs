@@ -429,6 +429,13 @@ public static class SeedDemoTenant
         await db.SaleItems.AddRangeAsync(saleItems, ct);
         await db.SaveChangesAsync(ct);
 
+        // Initialize invoice sequences matching seeded sales
+        var fyLabel = InvoiceNumberFormatter.FinancialYearLabel(DateOnly.FromDateTime(DateTime.UtcNow));
+        var seqTax = InvoiceSequence.Create(tenantId, branchB01Id, $"FY{fyLabel}", 70);
+        var seqEst = InvoiceSequence.Create(tenantId, branchB01Id, $"EST-FY{fyLabel}", 1);
+        await db.InvoiceSequences.AddRangeAsync(new[] { seqTax, seqEst }, ct);
+        await db.SaveChangesAsync(ct);
+
         // 10. Expenses
         var expenses = new List<Expense>
         {

@@ -19,10 +19,24 @@ public class InvoiceSequenceAllocator : IInvoiceSequenceAllocator
         await using var cmd = connection.CreateCommand();
         cmd.Transaction = transaction;
         cmd.CommandText = @"
+            WITH max_sales AS (
+                SELECT COALESCE(
+                    MAX(
+                        NULLIF(
+                            regexp_replace(invoice_number, '^.*\/', ''),
+                            ''
+                        )::int
+                    ),
+                    0
+                ) AS max_num
+                FROM sales
+                WHERE tenant_id = @t AND branch_id = @b
+                  AND ((@s LIKE 'EST-%' AND invoice_type = 'Estimate') OR (@s NOT LIKE 'EST-%' AND invoice_type = 'TaxInvoice'))
+            )
             INSERT INTO invoice_sequences (tenant_id, branch_id, series_key, last_seq)
-            VALUES (@t, @b, @s, 1)
+            SELECT @t, @b, @s, (SELECT max_num FROM max_sales) + 1
             ON CONFLICT (tenant_id, branch_id, series_key)
-            DO UPDATE SET last_seq = invoice_sequences.last_seq + 1
+            DO UPDATE SET last_seq = GREATEST(invoice_sequences.last_seq, (SELECT max_num FROM max_sales)) + 1
             RETURNING last_seq;";
         AddParam(cmd, "t", tenantId);
         AddParam(cmd, "b", branchId);

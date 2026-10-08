@@ -82,12 +82,17 @@ export class CheckoutService {
     const customerId = options.customer?.id ? options.customer.id : undefined;
     const walkInName = !customerId ? (options.customer?.name || 'Walk-in Customer') : undefined;
 
+    const effectivePayments: CheckoutPayment[] = options.payments && options.payments.length > 0
+      ? options.payments
+      : [{ paymentMode: 'Cash', amount: options.finance ? (options.finance.downPayment || 0) : this.cartState.subtotal() }];
+
     const command: CheckoutCommand = {
       lines,
       customerId,
       walkInCustomerName: walkInName,
       invoiceDiscount: options.invoiceDiscount ?? 0,
-      payments: options.payments,
+      invoiceType: 'TaxInvoice',
+      payments: effectivePayments,
       finance: options.finance || undefined,
       description: options.description
     };
@@ -264,22 +269,23 @@ export class CheckoutService {
 
   private extractErrorMessage(err: unknown): string {
     if (err && typeof err === 'object') {
-      const withMsg = err as { message?: string; response?: string; status?: number };
-      if (withMsg.message) {
-        return withMsg.message;
-      }
+      const withMsg = err as { message?: string; response?: string; status?: number; error?: unknown };
       if (withMsg.response) {
         try {
-          const parsed = JSON.parse(withMsg.response) as { message?: string; detail?: string };
-          if (parsed.message) {
-            return parsed.message;
+          const parsed = JSON.parse(withMsg.response) as { message?: string; detail?: string; title?: string; errors?: Record<string, string[]> };
+          if (parsed.errors) {
+            const firstErr = Object.values(parsed.errors).flat()[0];
+            if (firstErr) return firstErr;
           }
-          if (parsed.detail) {
-            return parsed.detail;
-          }
+          if (parsed.detail) return parsed.detail;
+          if (parsed.message) return parsed.message;
+          if (parsed.title) return parsed.title;
         } catch {
           return withMsg.response;
         }
+      }
+      if (withMsg.message) {
+        return withMsg.message;
       }
     }
     return 'An unexpected error occurred during checkout.';

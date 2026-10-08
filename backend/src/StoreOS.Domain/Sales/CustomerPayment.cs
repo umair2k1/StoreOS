@@ -27,11 +27,21 @@ public class CustomerPayment
             TenantId = tenantId,
             SaleId = saleId,
             Amount = amount,
-            PaymentMode = paymentMode,
+            PaymentMode = Normalize(paymentMode),
             PaymentDate = paymentDate,
             ReceivedBy = receivedBy,
             CreatedAt = DateTimeOffset.UtcNow
         };
+    }
+
+    private static string Normalize(string mode)
+    {
+        if (string.Equals(mode, Sales.PaymentMode.Cash, StringComparison.OrdinalIgnoreCase)) return Sales.PaymentMode.Cash;
+        if (string.Equals(mode, Sales.PaymentMode.UPI, StringComparison.OrdinalIgnoreCase)) return Sales.PaymentMode.UPI;
+        if (string.Equals(mode, Sales.PaymentMode.Card, StringComparison.OrdinalIgnoreCase)) return Sales.PaymentMode.Card;
+        if (string.Equals(mode, Sales.PaymentMode.Credit, StringComparison.OrdinalIgnoreCase)) return Sales.PaymentMode.Credit;
+        if (string.Equals(mode, Sales.PaymentMode.Finance, StringComparison.OrdinalIgnoreCase)) return Sales.PaymentMode.Finance;
+        return mode;
     }
 
     public static CustomerPayment Rehydrate(

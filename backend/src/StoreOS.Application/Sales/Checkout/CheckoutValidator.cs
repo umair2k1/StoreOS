@@ -15,7 +15,7 @@ public class CheckoutValidator : AbstractValidator<CheckoutCommand>
                 .When(l => l.OverridePricePerUnit.HasValue);
         });
         RuleFor(x => x.InvoiceDiscount).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.InvoiceType).Must(t => InvoiceType.All.Contains(t))
+        RuleFor(x => x.InvoiceType).Must(t => string.IsNullOrWhiteSpace(t) || InvoiceType.All.Contains(t))
             .WithMessage("Invoice type must be TaxInvoice or Estimate.");
         RuleFor(x => x.Payments).NotNull();
         RuleForEach(x => x.Payments).ChildRules(p =>

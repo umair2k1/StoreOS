@@ -107,7 +107,8 @@ public class CheckoutHandler : IRequestHandler<CheckoutCommand, CheckoutResult>
         }
 
         var placeholderInvoice = Guid.NewGuid().ToString("N");
-        var sale = request.InvoiceType == InvoiceType.TaxInvoice
+        var isTaxInvoice = string.IsNullOrWhiteSpace(request.InvoiceType) || request.InvoiceType.Equals(InvoiceType.TaxInvoice, StringComparison.OrdinalIgnoreCase);
+        var sale = isTaxInvoice
             ? Sale.CreateTaxInvoice(
                 _scope.TenantId, branchId, placeholderInvoice, saleDate, customerId, customerName, customerGstin,
                 totalTaxable, totalCgst, totalSgst, grandTotal, request.InvoiceDiscount, 0m,
