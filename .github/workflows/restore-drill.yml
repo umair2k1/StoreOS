@@ -23,8 +23,9 @@ jobs:
           STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
           STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
         run: |
+          dotnet restore StoreOS.sln
           dotnet tool restore
-          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext
           sh deploy/db/apply-post-migrate.sh
 
       - name: Seed demo tenant
@@ -46,7 +47,7 @@ jobs:
           STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
         run: |
           dotnet tool restore
-          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api --context StoreOsDbContext
           sh deploy/db/apply-post-migrate.sh
 
       - name: Restore from backup
