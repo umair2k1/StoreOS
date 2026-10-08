@@ -5190,3 +5190,23 @@ var sgst = Money.Round2(totalGst - cgst);
   - Verifies payment prompt interaction and conversion call to `PosClient.convertEstimate(id, { payments })`.
   - Verifies post-conversion navigation to `/sales/:saleId` and success toast.
   - Verifies conversion button suppression and converted badge rendering when estimate was previously converted.
+
+## P-1107
+### Sales History Screen: Search, Multi-Dimension Filters, Sort, Pagination
+- Sales History Component (`frontend/src/app/features/sales-history/sales-history.component.ts`, `.html`, `.scss`):
+  - `SalesHistoryComponent`: Standalone Angular component (`selector: 'app-sales-history'`).
+  - Route: `/sales` (registered in `frontend/src/app/app.routes.ts`).
+  - **Architecture Invariant — URL-Query-Param-as-State-Source Pattern (Requirements §16.6)**:
+    All filter, search, sort, and pagination state strictly lives in Angular Router's query parameters (`ActivatedRoute.queryParams`). No filter state is trapped only in local component memory:
+    - Every UI modification invokes `updateParam(key, value)` or `onSort(event)`, which triggers `Router.navigate([], { queryParams: nextParams })`.
+    - The component's `ngOnInit` subscribes to `route.queryParams`, synchronizing internal signals (`search`, `dateFilter`, `customFrom`, `customTo`, `status`, `paymentMode`, `invoiceType`, `paidOnly`, `dueOnly`, `financedOnly`, `category`, `minAmount`, `maxAmount`, `sortBy`, `sortDirection`, `page`, `pageSize`) and triggering `fetchSales()`.
+    - Any filtered or paginated view is directly shareable, bookmarkable, and survives browser reload.
+  - Table Integration:
+    - Reuses `PzTableComponent` (`<pz-table>`) with sortable columns (`Invoice #`, `Date`, `Customer`, `Type`, `Mode`, `Status`, `Grand Total`, `Paid`, `Balance`).
+    - Rows route to `/sales/:id` (or `/sales/estimates/:id` for estimates).
+    - Supports page-size options: 25, 50, 100, and 10000 ("All").
+- Unit Tests (`frontend/src/app/features/sales-history/sales-history.component.spec.ts`):
+  - (a) Each filter control (search, status, paidOnly, minAmount/maxAmount) correctly updates router query params and triggers a re-fetch with matching parameters.
+  - (b) Restoring the component with pre-set query params initializes all filter bar control values and signals.
+  - (c) Sortable column headers toggle ascending/descending and propagate `sortBy`/`sortDirection` into URL query parameters.
+  - (d) Row clicks navigate to the correct sales or estimate detail route.

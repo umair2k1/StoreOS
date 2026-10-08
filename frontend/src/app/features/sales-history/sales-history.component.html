@@ -1,0 +1,166 @@
+<div class="sales-history-container">
+  <div class="sales-header">
+    <div class="header-titles">
+      <h1 class="page-title">Sales History</h1>
+      <p class="page-subtitle">View, search, and filter customer sales, estimates, and invoices.</p>
+    </div>
+  </div>
+
+  <div class="filter-panel card">
+    <div class="filter-row filter-row-primary">
+      <div class="filter-field search-field">
+        <label for="salesSearch">Search</label>
+        <div class="search-input-wrapper">
+          <input id="salesSearch" type="text" class="form-control" placeholder="Invoice # or customer name..."
+            [ngModel]="search()" (ngModelChange)="updateParam('search', $event)" />
+        </div>
+      </div>
+
+      <div class="filter-field">
+        <label for="dateFilterSelect">Date Range</label>
+        <select id="dateFilterSelect" class="form-control" [ngModel]="dateFilter()"
+          (ngModelChange)="updateParam('dateFilter', $event)">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="yesterday">Yesterday</option>
+          <option value="this_week">This Week</option>
+          <option value="this_month">This Month</option>
+          <option value="last_month">Last Month</option>
+          <option value="this_quarter">This Quarter</option>
+          <option value="this_year">This Year</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </div>
+
+      @if (dateFilter() === 'custom') {
+      <div class="filter-field">
+        <label for="customFromDate">From</label>
+        <input id="customFromDate" type="date" class="form-control" [ngModel]="customFrom()"
+          (ngModelChange)="updateParam('customFrom', $event)" />
+      </div>
+      <div class="filter-field">
+        <label for="customToDate">To</label>
+        <input id="customToDate" type="date" class="form-control" [ngModel]="customTo()"
+          (ngModelChange)="updateParam('customTo', $event)" />
+      </div>
+      }
+
+      <div class="filter-field">
+        <label for="statusSelect">Status</label>
+        <select id="statusSelect" class="form-control" [ngModel]="status()"
+          (ngModelChange)="updateParam('status', $event)">
+          <option value="">All Statuses</option>
+          <option value="completed">Completed</option>
+          <option value="draft">Draft</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="voided">Voided</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <label for="paymentModeSelect">Payment Mode</label>
+        <select id="paymentModeSelect" class="form-control" [ngModel]="paymentMode()"
+          (ngModelChange)="updateParam('paymentMode', $event)">
+          <option value="">All Modes</option>
+          <option value="cash">Cash</option>
+          <option value="upi">UPI</option>
+          <option value="card">Card</option>
+          <option value="credit">Credit / Store Due</option>
+          <option value="split">Split</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <label for="invoiceTypeSelect">Invoice Type</label>
+        <select id="invoiceTypeSelect" class="form-control" [ngModel]="invoiceType()"
+          (ngModelChange)="updateParam('invoiceType', $event)">
+          <option value="">All Types</option>
+          <option value="tax_invoice">Tax Invoice</option>
+          <option value="estimate">Estimate</option>
+          <option value="bill_of_supply">Bill of Supply</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filter-row filter-row-secondary">
+      <div class="filter-field">
+        <label for="categoryInput">Category</label>
+        <input id="categoryInput" type="text" class="form-control" placeholder="Filter by category..."
+          [ngModel]="category()" (ngModelChange)="updateParam('category', $event)" />
+      </div>
+
+      <div class="filter-field amount-field">
+        <label for="minAmountInput">Min Amount</label>
+        <input id="minAmountInput" type="number" class="form-control" placeholder="Min ₹" [ngModel]="minAmount()"
+          (ngModelChange)="updateParam('minAmount', $event)" />
+      </div>
+
+      <div class="filter-field amount-field">
+        <label for="maxAmountInput">Max Amount</label>
+        <input id="maxAmountInput" type="number" class="form-control" placeholder="Max ₹" [ngModel]="maxAmount()"
+          (ngModelChange)="updateParam('maxAmount', $event)" />
+      </div>
+
+      <div class="filter-toggles">
+        <label class="toggle-label">
+          <input type="checkbox" [checked]="paidOnly()"
+            (change)="updateParam('paidOnly', $any($event.target).checked)" />
+          <span>Paid Only</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" [checked]="dueOnly()" (change)="updateParam('dueOnly', $any($event.target).checked)" />
+          <span>Due Only</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" [checked]="financedOnly()"
+            (change)="updateParam('financedOnly', $any($event.target).checked)" />
+          <span>Financed Only</span>
+        </label>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn btn-outline" (click)="resetFilters()">
+          Reset Filters
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <app-error-state [message]="errorMessage()!" [retryable]="true" (retry)="fetchSales()"></app-error-state>
+  }
+
+  <div class="table-card card">
+    <pz-table [columns]="columns" [rows]="sales()" [sortColumn]="sortBy()" [sortDirection]="sortDirection()"
+      [loading]="isLoading()" trackByKey="id" emptyMessage="No sales found matching the current filter criteria."
+      (sort)="onSort($event)" (rowClick)="onRowClick($event)"></pz-table>
+
+    <div class="pagination-bar">
+      <div class="page-size-selector">
+        <label for="pageSizeSelect">Show:</label>
+        <select id="pageSizeSelect" class="page-size-select" [ngModel]="pageSize()"
+          (ngModelChange)="onPageSizeChange(+$event)">
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+          <option [value]="10000">All</option>
+        </select>
+        <span class="total-records">Total: {{ totalCount() }}</span>
+      </div>
+
+      <div class="page-controls">
+        <button type="button" class="btn-page-nav" [disabled]="page() <= 1 || isLoading()"
+          (click)="onPageChange(page() - 1)">
+          &larr; Prev
+        </button>
+        <span class="page-indicator">
+          Page {{ page() }} of {{ totalPages() }}
+        </span>
+        <button type="button" class="btn-page-nav" [disabled]="page() >= totalPages() || isLoading()"
+          (click)="onPageChange(page() + 1)">
+          Next &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

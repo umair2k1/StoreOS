@@ -34,6 +34,7 @@ export const routes: Routes = [
       {
         path: 'sales',
         children: [
+          { path: '', loadComponent: () => import('./features/sales-history/sales-history.component').then(m => m.SalesHistoryComponent) },
           { path: 'estimates/:id', loadComponent: () => import('./features/pos/estimate/estimate-detail.component').then(m => m.EstimateDetailComponent) }
         ]
       },
