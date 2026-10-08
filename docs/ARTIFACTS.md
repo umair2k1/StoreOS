@@ -5480,3 +5480,25 @@ var sgst = Money.Round2(totalGst - cgst);
   - `frontend/src/app/features/reports/daily-audit.component.spec.ts`: Validates rendering of every `DailySalesReportDto` section and presence of the print action.
   - `frontend/src/app/features/reports/branch-comparison.component.spec.ts`: Validates comparison matrix display for multi-branch users and verifies component is entirely hidden for single-branch users.
   - `frontend/src/app/features/reports/exports.component.spec.ts`: Validates triggering inventory export with selected category chips and GSTR-1 export with date range.
+
+## P-1120
+### Settings Screen: Shop Info, Tax, Bank, Finance Providers, Theme, Repair Flag, My Account
+- Theme Implementation (`frontend/src/styles.scss`):
+  - Real CSS custom-property variables declared for both `[data-theme='light']` and `[data-theme='dark']` on root document element (`--fg`, `--muted`, `--muted-bg`, `--surface`, `--surface-hover`, `--border`, `--accent`, `--accent-hover`, `--accent-light`, `--success`, `--warning`, `--error`).
+  - **Hard Constraint — Real Theme Toggle**: Switches `data-theme` attribute on `document.documentElement` and persists in localStorage.
+- Settings Component (`frontend/src/app/features/settings/settings.component.ts`, `.html`, `.scss`):
+  - `SettingsComponent`: Standalone Angular component (`selector: 'app-settings'`).
+  - Route: `/settings` (registered in `frontend/src/app/app.routes.ts`).
+  - Tabbed sections:
+    1. Shop Profile: Store name, address, email, phone, GSTIN, and embedded `LogoUploaderComponent`. Submits `PATCH /api/settings/shop_info`.
+    2. Tax Defaults: Default GST rate (%). Submits `PATCH /api/settings/tax_settings`.
+    3. Bank Account: Bank name, account name, account number, IFSC, branch. Submits `PATCH /api/settings/bank_details`.
+    4. Finance Providers: Lists providers, adds new provider (`POST /api/settings/finance-providers`), removes provider (`DELETE /api/settings/finance-providers/{name}`).
+    5. Appearance & Theme: Live selector between Light and Dark mode, applying `data-theme` attribute and saving `PATCH /api/settings/theme`.
+    6. Repairs Module: Enable/disable toggle submitting `PATCH /api/settings/repairs-enabled`. Protected by `*pzCan="'settings:manage'"`.
+    7. My Account (Review v2): Change password form calling `POST /api/auth/change-password`. On 204 success, clears in-memory auth state via `AuthSignalStore.clear()` and navigates to `/login`.
+- Unit Tests (`frontend/src/app/features/settings/settings.component.spec.ts`):
+  - Validates each tab save action invokes `patchSetting` with the respective setting key and payload.
+  - Validates that the theme toggle sets the `data-theme` attribute on the document root element.
+  - Validates that the repairs module toggle is hidden for users lacking `settings:manage` permission and visible when granted.
+  - Validates change password invokes API, clears session, and redirects to `/login`.

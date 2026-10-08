@@ -1,0 +1,323 @@
+<div class="settings-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Store & Account Settings</h1>
+      <p class="page-subtitle">Configure business profile, taxation defaults, banking, themes, and modules</p>
+    </div>
+  </div>
+
+  <div class="settings-layout">
+    <!-- Tabs Navigation Sidebar -->
+    <nav class="settings-tabs-nav">
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'shop'" (click)="setTab('shop')">
+        Shop Profile
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'tax'" (click)="setTab('tax')">
+        Tax Defaults
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'bank'" (click)="setTab('bank')">
+        Bank Account
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'finance'" (click)="setTab('finance')">
+        Finance Providers
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'theme'" (click)="setTab('theme')">
+        Appearance & Theme
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'repairs'" (click)="setTab('repairs')">
+        Repairs Module
+      </button>
+      <button type="button" class="tab-btn" [class.active]="activeTab() === 'account'" (click)="setTab('account')">
+        My Account
+      </button>
+    </nav>
+
+    <!-- Tab Panels Area -->
+    <div class="tab-content-area">
+      <!-- 1. Shop Profile Tab -->
+      @if (activeTab() === 'shop') {
+      <section class="card tab-panel shop-panel">
+        <div class="card-header">
+          <h2 class="panel-title">Shop Information</h2>
+        </div>
+        <form (ngSubmit)="saveShopInfo()" class="card-body">
+          <div class="form-group logo-group">
+            <label>Store Logo</label>
+            <app-logo-uploader (logoUploaded)="onLogoUploaded($event)" />
+          </div>
+
+          <div class="form-group">
+            <label for="shopName">Store Name *</label>
+            <input id="shopName" name="shopName" type="text" class="form-control" [ngModel]="shopName()"
+              (ngModelChange)="shopName.set($event)" placeholder="e.g. PhoneZone Electronics" required />
+          </div>
+
+          <div class="form-group">
+            <label for="shopAddress">Store Address</label>
+            <textarea id="shopAddress" name="shopAddress" rows="2" class="form-control" [ngModel]="shopAddress()"
+              (ngModelChange)="shopAddress.set($event)" placeholder="Full address printed on customer receipts">
+            </textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="shopPhone">Phone Number</label>
+              <input id="shopPhone" name="shopPhone" type="text" class="form-control" [ngModel]="shopPhone()"
+                (ngModelChange)="shopPhone.set($event)" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="shopEmail">Contact Email</label>
+              <input id="shopEmail" name="shopEmail" type="email" class="form-control" [ngModel]="shopEmail()"
+                (ngModelChange)="shopEmail.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="shopGstin">GSTIN</label>
+            <input id="shopGstin" name="shopGstin" type="text" class="form-control font-mono" [ngModel]="shopGstin()"
+              (ngModelChange)="shopGstin.set($event)" placeholder="22AAAAA0000A1Z5" />
+          </div>
+
+          <div class="panel-actions">
+            <button type="submit" class="btn btn-primary btn-save-shop" [disabled]="isSaving()">
+              {{ isSaving() ? 'Saving...' : 'Save Shop Information' }}
+            </button>
+          </div>
+        </form>
+      </section>
+      }
+
+      <!-- 2. Tax Settings Tab -->
+      @if (activeTab() === 'tax') {
+      <section class="card tab-panel tax-panel">
+        <div class="card-header">
+          <h2 class="panel-title">Taxation & GST Defaults</h2>
+        </div>
+        <form (ngSubmit)="saveTaxSettings()" class="card-body">
+          <div class="form-group">
+            <label for="defaultGstRate">Default Store GST Rate (%)</label>
+            <input id="defaultGstRate" name="defaultGstRate" type="number" step="0.01" min="0" class="form-control"
+              [ngModel]="defaultGstRate()" (ngModelChange)="defaultGstRate.set($event)" />
+            <span class="field-hint">Standard GST rate applied to products without specific rate overrides</span>
+          </div>
+
+          <div class="panel-actions">
+            <button type="submit" class="btn btn-primary btn-save-tax" [disabled]="isSaving()">
+              {{ isSaving() ? 'Saving...' : 'Save Tax Settings' }}
+            </button>
+          </div>
+        </form>
+      </section>
+      }
+
+      <!-- 3. Bank Account Tab -->
+      @if (activeTab() === 'bank') {
+      <section class="card tab-panel bank-panel">
+        <div class="card-header">
+          <h2 class="panel-title">Bank Settlement Account</h2>
+        </div>
+        <form (ngSubmit)="saveBankDetails()" class="card-body">
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="bankName">Bank Name</label>
+              <input id="bankName" name="bankName" type="text" class="form-control" [ngModel]="bankName()"
+                (ngModelChange)="bankName.set($event)" placeholder="e.g. HDFC Bank" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="accountName">Account Beneficiary Name</label>
+              <input id="accountName" name="accountName" type="text" class="form-control" [ngModel]="accountName()"
+                (ngModelChange)="accountName.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="accountNumber">Account Number</label>
+              <input id="accountNumber" name="accountNumber" type="text" class="form-control font-mono"
+                [ngModel]="accountNumber()" (ngModelChange)="accountNumber.set($event)" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="ifsc">IFSC Code</label>
+              <input id="ifsc" name="ifsc" type="text" class="form-control font-mono" [ngModel]="ifsc()"
+                (ngModelChange)="ifsc.set($event)" placeholder="HDFC0001234" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="branch">Bank Branch</label>
+            <input id="branch" name="branch" type="text" class="form-control" [ngModel]="branch()"
+              (ngModelChange)="branch.set($event)" />
+          </div>
+
+          <div class="panel-actions">
+            <button type="submit" class="btn btn-primary btn-save-bank" [disabled]="isSaving()">
+              {{ isSaving() ? 'Saving...' : 'Save Bank Details' }}
+            </button>
+          </div>
+        </form>
+      </section>
+      }
+
+      <!-- 4. Finance Providers Tab -->
+      @if (activeTab() === 'finance') {
+      <section class="card tab-panel finance-panel">
+        <div class="card-header">
+          <h2 class="panel-title">Consumer Finance Providers</h2>
+        </div>
+        <div class="card-body">
+          <p class="panel-desc text-sm text-muted">
+            Configure available EMI and consumer loan financers selectable at POS checkout.
+          </p>
+
+          <div class="add-provider-form form-row">
+            <input type="text" class="form-control col-grow" placeholder="New Financier Name (e.g. Bajaj Finserv, HDB)"
+              [ngModel]="newProviderName()" (ngModelChange)="newProviderName.set($event)" />
+            <button type="button" class="btn btn-outline btn-add-provider" (click)="addFinanceProvider()">
+              + Add Provider
+            </button>
+          </div>
+
+          <div class="providers-list">
+            @for (provider of financeProviders(); track provider.displayName) {
+            <div class="provider-item">
+              <span class="provider-name font-semibold">{{ provider.displayName }}</span>
+              <button type="button" class="btn btn-sm btn-outline text-danger btn-remove-provider"
+                (click)="removeFinanceProvider(provider)">
+                Remove
+              </button>
+            </div>
+            } @empty {
+            <p class="empty-text text-muted text-sm">No external finance partners configured.</p>
+            }
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- 5. Appearance & Theme Tab -->
+      @if (activeTab() === 'theme') {
+      <section class="card tab-panel theme-panel">
+        <div class="card-header">
+          <h2 class="panel-title">Interface Appearance & Theme</h2>
+        </div>
+        <div class="card-body">
+          <p class="panel-desc text-sm text-muted">
+            Select your preferred color scheme. The chosen theme persists across device sessions:
+          </p>
+
+          <div class="theme-options-grid">
+            <div class="theme-card light-theme-option" [class.selected]="currentTheme() === 'light'"
+              (click)="applyTheme('light')">
+              <div class="theme-preview light-preview">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-line"></div>
+                  <div class="preview-line short"></div>
+                </div>
+              </div>
+              <div class="theme-info">
+                <span class="theme-title font-semibold">Light Mode</span>
+                <span class="theme-desc text-xs text-muted">High contrast day theme</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline btn-theme-light" (click)="applyTheme('light')">
+                {{ currentTheme() === 'light' ? 'Active' : 'Apply Light' }}
+              </button>
+            </div>
+
+            <div class="theme-card dark-theme-option" [class.selected]="currentTheme() === 'dark'"
+              (click)="applyTheme('dark')">
+              <div class="theme-preview dark-preview">
+                <div class="preview-header"></div>
+                <div class="preview-body">
+                  <div class="preview-line"></div>
+                  <div class="preview-line short"></div>
+                </div>
+              </div>
+              <div class="theme-info">
+                <span class="theme-title font-semibold">Dark Mode</span>
+                <span class="theme-desc text-xs text-muted">Low glare night theme</span>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline btn-theme-dark" (click)="applyTheme('dark')">
+                {{ currentTheme() === 'dark' ? 'Active' : 'Apply Dark' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+      }
+
+      <!-- 6. Repairs Module Tab (*pzCan="'settings:manage'") -->
+      @if (activeTab() === 'repairs') {
+      <div *pzCan="'settings:manage'" class="repairs-tab-container">
+        <section class="card tab-panel repairs-panel">
+          <div class="card-header">
+            <h2 class="panel-title">Repairs & Service Center Module</h2>
+          </div>
+          <form (ngSubmit)="saveRepairsEnabled()" class="card-body">
+            <p class="panel-desc text-sm text-muted">
+              Enable or disable device service ticketing, bench diagnosis, and spare parts tracking for your store.
+            </p>
+
+            <div class="checkbox-container">
+              <label class="checkbox-label font-semibold">
+                <input type="checkbox" name="repairsEnabled" class="repairs-checkbox" [ngModel]="repairsEnabled()"
+                  (ngModelChange)="repairsEnabled.set($event)" />
+                Enable Repair Ticketing Module
+              </label>
+            </div>
+
+            <div class="panel-actions">
+              <button type="submit" class="btn btn-primary btn-save-repairs" [disabled]="isSaving()">
+                {{ isSaving() ? 'Saving...' : 'Save Module Setting' }}
+              </button>
+            </div>
+          </form>
+        </section>
+      </div>
+      }
+
+      <!-- 7. My Account (Change Password) Tab -->
+      @if (activeTab() === 'account') {
+      <section class="card tab-panel account-panel">
+        <div class="card-header">
+          <h2 class="panel-title">My Account Security</h2>
+        </div>
+        <form (ngSubmit)="changePassword()" class="card-body">
+          <p class="panel-desc text-sm text-muted">
+            Update your account credentials. Changing your password will invalidate all active sessions.
+          </p>
+
+          <div class="form-group">
+            <label for="currentPassword">Current Password *</label>
+            <input id="currentPassword" name="currentPassword" type="password" class="form-control"
+              [ngModel]="currentPassword()" (ngModelChange)="currentPassword.set($event)" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="newPassword">New Password *</label>
+              <input id="newPassword" name="newPassword" type="password" class="form-control" [ngModel]="newPassword()"
+                (ngModelChange)="newPassword.set($event)" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="confirmPassword">Confirm New Password *</label>
+              <input id="confirmPassword" name="confirmPassword" type="password" class="form-control"
+                [ngModel]="confirmPassword()" (ngModelChange)="confirmPassword.set($event)" required />
+            </div>
+          </div>
+
+          <div class="panel-actions">
+            <button type="submit" class="btn btn-primary btn-change-password" [disabled]="isSaving()">
+              {{ isSaving() ? 'Updating...' : 'Change Password' }}
+            </button>
+          </div>
+        </form>
+      </section>
+      }
+    </div>
+  </div>
+</div>
