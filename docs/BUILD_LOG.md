@@ -165,3 +165,4 @@ P-1201 | DONE | tools/seed/seed.csproj, tools/seed/Program.cs, tools/seed/SeedDe
 P-1202 | DONE | frontend/e2e/global-setup.ts, frontend/e2e/smoke.spec.ts, frontend/playwright.config.ts, docs/BUILD_LOG.md, docs/ARTIFACTS.md
 P-1203 | DONE | .github/workflows/ci.yml, docs/BUILD_LOG.md, docs/ARTIFACTS.md
 P-1204 | DONE | backend/src/StoreOS.Api/Program.cs, backend/src/StoreOS.Application/Platform/BackupExport/ExportTenantDataHandler.cs, backend/src/StoreOS.Application/Platform/BackupImport/ImportTenantDataHandler.cs, backend/tests/StoreOS.IntegrationTests/StoreOS.IntegrationTests.csproj, backend/tests/StoreOS.IntegrationTests/Platform/RestoreDrillReconciliationTests.cs, .github/workflows/restore-drill.yml, docs/BUILD_LOG.md, docs/ARTIFACTS.md
+P-1205 | DONE | docs/COMPLETENESS_AUDIT.md, docs/BUILD_LOG.md, docs/ARTIFACTS.md
