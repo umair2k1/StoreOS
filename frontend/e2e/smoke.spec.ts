@@ -11,14 +11,6 @@ function getTenantId(): string {
 }
 
 async function loginAsOwner(page: Page): Promise<void> {
-  const currentUrl = page.url();
-  if (currentUrl && !currentUrl.includes('/login') && !currentUrl.endsWith(':4200/')) {
-    const emailInput = page.locator('#email');
-    if (!(await emailInput.isVisible())) {
-      return;
-    }
-  }
-
   const tenantId = getTenantId();
   await page.goto('/login');
   await page.waitForSelector('#email', { timeout: 10000 });
