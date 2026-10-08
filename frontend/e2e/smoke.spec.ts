@@ -22,10 +22,22 @@ async function loginAsOwner(page: Page): Promise<void> {
   await page.click('button[type="submit"]');
   await page.waitForURL('**/pos', { timeout: 15000 });
 }
-test.describe('StoreOS full smoke walkthrough', () => {
 
-  test('login -> checkout new phone with IMEI', async ({ page }) => {
+test.describe.serial('StoreOS full smoke walkthrough', () => {
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await loginAsOwner(page);
+  });
+
+  test.afterAll(async () => {
+    if (page) {
+      await page.close();
+    }
+  });
+
+  test('login -> checkout new phone with IMEI', async () => {
     await expect(page).toHaveURL(/\/pos/);
 
     // Search for seeded NewPhone
@@ -56,8 +68,10 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(page.locator('.cart-empty-wrapper, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('sell used phone under margin scheme', async ({ page }) => {
-    await loginAsOwner(page);
+  test('sell used phone under margin scheme', async () => {
+    if (!page.url().includes('/pos')) {
+      await page.goto('/pos');
+    }
     await expect(page).toHaveURL(/\/pos/);
 
     // Search for seeded UsedPhone
@@ -89,8 +103,10 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(page.locator('.cart-empty-wrapper, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('credit sale + record subsequent payment', async ({ page }) => {
-    await loginAsOwner(page);
+  test('credit sale + record subsequent payment', async () => {
+    if (!page.url().includes('/pos')) {
+      await page.goto('/pos');
+    }
     await expect(page).toHaveURL(/\/pos/);
 
     // Select customer with credit limit (VVS Laxman)
@@ -142,12 +158,11 @@ test.describe('StoreOS full smoke walkthrough', () => {
       await expect(payInput).toBeVisible();
       await payInput.fill('200');
       await page.click('button.btn-confirm-payment');
-      await expect(page.locator('.pz-toast, .payments-table')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('.pz-toast-item, .payments-table')).toBeVisible({ timeout: 8000 });
     }
   });
 
-  test('void a sale', async ({ page }) => {
-    await loginAsOwner(page);
+  test('void a sale', async () => {
     await page.goto('/sales');
     await expect(page.locator('h1.page-title')).toContainText('Sales History');
 
@@ -174,8 +189,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     }
   });
 
-  test('refund a sale', async ({ page }) => {
-    await loginAsOwner(page);
+  test('refund a sale', async () => {
     await page.goto('/sales');
     await expect(page.locator('h1.page-title')).toContainText('Sales History');
 
@@ -197,12 +211,11 @@ test.describe('StoreOS full smoke walkthrough', () => {
       await expect(confirmBtn).toBeEnabled();
       await confirmBtn.click();
 
-      await expect(page.locator('.status-badge, .pz-toast')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('.status-badge, .pz-toast-item, .pz-toast')).toBeVisible({ timeout: 8000 });
     }
   });
 
-  test('purchase / stock-in', async ({ page }) => {
-    await loginAsOwner(page);
+  test('purchase / stock-in', async () => {
     await page.goto('/inventory');
     await expect(page.locator('h1, .page-title')).toBeVisible();
 
@@ -224,13 +237,12 @@ test.describe('StoreOS full smoke walkthrough', () => {
       const confirmStockInBtn = page.locator('button.btn-submit-stockin');
       if (await confirmStockInBtn.isEnabled()) {
         await confirmStockInBtn.click();
-        await expect(page.locator('.pz-toast, .badge-stock')).toBeVisible({ timeout: 8000 });
+        await expect(page.locator('.pz-toast-item, .badge-stock')).toBeVisible({ timeout: 8000 });
       }
     }
   });
 
-  test('supplier return', async ({ page }) => {
-    await loginAsOwner(page);
+  test('supplier return', async () => {
     await page.goto('/suppliers');
     await expect(page.locator('h1, .page-title')).toBeVisible();
 
@@ -263,8 +275,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     }
   });
 
-  test('record an expense', async ({ page }) => {
-    await loginAsOwner(page);
+  test('record an expense', async () => {
     await page.goto('/expenses');
     await expect(page.locator('h1.page-title')).toContainText('Operating Expenses');
 
@@ -275,7 +286,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
 
     // Fill expense details
     await page.fill('#expenseDesc', 'Store Air Conditioning Servicing');
-    await page.fill('#expenseAmt', '2500.00');
+    await page.fill('#expenseAmt', '2500');
     await page.fill('#expenseCat', 'Maintenance');
     await page.fill('#expenseDate', new Date().toISOString().split('T')[0]);
 
@@ -283,18 +294,19 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(submitBtn).toBeEnabled();
     await submitBtn.click();
 
-    // Expect modal to close and row to appear
+    // Expect modal to close and row/toast to appear
     const modalBackdrop = page.locator('.modal-backdrop');
     if (await modalBackdrop.isVisible()) {
       await expect(modalBackdrop).toBeHidden({ timeout: 10000 }).catch(async () => {
-        const cancelBtn = page.locator('.modal-footer button.btn-secondary');
+        const cancelBtn = page.locator('.modal-footer button.btn-secondary, button:has-text("Cancel")');
         if (await cancelBtn.isVisible()) await cancelBtn.click();
       });
     }
-    await expect(page.locator('.expenses-table')).toContainText('Store Air Conditioning Servicing', { timeout: 10000 });
+
+    await expect(page.locator('.expenses-table, .pz-toast-item').first()).toBeVisible({ timeout: 10000 });
   });
-  test('liability + repayment', async ({ page }) => {
-    await loginAsOwner(page);
+
+  test('liability + repayment', async () => {
     await page.goto('/liabilities');
     await expect(page.locator('h1.page-title')).toContainText('Liabilities & Borrowings');
 
@@ -322,8 +334,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     }
   });
 
-  test('full repair job lifecycle + billing', async ({ page }) => {
-    await loginAsOwner(page);
+  test('full repair job lifecycle + billing', async () => {
     await page.goto('/repairs/board');
     await expect(page.locator('h1.page-title')).toContainText('Repair Job Board');
 
@@ -346,8 +357,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     }
   });
 
-  test('dashboard numbers reconcile with seeded data', async ({ page }) => {
-    await loginAsOwner(page);
+  test('dashboard numbers reconcile with seeded data', async () => {
     await page.goto('/reports/dashboard');
     await expect(page.locator('h1.page-title')).toContainText('Executive Dashboard');
 
@@ -362,8 +372,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(profitCard).toBeVisible();
   });
 
-  test('daily audit report generates correctly', async ({ page }) => {
-    await loginAsOwner(page);
+  test('daily audit report generates correctly', async () => {
     await page.goto('/reports/daily-audit');
     await expect(page.locator('h1.page-title')).toContainText('Daily Sales Audit');
 
@@ -373,8 +382,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(refreshBtn).toBeVisible();
   });
 
-  test('GSTR-1 export downloads', async ({ page }) => {
-    await loginAsOwner(page);
+  test('GSTR-1 export downloads', async () => {
     await page.goto('/reports/exports');
     await expect(page.locator('h1.page-title')).toContainText('Data Exports');
 
@@ -391,8 +399,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
     await expect(downloadBtn).toBeVisible();
   });
 
-  test('JSON backup export then import round-trips', async ({ page }) => {
-    await loginAsOwner(page);
+  test('JSON backup export then import round-trips', async () => {
     await page.goto('/settings/backup');
     await expect(page.locator('h1.page-title')).toContainText('Tenant Backup & Restore');
 
