@@ -110,4 +110,4 @@ jobs:
           curl -fsS http://localhost:5000/health/ready
       - run: npm ci --prefix frontend && npx --prefix frontend playwright install --with-deps chromium
       - run: npm --prefix frontend run build -- --configuration production
-      - run: npx --prefix frontend playwright test
+      - run: cd frontend && npx playwright test
