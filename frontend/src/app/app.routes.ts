@@ -24,7 +24,10 @@ export const routes: Routes = [
     canActivate: [authGuard, onboardingGuard],
     children: [
       { path: '', redirectTo: 'pos', pathMatch: 'full' },
-      { path: 'pos', children: [] },
+      {
+        path: 'pos',
+        loadComponent: () => import('./features/pos/pos.component').then(m => m.PosComponent)
+      },
       { path: 'sales', children: [] },
       { path: 'inventory', children: [] },
       { path: 'customers', children: [] },

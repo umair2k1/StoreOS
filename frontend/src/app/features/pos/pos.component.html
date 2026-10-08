@@ -1,0 +1,56 @@
+<div class="pos-container">
+  <div class="pos-main">
+    <div class="pos-search-card">
+      <div class="search-input-wrapper">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input #searchInput type="text" class="search-input" [formControl]="searchControl"
+          (keydown)="onSearchKeydown($event)" placeholder="Search product by name, barcode, SKU or IMEI (F2)..."
+          autocomplete="off" spellcheck="false" />
+        @if (searchControl.value.length > 0) {
+        <button type="button" class="btn-clear" (click)="clearSearch()" aria-label="Clear search">✕</button>
+        }
+        <kbd class="hotkey-badge">F2</kbd>
+      </div>
+
+      <div class="search-feedback">
+        @if (isLoading()) {
+        <pz-loading-state message="Searching product catalog..."></pz-loading-state>
+        } @else if (errorMessage()) {
+        <pz-error-state [message]="errorMessage()!" [retryable]="true" (retry)="retrySearch()"></pz-error-state>
+        } @else if (searchResults().length === 0 && searchControl.value.trim().length > 0) {
+        <pz-empty-state message="No products match your search."></pz-empty-state>
+        }
+      </div>
+
+      @if (searchResults().length > 0 && !isLoading()) {
+      <div class="search-results-list" role="list">
+        @for (item of searchResults(); track item.productId) {
+        <div class="search-result-item" role="listitem" [attr.data-product-id]="item.productId">
+          <div class="item-primary">
+            <span class="item-name">{{ item.name }}</span>
+            @if (item.category) {
+            <span class="item-category">{{ item.category }}</span>
+            }
+          </div>
+          <div class="item-details">
+            <span class="item-price">{{ (item.sellPrice ?? 0) | pzMoney }}</span>
+            <span class="item-stock" [class.out-of-stock]="(item.stockQty ?? 0) <= 0">
+              Stock: {{ item.stockQty ?? 0 }}
+            </span>
+            @if (item.isMarginScheme) {
+            <span class="badge-margin">Margin Scheme</span>
+            }
+          </div>
+        </div>
+        }
+      </div>
+      }
+    </div>
+  </div>
+
+  <div class="pos-sidebar" id="posSidebar">
+    <div class="pos-sidebar-placeholder">
+      <p class="sidebar-hint">Select a customer and add items to begin checkout.</p>
+    </div>
+  </div>
+</div>

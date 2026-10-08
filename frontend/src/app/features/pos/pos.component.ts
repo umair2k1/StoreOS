@@ -1,0 +1,121 @@
+import {
+  Component,
+  ElementRef,
+  ViewChild,
+  AfterViewInit,
+  HostListener,
+  signal,
+  inject
+} from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { Subject, merge, map, debounceTime, distinctUntilChanged, switchMap, of, catchError, tap } from 'rxjs';
+import { PosClient } from '../../core/api/generated-client';
+import type { PosSearchResultDto } from '../../core/api/generated-client';
+import {
+  LoadingStateComponent,
+  EmptyStateComponent,
+  ErrorStateComponent,
+  PzMoneyAliasPipe
+} from '../../shared';
+
+@Component({
+  selector: 'app-pos',
+  standalone: true,
+  imports: [
+    CommonModule,
+    ReactiveFormsModule,
+    LoadingStateComponent,
+    EmptyStateComponent,
+    ErrorStateComponent,
+    PzMoneyAliasPipe
+  ],
+  templateUrl: './pos.component.html',
+  styleUrl: './pos.component.scss'
+})
+export class PosComponent implements AfterViewInit {
+  @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
+
+  private readonly posApi = inject(PosClient);
+
+  readonly searchControl = new FormControl('', { nonNullable: true });
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal<string | null>(null);
+  private readonly refreshTrigger$ = new Subject<void>();
+
+  readonly searchResults = toSignal(
+    merge(
+      this.searchControl.valueChanges.pipe(
+        debounceTime(300),
+        distinctUntilChanged()
+      ),
+      this.refreshTrigger$.pipe(
+        map(() => this.searchControl.value)
+      )
+    ).pipe(
+      switchMap(q => {
+        const query = q.trim();
+        if (query.length === 0) {
+          this.isLoading.set(false);
+          this.errorMessage.set(null);
+          return of<PosSearchResultDto[]>([]);
+        }
+        this.isLoading.set(true);
+        this.errorMessage.set(null);
+        return this.posApi.search(query).pipe(
+          tap(() => this.isLoading.set(false)),
+          catchError(() => {
+            this.isLoading.set(false);
+            this.errorMessage.set('Failed to search products');
+            return of<PosSearchResultDto[]>([]);
+          })
+        );
+      })
+    ),
+    { initialValue: [] as PosSearchResultDto[] }
+  );
+
+  private lastKeyTime = 0;
+  scanBuffer = '';
+
+  ngAfterViewInit(): void {
+    this.searchInputRef?.nativeElement.focus();
+  }
+
+  onSearchKeydown(event: KeyboardEvent): void {
+    const now = performance.now();
+    const delta = now - this.lastKeyTime;
+    this.lastKeyTime = now;
+
+    if (delta < 50 && event.key !== 'Enter') {
+      this.scanBuffer += event.key; // fast keystrokes -> likely a scanner, not human typing
+    } else if (event.key === 'Enter' && this.scanBuffer.length > 3) {
+      // Scanner-speed input ending in Enter: treat as a completed barcode/IMEI scan.
+      event.preventDefault();
+      this.searchControl.setValue(this.scanBuffer);
+      this.scanBuffer = '';
+    } else {
+      this.scanBuffer = event.key !== 'Enter' && event.key.length === 1 ? event.key : '';
+    }
+  }
+
+  @HostListener('window:keydown', ['$event'])
+  handleHotkeys(event: KeyboardEvent): void {
+    if (event.key === 'F2') {
+      event.preventDefault();
+      this.searchInputRef?.nativeElement.focus();
+    }
+    // '+'/'-' qty, 'Del' remove line, 'F4' payment, 'F8' park cart are wired in P-1103/1104
+    // once the cart/payment sub-components exist to receive these commands.
+  }
+
+  retrySearch(): void {
+    this.refreshTrigger$.next();
+  }
+
+  clearSearch(): void {
+    this.searchControl.setValue('');
+    this.searchInputRef?.nativeElement.focus();
+  }
+}

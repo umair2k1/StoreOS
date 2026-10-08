@@ -4958,3 +4958,40 @@ var sgst = Money.Round2(totalGst - cgst);
   - Unit Tests: `services/toast.service.spec.ts`, `components/toast-container/toast-container.component.spec.ts`.
 - Barrel Export:
   - `frontend/src/app/shared/index.ts`: Re-exports all components, pipes, services, and types for Phase 11 feature screens.
+
+## P-1101
+### POS Screen: Search / Scan / Cart Shell + Hotkeys
+- POS Shell Component (`frontend/src/app/features/pos/pos.component.ts`, `.html`, `.scss`):
+  - `PosComponent`: Standalone Angular component (`selector: 'app-pos'`).
+    - ViewChild: `@ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>`.
+    - Injected Dependencies: `PosClient` (`src/app/core/api/generated-client.ts`).
+    - Form Controls & Reactive Signals:
+      - `readonly searchControl = new FormControl('', { nonNullable: true })`.
+      - `readonly isLoading = signal(false)`.
+      - `readonly errorMessage = signal<string | null>(null)`.
+      - `readonly searchResults = toSignal<PosSearchResultDto[]>(...)`: Debounced reactive search (300ms debounce, distinctUntilChanged, switchMap calling `PosClient.search(q)`, integrated with refresh trigger and empty query reset).
+    - Hardware Barcode Scanner Detection Algorithm:
+      - Method: `onSearchKeydown(event: KeyboardEvent): void`.
+      - Inter-keystroke delta: `delta = now - this.lastKeyTime` (evaluated via `performance.now()`).
+      - Timing threshold: `< 50ms` between consecutive keystrokes classifies input as rapid hardware scanner stream, buffering keystrokes into `scanBuffer`.
+      - Terminal Enter key: On `event.key === 'Enter'`, if `scanBuffer.length > 3`, treats input as completed barcode/IMEI scan, populates `searchControl.setValue(this.scanBuffer)`, prevents default event, and clears buffer. Keystrokes spaced `>= 50ms` reset the scan buffer and allow normal input processing.
+    - Hotkey Handler:
+      - `@HostListener('window:keydown', ['$event']) handleHotkeys(event: KeyboardEvent): void`.
+      - `F2`: Prevents default and refocuses `searchInputRef.nativeElement` from anywhere on the screen. (Additional hotkeys `+`/`-`, `Del`, `F4`, `F8` deferred to P-1103/P-1104).
+    - Lifecycle:
+      - `ngAfterViewInit(): void`: Automatically focuses `searchInputRef.nativeElement` upon component initialization.
+    - UI States:
+      - Search loading: `<pz-loading-state message="Searching product catalog..."></pz-loading-state>`.
+      - Search error: `<pz-error-state [message]="errorMessage()!" [retryable]="true" (retry)="retrySearch()"></pz-error-state>`.
+      - Search empty: `<pz-empty-state message="No products match your search."></pz-empty-state>`.
+      - Search results: Renders list items with product name, category, price formatted with `pzMoney`, stock quantity badge, and margin scheme tags.
+      - POS sidebar container: Layout grid with sidebar container for customer and cart sections.
+- Route Configuration (`frontend/src/app/app.routes.ts`):
+  - Routed `/pos` under authenticated `ShellComponent` via lazy loading:
+    `{ path: 'pos', loadComponent: () => import('./features/pos/pos.component').then(m => m.PosComponent) }`.
+- Unit Tests (`frontend/src/app/features/pos/pos.component.spec.ts`):
+  - (a) Realistic typing (>50ms intervals) does NOT trigger the scan-buffer path; `setValue` is not invoked from scanner buffer.
+  - (b) Rapid keystrokes (<50ms intervals) followed by Enter populates `searchControl` with buffered string and triggers debounced search.
+  - (c) `searchInput` is focused automatically on component init.
+  - (d) `F2` window hotkey refocuses `searchInput` even after focus moved to another DOM element.
+  - (e) Loading, error, and empty states render appropriately and error retry functions.
