@@ -2596,8 +2596,8 @@ export class PlatformClient implements IPlatformClient {
 export interface IPosClient {
     search(q?: string | null | undefined): Observable<PosSearchResultDto[]>;
     getProduct(id: string): Observable<PosProductDetailDto>;
-    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<FileResponse>;
-    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<FileResponse>;
+    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<void>;
+    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<void>;
     convertEstimate(id: string, body?: ConvertEstimateBody | undefined, idempotencyKey?: string | null | undefined): Observable<FileResponse>;
 }
 
@@ -2713,7 +2713,7 @@ export class PosClient implements IPosClient {
         return _observableOf(null as any);
     }
 
-    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<FileResponse> {
+    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<void> {
         let url_ = this.baseUrl + "/api/pos/checkout";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2726,7 +2726,6 @@ export class PosClient implements IPosClient {
             headers: new HttpHeaders({
                 "Idempotency-Key": idempotencyKey !== undefined && idempotencyKey !== null ? "" + idempotencyKey : "",
                 "Content-Type": "application/json",
-                "Accept": "application/octet-stream"
             })
         };
 
@@ -2737,31 +2736,28 @@ export class PosClient implements IPosClient {
                 try {
                     return this.processCheckout(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse>;
+                    return _observableThrow(e) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse>;
+                return _observableThrow(response_) as any as Observable<void>;
         }));
     }
 
-    protected processCheckout(response: HttpResponseBase): Observable<FileResponse> {
+    protected processCheckout(response: HttpResponseBase): Observable<void> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
             (response as any).error instanceof Blob ? (response as any).error : undefined;
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
-        if (status === 200 || status === 206) {
-            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
-            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
-            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
-            if (fileName) {
-                fileName = decodeURIComponent(fileName);
-            } else {
-                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
-                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
-            }
-            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
+        } else if (status === 201) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -2770,7 +2766,7 @@ export class PosClient implements IPosClient {
         return _observableOf(null as any);
     }
 
-    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<FileResponse> {
+    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<void> {
         let url_ = this.baseUrl + "/api/pos/estimate";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2783,7 +2779,6 @@ export class PosClient implements IPosClient {
             headers: new HttpHeaders({
                 "Idempotency-Key": idempotencyKey !== undefined && idempotencyKey !== null ? "" + idempotencyKey : "",
                 "Content-Type": "application/json",
-                "Accept": "application/octet-stream"
             })
         };
 
@@ -2794,31 +2789,28 @@ export class PosClient implements IPosClient {
                 try {
                     return this.processCreateEstimate(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse>;
+                    return _observableThrow(e) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse>;
+                return _observableThrow(response_) as any as Observable<void>;
         }));
     }
 
-    protected processCreateEstimate(response: HttpResponseBase): Observable<FileResponse> {
+    protected processCreateEstimate(response: HttpResponseBase): Observable<void> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
             (response as any).error instanceof Blob ? (response as any).error : undefined;
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
-        if (status === 200 || status === 206) {
-            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
-            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
-            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
-            if (fileName) {
-                fileName = decodeURIComponent(fileName);
-            } else {
-                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
-                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
-            }
-            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
+        } else if (status === 201) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);

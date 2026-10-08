@@ -253,10 +253,11 @@ export class CheckoutService {
     }
   }
 
-  private async parseSaleResponse(response: FileResponse): Promise<SaleCreatedResponse> {
+  private async parseSaleResponse(response: unknown): Promise<SaleCreatedResponse> {
     try {
-      if (response && response.data && typeof response.data.text === 'function') {
-        const text = await response.data.text();
+      const resp = response as { data?: { text?: () => Promise<string> } };
+      if (resp && resp.data && typeof resp.data.text === 'function') {
+        const text = await resp.data.text();
         if (text && text.trim().length > 0) {
           return JSON.parse(text) as SaleCreatedResponse;
         }

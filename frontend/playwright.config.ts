@@ -17,7 +17,7 @@ export default defineConfig({
   webServer: {
     command: 'node tools/serve-spa.js',
     url: 'http://localhost:4200',
-    reuseExistingServer: !process.env['CI'],
+    reuseExistingServer: true,
     cwd: path.resolve(__dirname, '..'),
     timeout: 30000,
   },

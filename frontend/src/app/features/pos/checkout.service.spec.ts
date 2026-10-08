@@ -74,7 +74,7 @@ describe('CheckoutService', () => {
     });
     expect(cartState.items().length).toBe(1);
 
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
     vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
     const toastSuccessSpy = vi.spyOn(toastService, 'success');
 
@@ -103,7 +103,7 @@ describe('CheckoutService', () => {
     expect(cartState.items().length).toBe(1);
 
     // Checkout succeeds
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
     // BUT PDF fetch/print fails
     vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(
       throwError(() => new Error('Printer connection timed out'))

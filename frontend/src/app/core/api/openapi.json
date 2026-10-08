@@ -1770,15 +1770,10 @@
         },
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
+            "description": ""
+          },
+          "201": {
+            "description": ""
           }
         }
       }
@@ -1815,15 +1810,10 @@
         },
         "responses": {
           "200": {
-            "description": "",
-            "content": {
-              "application/octet-stream": {
-                "schema": {
-                  "type": "string",
-                  "format": "binary"
-                }
-              }
-            }
+            "description": ""
+          },
+          "201": {
+            "description": ""
           }
         }
       }

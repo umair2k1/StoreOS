@@ -102,7 +102,7 @@ jobs:
       - name: Seed demo tenant
         env:
           STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
-        run: dotnet run --project tools/seed -- --tenant-name "Apex Mobiles Demo CI" --subdomain apexci
+        run: dotnet run --project tools/seed -- --tenant-name "Apex Mobiles Demo" --subdomain apex --force
       - name: Start API (app role) and wait until ready
         run: |
           nohup dotnet run --project backend/src/StoreOS.Api --urls http://localhost:5000 > api.log 2>&1 &

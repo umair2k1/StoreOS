@@ -57,6 +57,7 @@ public static class Program
             if (result.Skipped)
             {
                 Console.WriteLine(result.Message);
+                Console.WriteLine($"Tenant ID:    {result.TenantId}");
                 return 0;
             }
 

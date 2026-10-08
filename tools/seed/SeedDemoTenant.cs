@@ -238,7 +238,7 @@ public static class SeedDemoTenant
                 int stockQty;
                 int threshold = 3;
 
-                if (bIdx == 0 && pIdx == 0)
+                if (bIdx == 0 && pIdx == 2)
                 {
                     stockQty = 2;
                     threshold = 5;
@@ -275,7 +275,7 @@ public static class SeedDemoTenant
                     totalPurchases.Add(purchase);
 
                     // Create at least 3 InStock IMEIs
-                    for (int k = 1; k <= 3; k++)
+                    for (int k = 1; k <= purchaseQty; k++)
                     {
                         var imeiString = $"35{bIdx + 1}{pIdx:D2}{k:D2}{RandomNumberGenerator.GetInt32(1000000, 9999999)}";
                         var imei = InventoryImei.Create(

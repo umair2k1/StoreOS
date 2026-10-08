@@ -30,6 +30,8 @@ public class PosController : ControllerBase
     }
 
     [HttpPost("checkout")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<IActionResult> Checkout(
         [FromBody] StoreOS.Application.Sales.Checkout.CheckoutCommand command,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
@@ -73,6 +75,8 @@ public class PosController : ControllerBase
         string? Description);
 
     [HttpPost("estimate")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<IActionResult> CreateEstimate(
         [FromBody] CreateEstimateBody body,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,

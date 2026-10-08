@@ -24,3 +24,8 @@ dist/
 .agents/
 .claude/
 skills-lock.json
+
+# Playwright artifacts
+.seed-tenant-id
+playwright-report/
+test-results/
