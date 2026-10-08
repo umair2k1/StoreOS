@@ -158,7 +158,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
       await expect(payInput).toBeVisible();
       await payInput.fill('200');
       await page.click('button.btn-confirm-payment');
-      await expect(page.locator('.pz-toast-item, .payments-table')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('.pz-toast-item, .payments-table').first()).toBeVisible({ timeout: 8000 });
     }
   });
 
@@ -211,13 +211,13 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
       await expect(confirmBtn).toBeEnabled();
       await confirmBtn.click();
 
-      await expect(page.locator('.status-badge, .pz-toast-item, .pz-toast')).toBeVisible({ timeout: 8000 });
+      await expect(page.locator('.status-badge, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 8000 });
     }
   });
 
   test('purchase / stock-in', async () => {
     await page.goto('/inventory');
-    await expect(page.locator('h1, .page-title')).toBeVisible();
+    await expect(page.locator('h1, .page-title').first()).toBeVisible();
 
     // Open first product detail
     const firstItem = page.locator('.pz-table-row').first();
@@ -225,7 +225,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
     await firstItem.click();
 
     // Verify stock-in section is present
-    const stockInCard = page.locator('.stock-in-card, .stock-in-form-container');
+    const stockInCard = page.locator('.stock-in-card, .stock-in-form-container').first();
     await expect(stockInCard).toBeVisible();
 
     const qtyInput = page.locator('#stockInQty');
@@ -237,14 +237,14 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
       const confirmStockInBtn = page.locator('button.btn-submit-stockin');
       if (await confirmStockInBtn.isEnabled()) {
         await confirmStockInBtn.click();
-        await expect(page.locator('.pz-toast-item, .badge-stock')).toBeVisible({ timeout: 8000 });
+        await expect(page.locator('.pz-toast-item, .badge-stock').first()).toBeVisible({ timeout: 8000 });
       }
     }
   });
 
   test('supplier return', async () => {
     await page.goto('/suppliers');
-    await expect(page.locator('h1, .page-title')).toBeVisible();
+    await expect(page.locator('h1, .page-title').first()).toBeVisible();
 
     // Click first supplier
     const firstSupplier = page.locator('.pz-table-row').first();
@@ -252,7 +252,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
     await firstSupplier.click();
 
     // Navigate to create return
-    const createReturnLink = page.locator('a[href*="/returns/new"], button.btn-create-return');
+    const createReturnLink = page.locator('a[href*="/returns/new"], button.btn-create-return').first();
     if (await createReturnLink.isVisible()) {
       await createReturnLink.click();
       await expect(page.locator('h1.page-title')).toContainText('Create Supplier Return');
@@ -377,7 +377,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
     await expect(page.locator('h1.page-title')).toContainText('Daily Sales Audit');
 
     // Verify report sections are rendered
-    await expect(page.locator('.section-sales-summary, .daily-audit-container')).toBeVisible();
+    await expect(page.locator('.section-sales-summary, .daily-audit-container').first()).toBeVisible();
     const refreshBtn = page.locator('button.btn-load');
     await expect(refreshBtn).toBeVisible();
   });
