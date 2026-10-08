@@ -52,7 +52,21 @@
   <div class="pos-sidebar" id="posSidebar">
     <app-customer-select [cartTotal]="cartState.subtotal()"
       (customerSelected)="onCustomerSelected($event)"></app-customer-select>
+
     <div class="pos-cart-panel" id="posCartPanel">
       <app-cart></app-cart>
+    </div>
+
+    <app-payment-panel [grandTotal]="cartState.subtotal()" (paymentsChange)="onPaymentsChange($event)"
+      (financeChange)="onFinanceChange($event)"></app-payment-panel>
+
+    <div class="checkout-actions-wrapper">
+      <button type="button" class="btn-complete-checkout"
+        [disabled]="cartState.items().length === 0 || checkoutService.isSubmitting()" (click)="submitCheckout()">
+        <span class="btn-text">
+          {{ checkoutService.isSubmitting() ? 'Processing...' : 'Complete Sale' }}
+        </span>
+        <kbd class="hotkey-badge">F4</kbd>
+      </button>
     </div>
   </div>

@@ -19,13 +19,13 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { of, throwError } from 'rxjs';
 import { PosComponent } from './pos.component';
-import { PosClient, CustomersClient } from '../../core/api/generated-client';
+import { PosClient, CustomersClient, SalesClient } from '../../core/api/generated-client';
 import type { PosSearchResultDto } from '../../core/api/generated-client';
 import { PzDialogService } from '../../shared/components/pz-dialog/pz-dialog.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { CartStateService } from './cart/cart-state.service';
+import { CheckoutService } from './checkout.service';
 import { AuthSignalStore } from '../../core/auth/auth-signal-store';
-
 describe('PosComponent', () => {
   let fixture: ComponentFixture<PosComponent>;
   let component: PosComponent;
@@ -39,9 +39,11 @@ describe('PosComponent', () => {
         provideHttpClientTesting(),
         PosClient,
         CustomersClient,
+        SalesClient,
         PzDialogService,
         ToastService,
         CartStateService,
+        CheckoutService,
         AuthSignalStore
       ]
     }).compileComponents();

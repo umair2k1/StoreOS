@@ -5129,3 +5129,33 @@ var sgst = Money.Round2(totalGst - cgst);
     - Adds, updates, and removes payment lines while maintaining non-empty state.
     - Auto-fills remaining balance.
     - Opens finance dialog and integrates financed principal and down payment.
+
+## P-1105
+### POS: Checkout Submission + Invoice Print Flow (Server PDF, Printing-Never-Rolls-Back Toast)
+- Checkout Service (`frontend/src/app/features/pos/checkout.service.ts`):
+  - `CheckoutOptions`: `{ customer?: CustomerListItemDto | null; payments: CheckoutPayment[]; finance?: CheckoutFinanceDetails | null; invoiceDiscount?: number; description?: string; }`.
+  - `CheckoutResult`: `{ success: boolean; saleId?: string; invoiceNumber?: string; printSucceeded?: boolean; error?: string; }`.
+  - `CheckoutService`: `@Injectable({ providedIn: 'root' })`.
+    - Signals:
+      - `readonly isSubmitting = signal(false)`.
+      - `readonly lastSaleId = signal<string | null>(null)`.
+      - `readonly lastInvoiceNumber = signal<string | null>(null)`.
+    - Methods:
+      - `checkout(options: CheckoutOptions): Promise<CheckoutResult>`:
+        - Validates cart is non-empty.
+        - Maps `cartState.items()` to `CheckoutCartLine[]`.
+        - Submits `CheckoutCommand` to `PosClient.checkout(command)` (with `Idempotency-Key` auto-attached via `idempotencyInterceptor`).
+        - On successful 201 response: clears cart via `cartState.clear()`, extracts `saleId` and `invoiceNumber`, and triggers PDF print flow via `SalesClient.getInvoicePdf(saleId)`.
+        - On genuine checkout failure: preserves cart items (never clears) and emits error toast.
+      - `reprintInvoice(saleId?: string): Promise<boolean>`: Re-fetches PDF for the last or specified sale and opens browser print dialog.
+  - **Architecture Invariant — Printing-Never-Rolls-Back (Requirements §40 & Plan)**:
+    A failure during PDF retrieval or browser printing that occurs AFTER a successful 200/201 response from `POST /api/pos/checkout` must NEVER be presented to the user as a sale failure or rollback. The sale is already safely committed to the Postgres database and append-only sales ledgers. The UI explicitly presents:
+    `Sale completed (${invoiceNumber}) — printing failed. Reprint available.`
+    with reprint action affordance, clearly separating server sale persistence from peripheral printer connectivity.
+- Integration into POS Screen (`frontend/src/app/features/pos/pos.component.ts`, `.html`, `.scss`):
+  - Wired `Complete Sale (F4)` button in sidebar actions.
+  - Window hotkey `F4` bound to `submitCheckout()` to complete sales with low typing effort.
+- Unit Tests (`frontend/src/app/features/pos/checkout.service.spec.ts`):
+  - (a) Successful checkout response clears the cart and shows a success toast.
+  - (b) Successful checkout response followed by failed PDF fetch still shows the sale-succeeded toast with printing-failed notice, never framing the sale as a failure.
+  - (c) Genuine checkout failure (e.g. 422 insufficient stock) shows an error toast and does NOT clear the cart, allowing user correction.

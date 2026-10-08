@@ -12,10 +12,17 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, merge, map, debounceTime, distinctUntilChanged, switchMap, of, catchError, tap } from 'rxjs';
 import { PosClient } from '../../core/api/generated-client';
-import type { PosSearchResultDto, CustomerListItemDto } from '../../core/api/generated-client';
+import type {
+  PosSearchResultDto,
+  CustomerListItemDto,
+  CheckoutPayment,
+  CheckoutFinanceDetails
+} from '../../core/api/generated-client';
 import { CustomerSelectComponent } from './customer-select/customer-select.component';
 import { CartComponent } from './cart/cart.component';
 import { CartStateService } from './cart/cart-state.service';
+import { PaymentPanelComponent } from './payment/payment-panel.component';
+import { CheckoutService } from './checkout.service';
 import {
   LoadingStateComponent,
   EmptyStateComponent,
@@ -34,7 +41,8 @@ import {
     ErrorStateComponent,
     PzMoneyAliasPipe,
     CustomerSelectComponent,
-    CartComponent
+    CartComponent,
+    PaymentPanelComponent
   ],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss'
@@ -44,6 +52,9 @@ export class PosComponent implements AfterViewInit {
 
   private readonly posApi = inject(PosClient);
   readonly cartState = inject(CartStateService);
+  readonly checkoutService = inject(CheckoutService);
+  readonly payments = signal<CheckoutPayment[]>([]);
+  readonly financeDetails = signal<CheckoutFinanceDetails | null>(null);
 
   readonly searchControl = new FormControl('', { nonNullable: true });
   readonly isLoading = signal(false);
@@ -113,10 +124,11 @@ export class PosComponent implements AfterViewInit {
       event.preventDefault();
       this.searchInputRef?.nativeElement.focus();
     }
-    // '+'/'-' qty, 'Del' remove line, 'F4' payment, 'F8' park cart are wired in P-1103/1104
-    // once the cart/payment sub-components exist to receive these commands.
+    if (event.key === 'F4') {
+      event.preventDefault();
+      this.submitCheckout();
+    }
   }
-
   retrySearch(): void {
     this.refreshTrigger$.next();
   }
@@ -140,6 +152,23 @@ export class PosComponent implements AfterViewInit {
       category: item.category,
       sellPrice: item.sellPrice,
       stockQty: item.stockQty
+    });
+  }
+
+  onPaymentsChange(payments: CheckoutPayment[]): void {
+    this.payments.set(payments);
+  }
+
+  onFinanceChange(finance: CheckoutFinanceDetails | null): void {
+    this.financeDetails.set(finance);
+  }
+
+  async submitCheckout(): Promise<void> {
+    await this.checkoutService.checkout({
+      customer: this.selectedCustomer(),
+      payments: this.payments(),
+      finance: this.financeDetails(),
+      invoiceDiscount: 0
     });
   }
 }
