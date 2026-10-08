@@ -5210,3 +5210,32 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Restoring the component with pre-set query params initializes all filter bar control values and signals.
   - (c) Sortable column headers toggle ascending/descending and propagate `sortBy`/`sortDirection` into URL query parameters.
   - (d) Row clicks navigate to the correct sales or estimate detail route.
+
+## P-1108
+### Sales Detail View + Void / Refund / Record-Payment Actions
+- Sale Detail Component (`frontend/src/app/features/sales-history/detail/sale-detail.component.ts`, `.html`, `.scss`):
+  - `SaleDetailComponent`: Standalone Angular component (`selector: 'app-sale-detail'`).
+  - Route: `/sales/:id` (registered in `frontend/src/app/app.routes.ts`).
+  - Complete data presentation covering all fields from `SaleDetailDto`:
+    - Invoice metadata, date, status, invoice type.
+    - Customer details (name, GSTIN).
+    - Purchased items table (item name, category, IMEI, margin scheme badge, gift badge, qty, rate, taxable, CGST, SGST, total).
+    - Payment history records (payment date, mode, amount).
+    - Financial breakdown (taxable, CGST, SGST, discount, grand total, amount paid, balance due).
+    - Finance / EMI details (provider, down payment, scheme notes).
+    - Estimate origin cross-link (`convertedFromEstimateId`).
+  - **Three Conditional-Action Visibility Rules (Requirements §35.1)**:
+    1. **Record Payment**: Rendered strictly when `(Balance > 0) && (Status == 'Active')`. Launches `RecordPaymentDialogComponent` to submit payment tender via `SalesClient.recordPayment`.
+    2. **Void**: Gated by UX directive `*pzCan="'sales:void'"` AND strictly rendered when `(Status == 'Active')`.
+    3. **Refund**: Gated by UX directive `*pzCan="'sales:refund'"` AND strictly rendered when `(Status == 'Active')`. Supports partial item selection per P-525 `SaleItemIds`.
+  - **Architecture Invariant — Destructive Actions Confirmation & Client Validation**:
+    Every destructive mutation (Void, Refund) prompts via `PzDialogService` and mandates a non-empty `Reason` before enabling the submission button (`isValid = computed(() => this.reason().trim().length > 0)`), mirroring backend validation rules.
+  - View Auto-Refresh: Successful mutations re-fetch sale details via `SalesClient.getSaleById(id)` to synchronize status and balance immediately.
+- Dialog Components:
+  - `VoidDialogComponent` (`void-dialog.component.ts`): Confirmation dialog with destructive warning banner and mandatory reason validation.
+  - `RefundDialogComponent` (`refund-dialog.component.ts`): Interactive item checklist for selecting specific lines to refund, amount calculation, and mandatory reason.
+  - `RecordPaymentDialogComponent` (`record-payment-dialog.component.ts`): Balance banner, amount input bounded to remaining balance, and payment mode selector.
+- Unit Tests (`frontend/src/app/features/sales-history/detail/sale-detail.component.spec.ts`):
+  - (a) Validates conditional visibility of Record Payment, Void, and Refund based on Balance, Status, and user permissions.
+  - (b) Validates that Void and Refund dialogs disable submission when Reason is empty or whitespace-only.
+  - (c) Validates that successful actions trigger `voidSale`/`recordPayment` and refresh the detail view with updated status and balance.

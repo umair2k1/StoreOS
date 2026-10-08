@@ -1,0 +1,221 @@
+<div class="sale-detail-container">
+  <div class="page-nav-bar">
+    <a routerLink="/sales" class="nav-back-link">
+      &larr; Back to Sales History
+    </a>
+  </div>
+
+  @if (isLoading()) {
+  <app-loading-state message="Loading sale details..."></app-loading-state>
+  } @else if (errorMessage()) {
+  <app-error-state [message]="errorMessage()!" [retryable]="true" (retry)="loadSale()"></app-error-state>
+  } @else if (sale(); as s) {
+  <div class="sale-content">
+    <header class="sale-header">
+      <div class="header-titles">
+        <div class="header-badge-row">
+          <span class="type-pill">{{ s.invoiceType || 'TAX INVOICE' }}</span>
+          <span class="status-badge" [ngClass]="s.status?.toLowerCase()">
+            {{ s.status || 'Active' }}
+          </span>
+        </div>
+        <h1 class="sale-title">{{ s.invoiceNumber || 'Sale' }}</h1>
+        <p class="sale-date">{{ s.saleDate | pzDate }}</p>
+      </div>
+
+      <div class="header-actions">
+        <button type="button" class="btn btn-outline btn-print" (click)="printInvoice()">
+          Print Invoice
+        </button>
+
+        @if (canRecordPayment()) {
+        <button type="button" class="btn btn-primary btn-record-payment" (click)="openRecordPaymentDialog()">
+          Record Payment
+        </button>
+        }
+
+        @if (isActive()) {
+        <button *pzCan="'sales:refund'" type="button" class="btn btn-warning btn-refund" (click)="openRefundDialog()">
+          Refund
+        </button>
+
+        <button *pzCan="'sales:void'" type="button" class="btn btn-danger btn-void" (click)="openVoidDialog()">
+          Void
+        </button>
+        }
+      </div>
+    </header>
+
+    <div class="detail-grid">
+      <div class="main-column">
+        <section class="card customer-card">
+          <h2 class="card-heading">Customer Information</h2>
+          <div class="info-row">
+            <span class="info-label">Customer Name:</span>
+            <span class="info-value font-semibold">{{ s.customerName || 'Walk-in Customer' }}</span>
+          </div>
+          @if (s.customerGstin) {
+          <div class="info-row">
+            <span class="info-label">GSTIN:</span>
+            <span class="info-value font-mono">{{ s.customerGstin }}</span>
+          </div>
+          }
+        </section>
+
+        <section class="card items-card">
+          <h2 class="card-heading">Purchased Items</h2>
+          <div class="table-responsive">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="text-right">Qty</th>
+                  <th class="text-right">Rate</th>
+                  <th class="text-right">Taxable</th>
+                  <th class="text-right">GST</th>
+                  <th class="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of s.items || []; track item.id || item.itemName) {
+                <tr>
+                  <td>
+                    <div class="item-name">{{ item.itemName }}</div>
+                    <div class="item-meta">
+                      @if (item.category) {
+                      <span class="meta-tag">{{ item.category }}</span>
+                      }
+                      @if (item.imei) {
+                      <span class="meta-tag font-mono">IMEI: {{ item.imei }}</span>
+                      }
+                      @if (item.isMarginScheme) {
+                      <span class="meta-tag margin-tag">Margin Scheme</span>
+                      }
+                      @if (item.isGift) {
+                      <span class="meta-tag gift-tag">Gift</span>
+                      }
+                    </div>
+                  </td>
+                  <td class="text-right">{{ item.qty }}</td>
+                  <td class="text-right">{{ item.pricePerUnit | pzMoney }}</td>
+                  <td class="text-right">{{ item.taxable | pzMoney }}</td>
+                  <td class="text-right">
+                    {{ ((item.cgst || 0) + (item.sgst || 0)) | pzMoney }}
+                  </td>
+                  <td class="text-right font-semibold">
+                    {{ ((item.taxable || 0) + (item.cgst || 0) + (item.sgst || 0)) | pzMoney }}
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card payments-card">
+          <h2 class="card-heading">Payment History</h2>
+          @if (s.payments && s.payments.length > 0) {
+          <div class="table-responsive">
+            <table class="payments-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Payment Mode</th>
+                  <th class="text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (p of s.payments; track p.id || $index) {
+                <tr>
+                  <td>{{ p.paymentDate | pzDate }}</td>
+                  <td class="payment-mode-cell">{{ p.paymentMode | uppercase }}</td>
+                  <td class="text-right font-semibold">{{ p.amount | pzMoney }}</td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          } @else {
+          <p class="empty-hint">No payment records available.</p>
+          }
+        </section>
+      </div>
+
+      <div class="side-column">
+        <section class="card summary-card">
+          <h2 class="card-heading">Financial Summary</h2>
+          <div class="summary-breakdown">
+            <div class="summary-line">
+              <span>Taxable Amount</span>
+              <span>{{ s.totalTaxable | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span>CGST</span>
+              <span>{{ s.totalCgst | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span>SGST</span>
+              <span>{{ s.totalSgst | pzMoney }}</span>
+            </div>
+            @if (s.discount && s.discount > 0) {
+            <div class="summary-line text-discount">
+              <span>Discount</span>
+              <span>-{{ s.discount | pzMoney }}</span>
+            </div>
+            }
+            <div class="summary-divider"></div>
+            <div class="summary-line total-line">
+              <span>Grand Total</span>
+              <span class="total-amount">{{ s.grandTotal | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span>Amount Paid</span>
+              <span class="paid-amount">{{ s.amountPaid | pzMoney }}</span>
+            </div>
+            <div class="summary-line balance-line" [class.has-due]="(s.balance || 0) > 0">
+              <span>Balance Due</span>
+              <span class="balance-amount">{{ s.balance | pzMoney }}</span>
+            </div>
+          </div>
+        </section>
+
+        @if (s.financeProvider || s.financerName || s.downPayment) {
+        <section class="card finance-card">
+          <h2 class="card-heading">Finance / EMI Details</h2>
+          <div class="info-row">
+            <span class="info-label">Provider:</span>
+            <span class="info-value font-semibold">
+              {{ s.financeProvider || s.financerName || 'External Finance' }}
+            </span>
+          </div>
+          @if (s.downPayment) {
+          <div class="info-row">
+            <span class="info-label">Down Payment:</span>
+            <span class="info-value">{{ s.downPayment | pzMoney }}</span>
+          </div>
+          }
+          @if (s.emiDetailsJson) {
+          <div class="info-row">
+            <span class="info-label">EMI Scheme:</span>
+            <span class="info-value">{{ s.emiDetailsJson }}</span>
+          </div>
+          }
+        </section>
+        }
+
+        @if (s.convertedFromEstimateId) {
+        <div class="card origin-card">
+          <h2 class="card-heading">Origin</h2>
+          <p class="origin-text">
+            Converted from Estimate.
+            <a [routerLink]="['/sales/estimates', s.convertedFromEstimateId]">
+              View Estimate &rarr;
+            </a>
+          </p>
+        </div>
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>
