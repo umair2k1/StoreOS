@@ -22,6 +22,9 @@ import { PosComponent } from './pos.component';
 import { PosClient, CustomersClient } from '../../core/api/generated-client';
 import type { PosSearchResultDto } from '../../core/api/generated-client';
 import { PzDialogService } from '../../shared/components/pz-dialog/pz-dialog.service';
+import { ToastService } from '../../shared/services/toast.service';
+import { CartStateService } from './cart/cart-state.service';
+import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 
 describe('PosComponent', () => {
   let fixture: ComponentFixture<PosComponent>;
@@ -36,7 +39,10 @@ describe('PosComponent', () => {
         provideHttpClientTesting(),
         PosClient,
         CustomersClient,
-        PzDialogService
+        PzDialogService,
+        ToastService,
+        CartStateService,
+        AuthSignalStore
       ]
     }).compileComponents();
 

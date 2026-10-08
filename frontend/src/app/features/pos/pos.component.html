@@ -25,7 +25,8 @@
       @if (searchResults().length > 0 && !isLoading()) {
       <div class="search-results-list" role="list">
         @for (item of searchResults(); track item.productId) {
-        <div class="search-result-item" role="listitem" [attr.data-product-id]="item.productId">
+        <div class="search-result-item" role="listitem" [attr.data-product-id]="item.productId"
+          (click)="addToCart(item)">
           <div class="item-primary">
             <span class="item-name">{{ item.name }}</span>
             @if (item.category) {
@@ -49,8 +50,9 @@
   </div>
 
   <div class="pos-sidebar" id="posSidebar">
-    <app-customer-select [cartTotal]="cartTotal()"
+    <app-customer-select [cartTotal]="cartState.subtotal()"
       (customerSelected)="onCustomerSelected($event)"></app-customer-select>
-    <div class="pos-cart-panel" id="posCartPanel"></div>
+    <div class="pos-cart-panel" id="posCartPanel">
+      <app-cart></app-cart>
+    </div>
   </div>
-</div>

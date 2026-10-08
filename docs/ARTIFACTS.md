@@ -5029,3 +5029,53 @@ var sgst = Money.Round2(totalGst - cgst);
   - (b) Customer selection fetches `getCreditBalance` and displays live balance amount.
   - (c) Cart total exceeding limit opens `CreditLimitWarningDialogComponent` via `PzDialogService`.
   - (d) Override button visibility respects `*pzCan="'sales:credit:override'"` (hidden when lacking permission, visible when granted).
+
+## P-1103
+### POS: Cart Editing (Qty, IMEI Entry, Margin Toggle, Gift, Discount)
+- Cart State Service (`frontend/src/app/features/pos/cart/cart-state.service.ts`):
+  - `CartProductInput`: `{ productId: string; name: string; category?: string; sellPrice?: number; stockQty?: number; }`.
+  - `CartItem`: Shape matching `CheckoutCartLine` plus UI display properties: `{ id: string; productId: string; name: string; category?: string; unitPrice: number; stockQty?: number; qty: number; imei?: string; useMarginScheme: boolean; isGift: boolean; overridePricePerUnit?: number; }`.
+  - `CartStateService`: `@Injectable({ providedIn: 'root' })`.
+    - Signals & Computeds:
+      - `readonly items = signal<CartItem[]>([])`.
+      - `readonly selectedItemId = signal<string | null>(null)`.
+      - `readonly totalQty = computed(() => sum(qty))`.
+      - `readonly subtotal = computed(() => sum(lineTotal))`: Treats gifts as 0, otherwise applies `overridePricePerUnit ?? unitPrice`.
+    - Methods:
+      - `addItem(product, imei?, isGift?)`: Implements core cart rules:
+        - **IMEI-Never-Merges Rule**: IMEI-bearing lines are ALWAYS quantity 1 and NEVER merge with any other line or non-IMEI line of the same product. Each physical device is its own distinct line item.
+        - **Line Merging**: Adding an existing (non-IMEI, non-gift) item increases quantity rather than duplicating a row.
+        - **Stock Soft-Cap Warning**: Increasing quantity beyond reported `stockQty` for non-service items issues an advisory toast warning via `ToastService.warning(...)`, but does not hard-block (server conditional decrement is authoritative).
+      - `increaseQty(id)`: Increments non-IMEI item quantity (with soft-cap toast check).
+      - `decreaseQty(id)`: Decrements quantity down to minimum 1 (never decreases below 1).
+      - `removeItem(id)`: Removes line from cart.
+      - `setMarginScheme(id, useMargin)`: Enables/disables margin scheme strictly for `UsedPhone` category lines; rejects/ignores non-UsedPhone items.
+      - `setGift(id, isGift)`: Marks line as promotional gift (line total = 0).
+      - `setOverridePrice(id, price)`: Sets per-line price override.
+      - `selectItem(id)`: Selects active cart row for keyboard hotkey actions.
+      - `clear()`: Wipes cart items and reset selection.
+- Cart Component (`frontend/src/app/features/pos/cart/cart.component.ts`, `.html`, `.scss`):
+  - `CartComponent`: Standalone Angular component (`selector: 'app-cart'`).
+    - Renders line items list with badges (`category`, `IMEI`, `GIFT`), unit price, line total, and quantity stepper `[-]`/`[+]`.
+    - Margin toggle: Rendered exclusively for `UsedPhone` category lines.
+    - Discount controls: Gift checkbox and `OverridePricePerUnit` input are visible only when `*pzCan="'sales:discount:apply'"` is satisfied.
+    - Cart Hotkeys:
+      - `@HostListener('window:keydown', ['$event'])`:
+      - `+` / `=`: Increases quantity of selected row.
+      - `-` / `_`: Decreases quantity of selected row.
+      - `Delete`: Removes selected row.
+      - Input bypass: Hotkeys are ignored when typing in input or textarea fields.
+- Integration into POS Shell (`frontend/src/app/features/pos/pos.component.ts`, `.html`):
+  - Embedded `<app-cart></app-cart>` inside POS sidebar `#posCartPanel`.
+  - Search result item click invokes `posComponent.addToCart(item)` to add products directly to `CartStateService`.
+  - Customer select credit balance check binds to live `cartState.subtotal()`.
+- Unit Tests:
+  - `frontend/src/app/features/pos/cart/cart-state.service.spec.ts`:
+    - Adding plain accessory twice merges into one line with qty=2.
+    - Adding two different IMEIs of same product creates two separate lines (qty=1 each).
+    - Setting margin scheme on non-UsedPhone line is rejected/ignored.
+    - Removing line updates cart items.
+    - Qty soft-cap at reported stock level emits advisory toast warning without hard-blocking.
+  - `frontend/src/app/features/pos/cart/cart.component.spec.ts`:
+    - Gift and price override controls are hidden without `sales:discount:apply` and displayed with it.
+    - Keyboard hotkeys (`+`, `-`, `Delete`) update selected cart row.

@@ -14,6 +14,8 @@ import { Subject, merge, map, debounceTime, distinctUntilChanged, switchMap, of,
 import { PosClient } from '../../core/api/generated-client';
 import type { PosSearchResultDto, CustomerListItemDto } from '../../core/api/generated-client';
 import { CustomerSelectComponent } from './customer-select/customer-select.component';
+import { CartComponent } from './cart/cart.component';
+import { CartStateService } from './cart/cart-state.service';
 import {
   LoadingStateComponent,
   EmptyStateComponent,
@@ -31,7 +33,8 @@ import {
     EmptyStateComponent,
     ErrorStateComponent,
     PzMoneyAliasPipe,
-    CustomerSelectComponent
+    CustomerSelectComponent,
+    CartComponent
   ],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss'
@@ -40,6 +43,7 @@ export class PosComponent implements AfterViewInit {
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   private readonly posApi = inject(PosClient);
+  readonly cartState = inject(CartStateService);
 
   readonly searchControl = new FormControl('', { nonNullable: true });
   readonly isLoading = signal(false);
@@ -124,5 +128,18 @@ export class PosComponent implements AfterViewInit {
 
   onCustomerSelected(customer: CustomerListItemDto | null): void {
     this.selectedCustomer.set(customer);
+  }
+
+  addToCart(item: PosSearchResultDto): void {
+    if (!item.productId || !item.name) {
+      return;
+    }
+    this.cartState.addItem({
+      productId: item.productId,
+      name: item.name,
+      category: item.category,
+      sellPrice: item.sellPrice,
+      stockQty: item.stockQty
+    });
   }
 }

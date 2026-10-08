@@ -1,0 +1,98 @@
+<div class="cart-container">
+  <div class="cart-header">
+    <div class="header-title">
+      <span class="icon" aria-hidden="true">🛒</span>
+      <h3>Current Cart</h3>
+    </div>
+    @if (cartState.items().length > 0) {
+    <button type="button" class="btn-clear-cart" (click)="cartState.clear()">Clear</button>
+    }
+  </div>
+
+  @if (cartState.items().length === 0) {
+  <div class="cart-empty-wrapper">
+    <pz-empty-state message="Cart is empty. Click or scan products to add." icon="🛒"></pz-empty-state>
+  </div>
+  } @else {
+  <div class="cart-items-list" role="list">
+    @for (item of cartState.items(); track item.id) {
+    <div class="cart-row" role="listitem" tabindex="0" [attr.data-item-id]="item.id"
+      [class.selected]="cartState.selectedItemId() === item.id" (click)="selectRow(item.id)"
+      (focus)="selectRow(item.id)">
+      <div class="row-top">
+        <div class="item-title-block">
+          <span class="item-name">{{ item.name }}</span>
+          <div class="item-badges">
+            @if (item.category) {
+            <span class="badge badge-category">{{ item.category }}</span>
+            }
+            @if (item.imei) {
+            <span class="badge badge-imei">IMEI: {{ item.imei }}</span>
+            }
+            @if (item.isGift) {
+            <span class="badge badge-gift">GIFT</span>
+            }
+          </div>
+        </div>
+
+        <div class="item-price-block">
+          <span class="item-line-total">{{ getItemLineTotal(item) | pzMoney }}</span>
+          @if (item.qty > 1) {
+          <span class="item-unit-calc">
+            {{ (item.overridePricePerUnit ?? item.unitPrice) | pzMoney }} &times; {{ item.qty }}
+          </span>
+          }
+        </div>
+      </div>
+
+      <div class="row-controls">
+        <div class="qty-stepper">
+          <button type="button" class="btn-qty btn-minus" [disabled]="!!item.imei || item.qty <= 1"
+            (click)="cartState.decreaseQty(item.id); $event.stopPropagation()" aria-label="Decrease quantity">-</button>
+          <span class="qty-value">{{ item.qty }}</span>
+          <button type="button" class="btn-qty btn-plus" [disabled]="!!item.imei"
+            (click)="cartState.increaseQty(item.id); $event.stopPropagation()" aria-label="Increase quantity">+</button>
+        </div>
+
+        <div class="toggles-block">
+          @if (item.category === 'UsedPhone') {
+          <label class="toggle-label margin-toggle">
+            <input type="checkbox" [checked]="item.useMarginScheme"
+              (change)="cartState.setMarginScheme(item.id, $any($event.target).checked)"
+              (click)="$event.stopPropagation()" />
+            <span>Margin</span>
+          </label>
+          }
+
+          <label *pzCan="'sales:discount:apply'" class="toggle-label gift-toggle">
+            <input type="checkbox" class="gift-checkbox" [checked]="item.isGift"
+              (change)="cartState.setGift(item.id, $any($event.target).checked)" (click)="$event.stopPropagation()" />
+            <span>Gift</span>
+          </label>
+
+          <div *pzCan="'sales:discount:apply'" class="override-input-wrapper" (click)="$event.stopPropagation()">
+            <input type="number" class="override-input" [value]="item.overridePricePerUnit ?? ''"
+              (input)="onOverrideChange(item.id, $any($event.target).value)" placeholder="Price ₹"
+              aria-label="Override price per unit" />
+          </div>
+        </div>
+
+        <button type="button" class="btn-remove-row" (click)="cartState.removeItem(item.id); $event.stopPropagation()"
+          aria-label="Remove item">✕</button>
+      </div>
+    </div>
+    }
+  </div>
+
+  <div class="cart-summary-footer">
+    <div class="summary-row">
+      <span class="summary-label">Total Items:</span>
+      <span class="summary-val">{{ cartState.totalQty() }} units</span>
+    </div>
+    <div class="summary-row total-row">
+      <span class="summary-label">Subtotal:</span>
+      <span class="summary-val subtotal-amount">{{ cartState.subtotal() | pzMoney }}</span>
+    </div>
+  </div>
+  }
+</div>
