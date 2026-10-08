@@ -47,7 +47,7 @@
       </tr>
       } @else {
       @for (row of rows; track getRowKey(row, $index)) {
-      <tr (click)="onRowClick(row)" [class.row-selected]="isRowSelected(row, $index)">
+      <tr class="pz-table-row" (click)="onRowClick(row)" [class.row-selected]="isRowSelected(row, $index)">
         @if (selectable) {
         <td class="col-select" style="width: 44px; text-align: center;" (click)="$event.stopPropagation()">
           <input type="checkbox" [checked]="isRowSelected(row, $index)" (change)="onRowSelectToggle(row, $event)"

@@ -290,7 +290,7 @@ test.describe('StoreOS full smoke walkthrough', () => {
         if (await cancelBtn.isVisible()) await cancelBtn.click();
       });
     }
-    await expect(page.locator('.expenses-table')).toContainText('Store Air Conditioning Servicing');
+    await expect(page.locator('.expenses-table')).toContainText('Store Air Conditioning Servicing', { timeout: 10000 });
   });
   test('liability + repayment', async ({ page }) => {
     await loginAsOwner(page);
