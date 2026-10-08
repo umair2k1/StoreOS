@@ -4995,3 +4995,37 @@ var sgst = Money.Round2(totalGst - cgst);
   - (c) `searchInput` is focused automatically on component init.
   - (d) `F2` window hotkey refocuses `searchInput` even after focus moved to another DOM element.
   - (e) Loading, error, and empty states render appropriately and error retry functions.
+
+## P-1102
+### POS: Customer Selection + Credit Balance Display + Limit Warning Dialog
+- Customer Selection Component (`frontend/src/app/features/pos/customer-select/customer-select.component.ts`, `.html`, `.scss`):
+  - `WALK_IN_CUSTOMER`: Constant `CustomerListItemDto` default (`{ id: '', name: 'Walk-in Customer', totalPurchases: 0, currentCreditBalance: 0 }`). Always available at index 0 of selection options.
+  - `CustomerSelectComponent`: Standalone Angular component (`selector: 'app-customer-select'`).
+    - Inputs & Outputs:
+      - `@Input() set cartTotal(total: number)`: Updates `_cartTotal` signal and evaluates credit limit.
+      - `@Output() readonly customerSelected`: `EventEmitter<CustomerListItemDto | null>`.
+    - Injected Dependencies: `CustomersClient`, `PzDialogService`.
+    - Signals & Form Controls:
+      - `readonly searchControl`: Reactive form control for typeahead search.
+      - `readonly searchResults`: Debounced (300ms) typeahead stream via `toSignal(searchControl.valueChanges.pipe(debounceTime(300), distinctUntilChanged(), switchMap(q => getCustomers(q, 1, 10))))`.
+      - `readonly selectedCustomer`: Signal holding active customer (defaults to `WALK_IN_CUSTOMER`).
+      - `readonly creditBalance`: Signal holding `CreditBalanceDto | null`.
+      - `readonly isSearching`, `readonly isFetchingBalance`, `readonly isDropdownOpen`: Reactive boolean state signals.
+    - Methods:
+      - `selectCustomer(customer: CustomerListItemDto)`: Emits selected customer, loads live credit balance via `GET /api/customers/{id}/credit-balance` (when not walk-in), and checks credit limit.
+      - `evaluateCreditLimit(cartTotal?: number): boolean`: Checks `(consolidatedBalance + cartTotal) > creditLimit`. Opens `CreditLimitWarningDialogComponent` when exceeded.
+      - `clearCustomer()`: Resets selection to `WALK_IN_CUSTOMER`.
+- Credit Limit Warning Dialog (`frontend/src/app/features/pos/customer-select/credit-limit-warning-dialog.component.ts`, `.html`, `.scss`):
+  - `CreditLimitDialogData`: `{ customerName: string; currentBalance: number; cartTotal: number; creditLimit: number; }`.
+  - `CreditLimitWarningDialogComponent`: Standalone Angular component (`selector: 'app-credit-limit-warning-dialog'`).
+    - Renders breakdown: Current Balance, Cart Total, Projected Total, Credit Limit, and Exceeded By.
+    - Actions: "Cancel" (dismisses dialog) and "Override" button gated by structural directive `*pzCan="'sales:credit:override'"`.
+- Architecture & Security Invariant:
+  - **Client-Side Warning is UX ONLY**: The client-side credit limit calculation and warning dialog provide immediate responsive feedback in the UI. Authoritative credit-limit enforcement, balance validation, and permission checks strictly execute server-side inside `CheckoutCommandHandler` (P-509). Frontend dialog dismissal or override cannot bypass server invariants.
+- Integration into POS Shell (`frontend/src/app/features/pos/pos.component.ts`, `.html`):
+  - Embedded `<app-customer-select [cartTotal]="cartTotal()" (customerSelected)="onCustomerSelected($event)"></app-customer-select>` in POS sidebar.
+- Unit Tests (`frontend/src/app/features/pos/customer-select/customer-select.component.spec.ts`):
+  - (a) Typeahead search queries `getCustomers` with debouncing and includes Walk-in Customer at top of list.
+  - (b) Customer selection fetches `getCreditBalance` and displays live balance amount.
+  - (c) Cart total exceeding limit opens `CreditLimitWarningDialogComponent` via `PzDialogService`.
+  - (d) Override button visibility respects `*pzCan="'sales:credit:override'"` (hidden when lacking permission, visible when granted).

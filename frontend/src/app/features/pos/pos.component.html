@@ -49,8 +49,8 @@
   </div>
 
   <div class="pos-sidebar" id="posSidebar">
-    <div class="pos-sidebar-placeholder">
-      <p class="sidebar-hint">Select a customer and add items to begin checkout.</p>
-    </div>
+    <app-customer-select [cartTotal]="cartTotal()"
+      (customerSelected)="onCustomerSelected($event)"></app-customer-select>
+    <div class="pos-cart-panel" id="posCartPanel"></div>
   </div>
 </div>

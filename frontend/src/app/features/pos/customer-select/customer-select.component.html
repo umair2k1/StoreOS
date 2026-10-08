@@ -1,0 +1,90 @@
+<div class="customer-select-container">
+  <div class="selected-customer-card" [class.is-walk-in]="!selectedCustomer().id">
+    <div class="customer-info-header">
+      <div class="customer-avatar" aria-hidden="true">
+        @if (selectedCustomer().id) {
+        <span>👤</span>
+        } @else {
+        <span>🚶</span>
+        }
+      </div>
+      <div class="customer-details">
+        <span class="customer-name">{{ selectedCustomer().name }}</span>
+        @if (selectedCustomer().phone) {
+        <span class="customer-phone">{{ selectedCustomer().phone }}</span>
+        }
+      </div>
+      @if (selectedCustomer().id) {
+      <button type="button" class="btn-change-customer" (click)="clearCustomer()">Change</button>
+      }
+    </div>
+
+    @if (selectedCustomer().id && creditBalance(); as balance) {
+    <div class="credit-balance-info">
+      <div class="balance-item">
+        <span class="balance-label">Outstanding Balance:</span>
+        <span class="balance-value balance-amount" [class.text-danger]="(balance.consolidatedBalance ?? 0) > 0">
+          {{ (balance.consolidatedBalance ?? 0) | pzMoney }}
+        </span>
+      </div>
+      @if (balance.creditLimit !== undefined && balance.creditLimit !== null && balance.creditLimit > 0) {
+      <div class="balance-item">
+        <span class="balance-label">Credit Limit:</span>
+        <span class="balance-value">{{ balance.creditLimit | pzMoney }}</span>
+      </div>
+      <div class="balance-item">
+        <span class="balance-label">Available Credit:</span>
+        <span class="balance-value" [class.text-danger]="(balance.availableCredit ?? 0) <= 0">
+          {{ (balance.availableCredit ?? 0) | pzMoney }}
+        </span>
+      </div>
+      }
+      @if (balance.isOverLimit) {
+      <span class="badge-overlimit">Over Credit Limit</span>
+      }
+    </div>
+    } @else if (isFetchingBalance()) {
+    <div class="balance-loading">
+      Loading credit balance...
+    </div>
+    }
+  </div>
+
+  @if (!selectedCustomer().id || isDropdownOpen()) {
+  <div class="customer-search-wrapper">
+    <input type="text" class="customer-search-input" [formControl]="searchControl" (focus)="onSearchFocus()"
+      placeholder="Search customer by name or phone..." autocomplete="off" />
+    @if (isSearching()) {
+    <span class="search-spinner" aria-hidden="true">⏳</span>
+    }
+
+    @if (isDropdownOpen()) {
+    <div class="customer-dropdown" role="listbox">
+      <div class="dropdown-item walk-in-option" role="option" [attr.aria-selected]="!selectedCustomer().id"
+        (click)="selectCustomer(walkInCustomer)">
+        <span class="option-icon" aria-hidden="true">🚶</span>
+        <div class="option-details">
+          <span class="option-name">Walk-in Customer</span>
+          <span class="option-subtext">Default cash/retail buyer (no credit limit)</span>
+        </div>
+      </div>
+
+      @for (customer of searchResults(); track customer.id) {
+      <div class="dropdown-item" role="option" [attr.data-customer-id]="customer.id" (click)="selectCustomer(customer)">
+        <span class="option-icon" aria-hidden="true">👤</span>
+        <div class="option-details">
+          <span class="option-name">{{ customer.name }}</span>
+          @if (customer.phone) {
+          <span class="option-subtext">{{ customer.phone }}</span>
+          }
+        </div>
+        @if ((customer.currentCreditBalance ?? 0) > 0) {
+        <span class="option-balance">Bal: {{ customer.currentCreditBalance | pzMoney }}</span>
+        }
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+</div>

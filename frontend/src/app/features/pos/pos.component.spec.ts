@@ -16,10 +16,12 @@ function tick(ms: number): void {
 }
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { OverlayModule } from '@angular/cdk/overlay';
 import { of, throwError } from 'rxjs';
 import { PosComponent } from './pos.component';
-import { PosClient } from '../../core/api/generated-client';
+import { PosClient, CustomersClient } from '../../core/api/generated-client';
 import type { PosSearchResultDto } from '../../core/api/generated-client';
+import { PzDialogService } from '../../shared/components/pz-dialog/pz-dialog.service';
 
 describe('PosComponent', () => {
   let fixture: ComponentFixture<PosComponent>;
@@ -28,11 +30,13 @@ describe('PosComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PosComponent],
+      imports: [PosComponent, OverlayModule],
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        PosClient
+        PosClient,
+        CustomersClient,
+        PzDialogService
       ]
     }).compileComponents();
 

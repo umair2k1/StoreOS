@@ -12,7 +12,8 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Subject, merge, map, debounceTime, distinctUntilChanged, switchMap, of, catchError, tap } from 'rxjs';
 import { PosClient } from '../../core/api/generated-client';
-import type { PosSearchResultDto } from '../../core/api/generated-client';
+import type { PosSearchResultDto, CustomerListItemDto } from '../../core/api/generated-client';
+import { CustomerSelectComponent } from './customer-select/customer-select.component';
 import {
   LoadingStateComponent,
   EmptyStateComponent,
@@ -29,7 +30,8 @@ import {
     LoadingStateComponent,
     EmptyStateComponent,
     ErrorStateComponent,
-    PzMoneyAliasPipe
+    PzMoneyAliasPipe,
+    CustomerSelectComponent
   ],
   templateUrl: './pos.component.html',
   styleUrl: './pos.component.scss'
@@ -43,7 +45,8 @@ export class PosComponent implements AfterViewInit {
   readonly isLoading = signal(false);
   readonly errorMessage = signal<string | null>(null);
   private readonly refreshTrigger$ = new Subject<void>();
-
+  readonly selectedCustomer = signal<CustomerListItemDto | null>(null);
+  readonly cartTotal = signal<number>(0);
   readonly searchResults = toSignal(
     merge(
       this.searchControl.valueChanges.pipe(
@@ -117,5 +120,9 @@ export class PosComponent implements AfterViewInit {
   clearSearch(): void {
     this.searchControl.setValue('');
     this.searchInputRef?.nativeElement.focus();
+  }
+
+  onCustomerSelected(customer: CustomerListItemDto | null): void {
+    this.selectedCustomer.set(customer);
   }
 }

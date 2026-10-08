@@ -1,0 +1,42 @@
+<pz-dialog title="Credit Limit Exceeded" [showCloseButton]="true" (closed)="onCancel()">
+  <div class="credit-warning-content">
+    <div class="warning-banner">
+      <span class="warning-icon" aria-hidden="true">⚠️</span>
+      <div class="warning-text">
+        <p class="warning-heading">Credit limit exceeded for {{ data.customerName }}</p>
+        <p class="warning-subtext">The requested sale amount pushes the customer's total outstanding balance beyond
+          their assigned credit limit.</p>
+      </div>
+    </div>
+
+    <div class="balance-breakdown">
+      <div class="breakdown-row">
+        <span class="label">Current Balance</span>
+        <span class="value">{{ data.currentBalance | pzMoney }}</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="label">Current Cart</span>
+        <span class="value">{{ data.cartTotal | pzMoney }}</span>
+      </div>
+      <div class="breakdown-row highlight-row">
+        <span class="label">Projected Total</span>
+        <span class="value exceeded">{{ (data.currentBalance + data.cartTotal) | pzMoney }}</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="label">Credit Limit</span>
+        <span class="value limit">{{ data.creditLimit | pzMoney }}</span>
+      </div>
+      <div class="breakdown-row exceed-row">
+        <span class="label">Exceeded By</span>
+        <span class="value exceeded">{{ ((data.currentBalance + data.cartTotal) - data.creditLimit) | pzMoney }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div pz-dialog-actions class="dialog-actions">
+    <button type="button" class="btn btn-secondary btn-cancel" (click)="onCancel()">Cancel</button>
+    <button *pzCan="'sales:credit:override'" type="button" class="btn btn-warning btn-override" (click)="onOverride()">
+      Override
+    </button>
+  </div>
+</pz-dialog>
