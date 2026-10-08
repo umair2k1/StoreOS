@@ -5445,7 +5445,7 @@ export class SettingsClient implements ISettingsClient {
     }
 
     removeFinanceProvider(normalizedName: string): Observable<FileResponse> {
-        let url_ = this.baseUrl + "/api/settings/{normalizedName}";
+        let url_ = this.baseUrl + "/api/settings/finance-providers/{normalizedName}";
         if (normalizedName === undefined || normalizedName === null)
             throw new globalThis.Error("The parameter 'normalizedName' must be defined.");
         url_ = url_.replace("{normalizedName}", encodeURIComponent("" + normalizedName));

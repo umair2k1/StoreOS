@@ -3702,7 +3702,7 @@
         }
       }
     },
-    "/api/settings/{normalizedName}": {
+    "/api/settings/finance-providers/{normalizedName}": {
       "delete": {
         "tags": [
           "Settings"
