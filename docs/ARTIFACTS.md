@@ -5329,3 +5329,23 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/features/transfers/transfer-out.component.spec.ts`: Validates destination branches excluding current branch and transfer-out submission command shape.
   - `frontend/src/app/features/transfers/receive-transfer.component.spec.ts`: Validates that pending-transfers list only shows transfers where `ToBranchId` matches current branch context, and receiving one calls the endpoint and removes it from the pending list.
+
+## P-1113
+### Customers Directory + Detail (History, Ledger, Live Credit Balance, Permission Split)
+- Customers List Component (`frontend/src/app/features/customers/customers-list.component.ts`, `.html`, `.scss`):
+  - `CustomersListComponent`: Standalone Angular component (`selector: 'app-customers-list'`).
+  - Route: `/customers` (registered in `frontend/src/app/app.routes.ts`).
+  - Search, pagination (page, pageSize, totalCount), and "+ New Customer" creation dialog modal.
+  - Calls `CustomersClient.getCustomers(search, page, pageSize)` and `CustomersClient.createCustomer(command)`.
+- Customer Detail Component (`frontend/src/app/features/customers/detail/customer-detail.component.ts`, `.html`, `.scss`):
+  - `CustomerDetailComponent`: Standalone Angular component (`selector: 'app-customer-detail'`).
+  - Route: `/customers/:id` (registered in `frontend/src/app/app.routes.ts`).
+  - Profile Section: Displays name, phone, GSTIN, and total purchases.
+  - Live Credit Section: Queries `CustomersClient.getCreditBalance(id)` to show consolidated balance, credit limit, available credit, and over-limit warning state.
+  - Purchase History Section: Displays past sales summaries via `CustomersClient.getCustomerSales(id)`.
+  - Customer Ledger Section: Displays ledger entries with branch attribution (`branchName || branchId`) via `CustomersClient.getCustomerLedger(id)`.
+  - **Hard Constraint — Strict Authorization Separation (P-602)**:
+    Ordinary profile editing (`UpdateCustomerProfileRequest`) is gated by `*pzCan="'pos:checkout'"`, whereas credit-limit editing (`SetCustomerCreditLimitRequest`) is strictly and more prominently gated by `*pzCan="'settings:manage'"`.
+- Unit Tests:
+  - `frontend/src/app/features/customers/customers-list.component.spec.ts`: Validates customer search querying and customer creation submission and list refresh.
+  - `frontend/src/app/features/customers/detail/customer-detail.component.spec.ts`: Validates that the credit-limit edit control is hidden without `settings:manage` even when the profile-edit control (`pos:checkout`) is visible, and becomes visible when `settings:manage` is granted.

@@ -60,7 +60,13 @@ export const routes: Routes = [
           { path: 'receive', loadComponent: () => import('./features/transfers/receive-transfer.component').then(m => m.ReceiveTransferComponent) }
         ]
       },
-      { path: 'customers', children: [] },
+      {
+        path: 'customers',
+        children: [
+          { path: '', loadComponent: () => import('./features/customers/customers-list.component').then(m => m.CustomersListComponent) },
+          { path: ':id', loadComponent: () => import('./features/customers/detail/customer-detail.component').then(m => m.CustomerDetailComponent) }
+        ]
+      },
       { path: 'reports', children: [] },
     ]
   }

@@ -1,0 +1,130 @@
+<div class="customers-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Customers Directory</h1>
+      <p class="page-subtitle">Manage customer profiles, store credit limits, and sales history</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-create-customer" (click)="openCreateModal()">
+        + New Customer
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Search & Filter Bar -->
+  <div class="card toolbar-card">
+    <div class="search-box">
+      <input type="text" class="form-control input-search" placeholder="Search by customer name or phone..."
+        [ngModel]="searchQuery()" (ngModelChange)="onSearch($event)" />
+    </div>
+  </div>
+
+  <!-- Customers Table -->
+  <div class="card table-card">
+    <div *ngIf="isLoading()" class="loading-state">
+      <span>Loading customers...</span>
+    </div>
+
+    <div *ngIf="!isLoading() && customers().length === 0" class="empty-state">
+      <p class="empty-title">No customers found</p>
+      <p class="empty-subtitle">Try adjusting your search criteria or create a new customer record.</p>
+    </div>
+
+    <div *ngIf="!isLoading() && customers().length > 0" class="table-responsive">
+      <table class="table customers-table">
+        <thead>
+          <tr>
+            <th class="col-name">Customer Name</th>
+            <th class="col-phone">Phone</th>
+            <th class="col-purchases">Total Purchases</th>
+            <th class="col-credit">Credit Balance</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of customers()" class="customer-row">
+            <td class="col-name">
+              <a [routerLink]="['/customers', c.id]" class="customer-link">
+                <strong>{{ c.name }}</strong>
+              </a>
+            </td>
+            <td class="col-phone">
+              {{ c.phone || '—' }}
+            </td>
+            <td class="col-purchases">
+              {{ (c.totalPurchases || 0) | pzMoney }}
+            </td>
+            <td class="col-credit">
+              <span [class.text-danger]="(c.currentCreditBalance || 0) > 0">
+                {{ (c.currentCreditBalance || 0) | pzMoney }}
+              </span>
+            </td>
+            <td class="col-actions">
+              <a [routerLink]="['/customers', c.id]" class="btn btn-secondary btn-sm btn-view-customer">
+                View Details
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination Footer -->
+    <div *ngIf="totalCount() > pageSize()" class="pagination-footer">
+      <button type="button" class="btn btn-secondary btn-sm" [disabled]="page() <= 1"
+        (click)="onPageChange(page() - 1)">
+        Previous
+      </button>
+      <span class="page-indicator">Page {{ page() }}</span>
+      <button type="button" class="btn btn-secondary btn-sm" [disabled]="page() * pageSize() >= totalCount()"
+        (click)="onPageChange(page() + 1)">
+        Next
+      </button>
+    </div>
+  </div>
+
+  <!-- Create Customer Modal Dialog -->
+  <div *ngIf="isCreateModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Create New Customer</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="custName">Full Name <span class="required">*</span></label>
+          <input id="custName" type="text" class="form-control input-new-name" placeholder="Customer name"
+            [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="custPhone">Phone Number</label>
+          <input id="custPhone" type="text" class="form-control input-new-phone" placeholder="10-digit phone"
+            [ngModel]="newPhone()" (ngModelChange)="newPhone.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="custGstin">GSTIN</label>
+          <input id="custGstin" type="text" class="form-control input-new-gstin"
+            placeholder="GST identification number (Optional)" [ngModel]="newGstin()"
+            (ngModelChange)="newGstin.set($event)" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-new-customer"
+          [disabled]="!newName().trim() || isCreating()" (click)="submitCreateCustomer()">
+          {{ isCreating() ? 'Creating...' : 'Save Customer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

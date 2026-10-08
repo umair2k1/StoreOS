@@ -1,0 +1,224 @@
+<div class="customer-detail-container">
+  <div class="nav-back">
+    <a [routerLink]="['/customers']" class="back-link">&larr; Back to Customers</a>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <div *ngIf="isLoading()" class="loading-state">
+    <span>Loading customer details...</span>
+  </div>
+
+  <div *ngIf="!isLoading() && customer()" class="detail-content">
+    <!-- Header Banner -->
+    <div class="detail-header">
+      <div class="header-titles">
+        <h1 class="customer-name">{{ customer()?.name }}</h1>
+        <p class="customer-meta">
+          <span>Phone: {{ customer()?.phone || 'Not provided' }}</span>
+          <span *ngIf="customer()?.gstin">&bull; GSTIN: {{ customer()?.gstin }}</span>
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <!-- Profile editing gated by pos:checkout -->
+        <button *pzCan="'pos:checkout'" type="button" class="btn btn-secondary btn-edit-profile"
+          (click)="openEditProfileModal()">
+          Edit Profile
+        </button>
+      </div>
+    </div>
+
+    <!-- Credit Balance Card (Live Credit Section) -->
+    <section class="card credit-card">
+      <div class="card-header-flex">
+        <h2 class="card-title">Live Store Credit</h2>
+
+        <!-- Credit limit editing strictly gated by settings:manage -->
+        <button *pzCan="'settings:manage'" type="button" class="btn btn-primary btn-sm btn-edit-credit-limit"
+          (click)="openEditCreditLimitModal()">
+          Update Credit Limit
+        </button>
+      </div>
+
+      <div class="credit-grid">
+        <div class="credit-stat">
+          <span class="stat-label">Outstanding Balance</span>
+          <span class="stat-value text-danger" [class.has-debt]="(creditBalance()?.consolidatedBalance || 0) > 0">
+            {{ (creditBalance()?.consolidatedBalance || 0) | pzMoney }}
+          </span>
+        </div>
+
+        <div class="credit-stat">
+          <span class="stat-label">Credit Limit</span>
+          <span class="stat-value">
+            {{ (creditBalance()?.creditLimit || 0) | pzMoney }}
+          </span>
+        </div>
+
+        <div class="credit-stat">
+          <span class="stat-label">Available Credit</span>
+          <span class="stat-value text-success">
+            {{ (creditBalance()?.availableCredit || 0) | pzMoney }}
+          </span>
+        </div>
+
+        <div class="credit-stat" *ngIf="creditBalance()?.isOverLimit">
+          <span class="stat-label">Status</span>
+          <span class="badge-overlimit">OVER CREDIT LIMIT</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Purchase History Section -->
+    <section class="card sales-history-card">
+      <h2 class="card-title">Purchase History</h2>
+
+      <div *ngIf="salesHistory().length === 0" class="empty-list-note">
+        No sales records found for this customer.
+      </div>
+
+      <div *ngIf="salesHistory().length > 0" class="table-responsive">
+        <table class="table sales-table">
+          <thead>
+            <tr>
+              <th>Invoice No</th>
+              <th>Date</th>
+              <th>Total Amount</th>
+              <th>Payment Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of salesHistory()" class="sale-row">
+              <td>
+                <strong>{{ s.invoiceNumber }}</strong>
+              </td>
+              <td>
+                {{ s.saleDate | pzDate }}
+              </td>
+              <td>
+                {{ (s.grandTotal || 0) | pzMoney }}
+              </td>
+              <td>
+                <span class="badge-status">{{ s.status || 'Completed' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Customer Ledger Entries Section -->
+    <section class="card ledger-card">
+      <h2 class="card-title">Customer Ledger</h2>
+
+      <div *ngIf="ledgerEntries().length === 0" class="empty-list-note">
+        No ledger transactions recorded.
+      </div>
+
+      <div *ngIf="ledgerEntries().length > 0" class="table-responsive">
+        <table class="table ledger-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Entry Type</th>
+              <th>Branch Attribution</th>
+              <th>Debit</th>
+              <th>Credit</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let l of ledgerEntries()" class="ledger-row">
+              <td>
+                {{ l.entryDate | pzDate }}
+              </td>
+              <td>
+                <span class="badge-type">{{ l.entryType }}</span>
+              </td>
+              <td class="col-branch">
+                {{ l.branchName || l.branchId || 'Headquarters' }}
+              </td>
+              <td class="col-debit">
+                {{ (l.debit || 0) > 0 ? ((l.debit || 0) | pzMoney) : '—' }}
+              </td>
+              <td class="col-credit">
+                {{ (l.credit || 0) > 0 ? ((l.credit || 0) | pzMoney) : '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div *ngIf="isEditProfileModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Edit Customer Profile</h2>
+        <button type="button" class="btn-close" (click)="closeEditProfileModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="editName">Name <span class="required">*</span></label>
+          <input id="editName" type="text" class="form-control input-edit-name" [ngModel]="editName()"
+            (ngModelChange)="editName.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editPhone">Phone</label>
+          <input id="editPhone" type="text" class="form-control input-edit-phone" [ngModel]="editPhone()"
+            (ngModelChange)="editPhone.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="editGstin">GSTIN</label>
+          <input id="editGstin" type="text" class="form-control input-edit-gstin" [ngModel]="editGstin()"
+            (ngModelChange)="editGstin.set($event)" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeEditProfileModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-profile-edit"
+          [disabled]="!editName().trim() || isUpdatingProfile()" (click)="submitUpdateProfile()">
+          {{ isUpdatingProfile() ? 'Saving...' : 'Save Changes' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Credit Limit Modal -->
+  <div *ngIf="isEditCreditLimitModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Set Customer Credit Limit</h2>
+        <button type="button" class="btn-close" (click)="closeEditCreditLimitModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="newCreditLimit">Credit Limit (₹) <span class="required">*</span></label>
+          <input id="newCreditLimit" type="number" min="0" step="100" class="form-control input-new-credit-limit"
+            [ngModel]="newCreditLimit()" (ngModelChange)="newCreditLimit.set($event)" />
+          <small class="field-hint">Maximum allowable store credit balance for this customer account.</small>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeEditCreditLimitModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-credit-limit"
+          [disabled]="newCreditLimit() < 0 || isUpdatingCreditLimit()" (click)="submitUpdateCreditLimit()">
+          {{ isUpdatingCreditLimit() ? 'Updating...' : 'Update Credit Limit' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
