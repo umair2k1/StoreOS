@@ -1,0 +1,221 @@
+<div class="liabilities-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Liabilities & Borrowings</h1>
+      <p class="page-subtitle">Track loans, credit lines, lender debts, and record repayments</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-create-liability" (click)="openCreateModal()">
+        + New Liability
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  <!-- Liabilities Table Card -->
+  <section class="card table-card">
+    @if (isLoading()) {
+    <div class="loading-state">
+      <span>Loading liabilities...</span>
+    </div>
+    }
+
+    @if (!isLoading() && liabilities().length === 0) {
+    <div class="empty-state">
+      <p>No liabilities recorded yet.</p>
+      <button type="button" class="btn btn-outline" (click)="openCreateModal()">Create Liability</button>
+    </div>
+    }
+
+    @if (!isLoading() && liabilities().length > 0) {
+    <div class="table-responsive">
+      <table class="liabilities-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Lender Name</th>
+            <th class="text-right">Total Principal</th>
+            <th class="text-right">Current Balance</th>
+            <th>Due Date</th>
+            <th>Status</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of liabilities(); track item.id) {
+          <tr class="liability-row" [attr.data-id]="item.id">
+            <td class="col-title font-semibold">{{ item.title }}</td>
+            <td class="col-type"><span class="badge badge-secondary">{{ item.type }}</span></td>
+            <td class="col-lender">{{ item.lenderName || '—' }}</td>
+            <td class="col-principal text-right">{{ item.totalPrincipal | pzMoney }}</td>
+            <td class="col-balance text-right font-semibold" [class.text-danger]="item.currentBalance > 0">
+              {{ item.currentBalance | pzMoney }}
+            </td>
+            <td class="col-duedate">{{ item.dueDate ? (item.dueDate | pzDate) : '—' }}</td>
+            <td class="col-status">
+              <span class="badge" [class.badge-success]="item.currentBalance === 0"
+                [class.badge-warning]="item.currentBalance > 0">
+                {{ item.status || (item.currentBalance === 0 ? 'Settled' : 'Active') }}
+              </span>
+            </td>
+            <td class="col-actions text-center">
+              <button type="button" class="btn btn-sm btn-outline btn-record-repayment"
+                [disabled]="item.currentBalance === 0" (click)="openRepaymentModal(item)">
+                Record Repayment
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Create Liability Modal -->
+  @if (isCreateModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Liability</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitCreateLiability()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="newTitle">Title *</label>
+            <input id="newTitle" name="newTitle" type="text" class="form-control" [ngModel]="newTitle()"
+              (ngModelChange)="newTitle.set($event)" placeholder="e.g. Bank Working Capital Loan" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="newType">Type *</label>
+              <select id="newType" name="newType" class="form-control" [ngModel]="newType()"
+                (ngModelChange)="newType.set($event)">
+                @for (t of liabilityTypes; track t) {
+                <option [value]="t">{{ t }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="newLenderName">Lender Name</label>
+              <input id="newLenderName" name="newLenderName" type="text" class="form-control"
+                [ngModel]="newLenderName()" (ngModelChange)="newLenderName.set($event)"
+                placeholder="e.g. HDFC Bank, Private Financer" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="newTotalPrincipal">Total Principal *</label>
+              <input id="newTotalPrincipal" name="newTotalPrincipal" type="number" step="0.01" min="0.01"
+                class="form-control" [ngModel]="newTotalPrincipal()" (ngModelChange)="newTotalPrincipal.set($event)"
+                placeholder="0.00" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="newDueDate">Due Date</label>
+              <input id="newDueDate" name="newDueDate" type="date" class="form-control" [ngModel]="newDueDate()"
+                (ngModelChange)="newDueDate.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="newNotes">Notes</label>
+            <textarea id="newNotes" name="newNotes" class="form-control" rows="2" [ngModel]="newNotes()"
+              (ngModelChange)="newNotes.set($event)"
+              placeholder="Optional liability terms, interest structure, or account references">
+            </textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeCreateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isCreating()">
+            {{ isCreating() ? 'Saving...' : 'Create Liability' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Record Repayment Modal (HARD CONSTRAINT: NEVER permits editing TotalPrincipal) -->
+  @if (isRepaymentModalOpen() && selectedLiability(); as liability) {
+  <div class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Record Repayment</h2>
+        <button type="button" class="btn-close" (click)="closeRepaymentModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitRepayment()">
+        <div class="modal-body">
+          <!-- Read-only context information (TotalPrincipal is strictly read-only display) -->
+          <div class="liability-summary-box">
+            <div class="summary-line">
+              <span class="label">Liability:</span>
+              <span class="value font-semibold">{{ liability.title }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="label">Total Principal:</span>
+              <span class="value text-muted immutable-principal-display">{{ liability.totalPrincipal | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span class="label">Current Balance:</span>
+              <span class="value font-semibold text-danger">{{ liability.currentBalance | pzMoney }}</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="repaymentAmount">Repayment Amount *</label>
+              <input id="repaymentAmount" name="repaymentAmount" type="number" step="0.01" min="0.01"
+                [max]="liability.currentBalance" class="form-control" [ngModel]="repaymentAmount()"
+                (ngModelChange)="repaymentAmount.set($event)" placeholder="0.00" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="repaymentMode">Payment Mode *</label>
+              <select id="repaymentMode" name="repaymentMode" class="form-control" [ngModel]="repaymentMode()"
+                (ngModelChange)="repaymentMode.set($event)">
+                @for (m of paymentModes; track m) {
+                <option [value]="m">{{ m }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="repaymentDate">Payment Date *</label>
+            <input id="repaymentDate" name="repaymentDate" type="date" class="form-control" [ngModel]="repaymentDate()"
+              (ngModelChange)="repaymentDate.set($event)" required />
+          </div>
+
+          <div class="form-group">
+            <label for="repaymentNotes">Notes</label>
+            <textarea id="repaymentNotes" name="repaymentNotes" class="form-control" rows="2"
+              [ngModel]="repaymentNotes()" (ngModelChange)="repaymentNotes.set($event)"
+              placeholder="Transaction reference, receipt number, or bank voucher details">
+            </textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeRepaymentModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isSubmittingRepayment()">
+            {{ isSubmittingRepayment() ? 'Recording...' : 'Record Repayment' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+</div>

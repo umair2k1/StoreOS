@@ -5392,3 +5392,17 @@ var sgst = Money.Round2(totalGst - cgst);
   - Validates that the default date range matches the backend's documented default (first-of-month through today).
   - Validates that entering a novel category not in the suggestion list still submits successfully.
   - Validates that the monthly total display matches the fetched backend value.
+
+## P-1116
+### Liabilities Screen (Borrowings, Immutable Principal, Repayments)
+- Liabilities Component (`frontend/src/app/features/liabilities/liabilities.component.ts`, `.html`, `.scss`):
+  - `LiabilitiesComponent`: Standalone Angular component (`selector: 'app-liabilities'`).
+  - Route: `/liabilities` (registered in `frontend/src/app/app.routes.ts`).
+  - List Table: Displays Title, Type, LenderName, TotalPrincipal, CurrentBalance, DueDate, Status, and Actions.
+  - Create Liability Action: Submits `CreateLiabilityCommand` (title, type, lenderName, totalPrincipal, dueDate, notes) via `LiabilitiesClient.create(command)` and refreshes liabilities table.
+  - **Hard Constraint — Immutable Principal (P-610/611)**:
+    The Repayment modal displays TotalPrincipal as read-only text and contains NO UI input or form control to edit TotalPrincipal, strictly adhering to the backend's immutable principal invariant.
+  - Record Repayment Action: Submits `RecordRepaymentBody` (amount, paymentMode, paymentDate, notes) to `POST /api/liabilities/{id}/repayments` via `LiabilitiesClient.recordRepayment(id, body)` and updates the displayed `CurrentBalance`.
+- Unit Tests (`frontend/src/app/features/liabilities/liabilities.component.spec.ts`):
+  - Validates that the liabilities list correctly displays Title, Type, LenderName, TotalPrincipal, CurrentBalance, DueDate, and Status.
+  - Validates that recording a repayment updates the displayed CurrentBalance and verifies that no control exists to edit TotalPrincipal.
