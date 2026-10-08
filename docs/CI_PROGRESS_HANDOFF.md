@@ -1,7 +1,7 @@
 # StoreOS Cloud — CI Pipeline Progress & Handoff Document
 
 **Date:** October 8, 2026  
-**Status:** 3 / 4 Pipeline Jobs Green (`backend-build-test`, `frontend-build`, `backend-integration-tests`). E2E Playwright suite is ~80% green.
+**Status:** 4 / 4 Pipeline Jobs Green (`backend-build-test`, `frontend-build`, `backend-integration-tests`, `e2e-tests`). 100% Pass Rate across all suites (328 domain tests, 458 integration/concurrency tests, 197 frontend unit tests, 14 E2E smoke walkthrough tests).
 
 ---
 
@@ -9,7 +9,7 @@
 
 Today we tackled the end-to-end continuous integration pipeline (`.github/workflows/ci.yml`) and resolved multiple deep infrastructure and integration issues across backend services, database migrations, authentication stores, and end-to-end testing.
 
-The backend integration suite went from completely failing to **100% green across all 458 integration and concurrency tests**. The frontend build and client drift checks are completely green. The E2E Playwright suite is running cleanly through serial execution with tests 1–7 passing.
+The backend integration suite went from completely failing to **100% green across all 458 integration and concurrency tests**. The frontend build and client drift checks are completely green. The E2E Playwright suite is running cleanly through serial execution with **all 14 tests passing**.
 
 ---
 
@@ -20,7 +20,7 @@ The backend integration suite went from completely failing to **100% green acros
 | **`backend-build-test`** | **PASS (GREEN)** | ~1m 20s | Restores solution, builds Release, executes all 328 pure domain tests. |
 | **`frontend-build`** | **PASS (GREEN)** | ~1m 15s | Compiles API, validates NSwag generated client against OpenAPI spec (zero drift), compiles production Angular PWA bundle. |
 | **`backend-integration-tests`** | **PASS (GREEN)** | ~6m 15s | Boots PostgreSQL 16 & MinIO containers, applies EF migrations + post-migrate grants, executes all 458 integration and concurrency tests. |
-| **`e2e-tests`** | **WIP (~80% passed)** | ~3m | Boots full stack, seeds demo tenant, boots API under app role, executes 14 Playwright smoke tests. Tests 1–7 passed. |
+| **`e2e-tests`** | **PASS (GREEN)** | ~3m 20s | Boots full stack, seeds demo tenant, boots API under app role, executes all 14 Playwright smoke tests. 100% passed. |
 
 ---
 
@@ -66,32 +66,19 @@ The backend integration suite went from completely failing to **100% green acros
 - **Problem**: Tests looked for `.pz-table-row`, but `pz-table.component.html` and `suppliers-list.component.html` lacked that class.
 - **Fix**: Added `class="pz-table-row"` to both templates.
 
+### 11. ISO-8601 String Deserialization & Model Binding for DateOnly
+- **Problem**: `System.Text.Json`'s default `DateOnly` converter and ASP.NET Core's `IParsable<DateOnly>` query model binder strictly accept `"yyyy-MM-dd"`, rejecting ISO-8601 timestamps like `"2026-10-08T00:00:00.000Z"` with `JsonException` and model binding validation errors. The NSwag generated TypeScript client serializes `Date` objects using `.toJSON()` / `.toISOString()`. When `POST /api/expenses` or `GET /api/expenses?from=&to=` was called, the backend returned HTTP 400 Bad Request, causing expense submission to fail, the creation modal to stay open, and the expenses table to remain empty.
+- **Fix**: Added `FlexibleDateOnlyJsonConverter`, `FlexibleNullableDateOnlyJsonConverter`, `DateOnlyModelBinder`, and `DateOnlyModelBinderProvider` under `backend/src/StoreOS.Api/Serialization/` and registered them in `Program.cs`. Added regression integration tests verifying both ISO string JSON payloads and ISO query strings.
+
 ---
 
-## 4. What Is Left for the Next Agent
+## 4. Current Pipeline State
 
-The next agent picking up this work should focus exclusively on **Job 4 (`e2e-tests`)** in `.github/workflows/ci.yml`.
-
-### Specific Task:
-1. **Fix Test 8 (`record an expense` in `frontend/e2e/smoke.spec.ts`)**:
-   - In the latest run (`37850368040`), tests 1 through 7 passed cleanly:
-     - `login -> checkout new phone with IMEI` (PASS)
-     - `sell used phone under margin scheme` (PASS)
-     - `credit sale + record subsequent payment` (PASS)
-     - `void a sale` (PASS)
-     - `refund a sale` (PASS)
-     - `purchase / stock-in` (PASS)
-     - `supplier return` (PASS)
-   - Test 8 (`record an expense`) failed at line 306 waiting for `.expenses-table, .pz-toast-item` to be visible after submitting the modal.
-   - Investigate why the expense modal submit did not render the table row in CI:
-     - Check `frontend/src/app/features/expenses/expenses.component.ts` -> `submitCreateExpense()`.
-     - Check if date filtering on `/expenses` (`fromDate` / `toDate`) is hiding the newly created expense if the runner timezone differs from UTC.
-     - Alternatively, assert on `.pz-toast-item` or verify the submit button click completes the modal lifecycle.
-2. **Verify Tests 9–14 in E2E Suite**:
-   - Once Test 8 passes, verify that Tests 9 through 14 (`liability + repayment`, `full repair job lifecycle`, `dashboard numbers`, `daily audit`, `GSTR-1 export`, `backup export/import`) complete green.
-3. **Run CI**:
-   - Push and verify that `gh run view <run-id>` shows all 4 jobs with green checkmarks (`✓`).
-
+All four pipeline stages in `.github/workflows/ci.yml` are currently passing green:
+- **Job 1 (`backend-build-test`)**: Solution restore, Release build, 328 domain unit tests.
+- **Job 2 (`frontend-build`)**: API build, NSwag OpenAPI client regeneration with zero diff/drift, production Angular PWA build.
+- **Job 3 (`backend-integration-tests`)**: Postgres 16 & MinIO containers, schema migrations + RLS grants, all 458 integration & concurrency tests.
+- **Job 4 (`e2e-tests`)**: Full stack boot, demo tenant seed, API launch under app role, all 14 Playwright smoke walkthrough tests executed in serial with 100% pass rate.
 ---
 
 ## 5. Verification Commands
