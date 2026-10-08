@@ -42,7 +42,8 @@ export const routes: Routes = [
       {
         path: 'inventory',
         children: [
-          { path: '', loadComponent: () => import('./features/inventory/inventory-list.component').then(m => m.InventoryListComponent) }
+          { path: '', loadComponent: () => import('./features/inventory/inventory-list.component').then(m => m.InventoryListComponent) },
+          { path: ':id', loadComponent: () => import('./features/inventory/detail/inventory-detail.component').then(m => m.InventoryDetailComponent) }
         ]
       },
       { path: 'customers', children: [] },

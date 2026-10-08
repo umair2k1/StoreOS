@@ -1,0 +1,125 @@
+<div class="inventory-detail-container">
+  <div class="page-nav-bar">
+    <a routerLink="/inventory" class="nav-back-link">
+      &larr; Back to Inventory List
+    </a>
+  </div>
+
+  @if (isLoading()) {
+  <app-loading-state message="Loading product inventory details..."></app-loading-state>
+  } @else if (errorMessage()) {
+  <app-error-state [message]="errorMessage()!" [retryable]="true" (retry)="loadAll()"></app-error-state>
+  } @else if (product(); as prod) {
+  <div class="detail-content">
+    <header class="detail-header">
+      <div class="header-titles">
+        <div class="header-meta">
+          <span class="category-pill">{{ prod.category || 'General' }}</span>
+          <span class="badge-stock" [ngClass]="getStockBadgeClass(prod.stockStatus)">
+            <span class="stock-dot"></span>
+            {{ prod.stockStatus || 'In Stock' }}
+          </span>
+        </div>
+        <h1 class="product-title">{{ prod.name }}</h1>
+      </div>
+    </header>
+
+    <div class="detail-grid">
+      <div class="main-column">
+        <section class="card product-specs-card">
+          <h2 class="card-heading">Product Specifications</h2>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <span class="spec-label">Selling Price:</span>
+              <span class="spec-value font-semibold">{{ prod.sellPrice | pzMoney }}</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">GST Rate:</span>
+              <span class="spec-value">{{ prod.gstRate }}%</span>
+            </div>
+            @if (prod.hsnCode) {
+            <div class="spec-item">
+              <span class="spec-label">HSN Code:</span>
+              <span class="spec-value font-mono">{{ prod.hsnCode }}</span>
+            </div>
+            }
+            <div class="spec-item">
+              <span class="spec-label">Scheme:</span>
+              <span class="spec-value">{{ prod.isMarginScheme ? 'Margin Scheme' : 'Standard GST' }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card stock-in-card">
+          <h2 class="card-heading">Stock-In Inventory</h2>
+          <app-stock-in-form [productId]="productId()" [productCategory]="prod.category"
+            (stockInCompleted)="onStockInSuccess()"></app-stock-in-form>
+        </section>
+
+        <section class="card history-card">
+          <h2 class="card-heading">Purchase / Stock-In History</h2>
+          @if (purchaseHistory().length > 0) {
+          <div class="table-responsive">
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Supplier</th>
+                  <th>Invoice #</th>
+                  <th class="text-right">Qty</th>
+                  <th class="text-right">Rate</th>
+                  <th>IMEIs</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (hist of purchaseHistory(); track hist.id || $index) {
+                <tr>
+                  <td>{{ hist.purchaseDate | pzDate }}</td>
+                  <td>{{ hist.supplierName || '-' }}</td>
+                  <td class="font-mono">{{ hist.supplierInvoiceNo || '-' }}</td>
+                  <td class="text-right font-semibold">{{ hist.qty }}</td>
+                  <td class="text-right">{{ hist.purchaseRate | pzMoney }}</td>
+                  <td>
+                    @if (hist.imeis && hist.imeis.length > 0) {
+                    <span class="imei-count-badge">{{ hist.imeis.length }} Serials</span>
+                    } @else {
+                    <span class="text-muted">-</span>
+                    }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          } @else {
+          <p class="empty-hint">No past stock-in records for this product.</p>
+          }
+        </section>
+      </div>
+
+      <div class="side-column">
+        <section class="card stock-level-card">
+          <h2 class="card-heading">Current Stock</h2>
+          <div class="stock-display">
+            <span class="stock-qty-big">{{ prod.stockQty }}</span>
+            <span class="stock-unit-label">Units on Hand</span>
+          </div>
+        </section>
+
+        @if (prod.availableImeis && prod.availableImeis.length > 0) {
+        <section class="card imeis-card">
+          <h2 class="card-heading">
+            Available IMEIs ({{ prod.availableImeis.length }})
+          </h2>
+          <div class="imei-tag-list">
+            @for (imei of prod.availableImeis; track imei) {
+            <span class="imei-tag">{{ imei }}</span>
+            }
+          </div>
+        </section>
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>

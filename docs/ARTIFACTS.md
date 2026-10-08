@@ -5264,3 +5264,26 @@ var sgst = Money.Round2(totalGst - cgst);
   - Validates filter controls updating router query parameters and triggering re-fetch.
   - Validates sorting and pagination modifying URL state.
   - Validates row selection tracking and bulk action export navigation with pre-selected product IDs.
+
+## P-1110
+### Inventory Item Detail + Stock-In Form + Dynamic IMEI Capture
+- Inventory Detail Component (`frontend/src/app/features/inventory/detail/inventory-detail.component.ts`, `.html`, `.scss`):
+  - `InventoryDetailComponent`: Standalone Angular component (`selector: 'app-inventory-detail'`).
+  - Route: `/inventory/:id` (registered in `frontend/src/app/app.routes.ts`).
+  - Displays product specifications, large live stock counter, available hardware serials/IMEIs list, and past purchase/stock-in history table.
+  - Hosts `StockInFormComponent` and re-fetches product and purchase data upon `(stockInCompleted)`.
+- Stock-In Form Sub-Component (`frontend/src/app/features/inventory/detail/stock-in-form.component.ts`, `.html`, `.scss`):
+  - `StockInFormComponent`: Standalone Angular component (`selector: 'app-stock-in-form'`).
+  - Inputs: `@Input() productId!: string`, `@Input() productCategory?: string`.
+  - Output: `@Output() stockInCompleted = new EventEmitter<void>()`.
+  - Fields: Quantity (`qty`), Purchase Rate (`purchaseRate`), Supplier Name (`supplierName`), Supplier Invoice No (`supplierInvoiceNo`).
+  - **Architecture Invariant — Live Dynamic IMEI List Tracking (Requirements §11 & P-410)**:
+    For IMEI-tracked categories (`NewPhone` / `UsedPhone`), the IMEI list dynamically synchronizes with the `Qty` field live using an Angular reactive effect. Increasing quantity adds empty IMEI rows while preserving entered serials; decreasing quantity trims the array to match `Qty` exactly.
+  - **Client-Side Duplicate Detection**:
+    Any duplicate IMEI entered within the batch is detected immediately in client state (`hasDuplicates`, `isDuplicate(index)`). Repeated serial inputs are highlighted with `.is-invalid`, `.has-duplicate-error`, and a warning pill. Form submission is disabled until all IMEIs are distinct, preventing server-side 422 rejections.
+  - Mutation Submission:
+    Submits `StockInCommand` to `PurchasesClient.stockIn(command)`. On success, emits `stockInCompleted` and resets the form.
+- Unit Tests (`frontend/src/app/features/inventory/detail/stock-in-form.component.spec.ts`):
+  - (a) Changing quantity field dynamically adds/removes IMEI input rows to match.
+  - (b) Entering duplicate IMEI values across rows highlights both rows as invalid and disables the submit button.
+  - (c) Submitting a valid form calls `PurchasesClient.stockIn` with the expected payload shape and emits completion.
