@@ -43,6 +43,26 @@ export class CartComponent {
     }
   }
 
+  onToggleMargin(id: string, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (input) {
+      this.cartState.setMarginScheme(id, input.checked);
+    }
+  }
+
+  onToggleGift(id: string, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (input) {
+      this.cartState.setGift(id, input.checked);
+    }
+  }
+
+  onOverrideInput(id: string, event: Event): void {
+    const input = event.target as HTMLInputElement | null;
+    if (input) {
+      this.onOverrideChange(id, input.value);
+    }
+  }
   getItemLineTotal(item: CartItem): number {
     if (item.isGift) {
       return 0;

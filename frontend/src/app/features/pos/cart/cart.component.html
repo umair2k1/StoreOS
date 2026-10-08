@@ -57,8 +57,7 @@
         <div class="toggles-block">
           @if (item.category === 'UsedPhone') {
           <label class="toggle-label margin-toggle">
-            <input type="checkbox" [checked]="item.useMarginScheme"
-              (change)="cartState.setMarginScheme(item.id, $any($event.target).checked)"
+            <input type="checkbox" [checked]="item.useMarginScheme" (change)="onToggleMargin(item.id, $event)"
               (click)="$event.stopPropagation()" />
             <span>Margin</span>
           </label>
@@ -66,14 +65,13 @@
 
           <label *pzCan="'sales:discount:apply'" class="toggle-label gift-toggle">
             <input type="checkbox" class="gift-checkbox" [checked]="item.isGift"
-              (change)="cartState.setGift(item.id, $any($event.target).checked)" (click)="$event.stopPropagation()" />
+              (change)="onToggleGift(item.id, $event)" (click)="$event.stopPropagation()" />
             <span>Gift</span>
           </label>
 
           <div *pzCan="'sales:discount:apply'" class="override-input-wrapper" (click)="$event.stopPropagation()">
             <input type="number" class="override-input" [value]="item.overridePricePerUnit ?? ''"
-              (input)="onOverrideChange(item.id, $any($event.target).value)" placeholder="Price ₹"
-              aria-label="Override price per unit" />
+              (input)="onOverrideInput(item.id, $event)" placeholder="Price ₹" aria-label="Override price per unit" />
           </div>
         </div>
 

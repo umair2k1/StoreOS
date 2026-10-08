@@ -1,0 +1,112 @@
+<pz-dialog title="Customer Financing & EMI" [showCloseButton]="true" (closed)="onCancel()">
+  <div class="finance-dialog-body">
+    <div class="order-total-banner">
+      <span class="label">Grand Total for Financing:</span>
+      <span class="amount">{{ data.grandTotal | pzMoney }}</span>
+    </div>
+
+    <!-- Provider Selection -->
+    <div class="form-group">
+      <div class="provider-label-row">
+        <label for="providerSelect" class="input-label">Finance Provider</label>
+        <button type="button" class="btn-text-action" (click)="toggleAddProvider()">
+          {{ isAddingProvider() ? 'Cancel' : '+ Add New Provider' }}
+        </button>
+      </div>
+
+      @if (isAddingProvider()) {
+      <div class="add-provider-inline">
+        <input type="text" class="form-control" placeholder="Enter provider name (e.g. Bajaj Finserv)..."
+          [ngModel]="newProviderName()" (ngModelChange)="newProviderName.set($event)" />
+        <button type="button" class="btn btn-primary btn-save-provider"
+          [disabled]="isSavingProvider() || newProviderName().trim().length === 0" (click)="saveNewProvider()">
+          {{ isSavingProvider() ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+      } @else {
+      <select id="providerSelect" class="form-control form-select" [ngModel]="selectedProvider()"
+        (ngModelChange)="selectedProvider.set($event)">
+        @for (p of providers(); track p.normalizedName || p.displayName) {
+        <option [value]="p.normalizedName || p.displayName">{{ p.displayName }}</option>
+        }
+      </select>
+      }
+    </div>
+
+    <!-- Custom Financer Agent / Rep Name -->
+    <div class="form-group">
+      <label for="financerNameInput" class="input-label">Agent / Rep Name (Optional)</label>
+      <input id="financerNameInput" type="text" class="form-control" placeholder="Executive or DSA reference..."
+        [ngModel]="customFinancerName()" (ngModelChange)="customFinancerName.set($event)" />
+    </div>
+
+    <!-- Financial Inputs -->
+    <div class="inputs-grid">
+      <div class="form-group">
+        <label for="downPaymentInput" class="input-label">Down Payment (₹)</label>
+        <input id="downPaymentInput" type="number" class="form-control" min="0" [max]="data.grandTotal"
+          [ngModel]="downPayment()" (ngModelChange)="downPayment.set(+$event)" />
+      </div>
+
+      <div class="form-group">
+        <label for="tenureInput" class="input-label">Tenure (Months)</label>
+        <select id="tenureInput" class="form-control form-select" [ngModel]="tenureMonths()"
+          (ngModelChange)="tenureMonths.set(+$event)">
+          <option [ngValue]="3">3 Months</option>
+          <option [ngValue]="6">6 Months</option>
+          <option [ngValue]="9">9 Months</option>
+          <option [ngValue]="12">12 Months</option>
+          <option [ngValue]="18">18 Months</option>
+          <option [ngValue]="24">24 Months</option>
+          <option [ngValue]="36">36 Months</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="interestRateInput" class="input-label">Annual Interest Rate (%)</label>
+        <input id="interestRateInput" type="number" class="form-control" min="0" step="0.5"
+          placeholder="0 for No Cost EMI" [ngModel]="annualInterestRate()"
+          (ngModelChange)="annualInterestRate.set(+$event)" />
+      </div>
+    </div>
+
+    <!-- LIVE EMI PREVIEW -->
+    <div class="emi-preview-card">
+      <div class="preview-header">
+        <span class="preview-badge">Live EMI Preview</span>
+        <span class="preview-disclaimer">Preview only &bull; Persisted amount computed on server</span>
+      </div>
+
+      @if (emiPreview(); as preview) {
+      @if (preview.error) {
+      <div class="preview-error">
+        <span>⚠️ {{ preview.error }}</span>
+      </div>
+      } @else {
+      <div class="preview-metrics">
+        <div class="metric-item">
+          <span class="metric-label">Financed Principal</span>
+          <span class="metric-val">{{ preview.principal | pzMoney }}</span>
+        </div>
+        <div class="metric-item highlight-emi">
+          <span class="metric-label">Monthly EMI</span>
+          <span class="metric-val emi-val">{{ preview.emi | pzMoney }} / mo</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Total Payable</span>
+          <span class="metric-val">{{ preview.totalPayable | pzMoney }}</span>
+        </div>
+      </div>
+      }
+      }
+    </div>
+  </div>
+
+  <div pz-dialog-actions class="dialog-actions">
+    <button type="button" class="btn btn-secondary" (click)="onCancel()">Cancel</button>
+    <button type="button" class="btn btn-primary btn-confirm-finance" [disabled]="!!emiPreview().error"
+      (click)="onConfirm()">
+      Apply Financing
+    </button>
+  </div>
+</pz-dialog>

@@ -5079,3 +5079,53 @@ var sgst = Money.Round2(totalGst - cgst);
   - `frontend/src/app/features/pos/cart/cart.component.spec.ts`:
     - Gift and price override controls are hidden without `sales:discount:apply` and displayed with it.
     - Keyboard hotkeys (`+`, `-`, `Delete`) update selected cart row.
+
+## P-1104
+### POS: Payment Panel (Cash/UPI/Card/Credit/Split) + Finance Dialog
+- Client-Side EMI Calculator (`frontend/src/app/features/pos/payment/emi-calculator.ts`):
+  - `decimalPow(baseVal: number, exp: number): number`: Pure integer-exponent power loop mirroring backend's `DecimalPow` without calling forbidden `Math.pow`.
+  - `round2AwayFromZero(val: number): number`: Half-up rounding to 2 decimal places (`AwayFromZero`).
+  - `calculatePrincipal(grandTotal: number, downPayment: number): number`: Validates non-negative down payment and ensures positive financed principal (`grandTotal - downPayment`).
+  - `calculateEmi(principal: number, annualRatePercent: number, months: number): number`: Computes exact zero-interest (`principal / months`) and positive-interest amortization `principal * r * (1+r)^n / ((1+r)^n - 1)`. Matches C# `FinanceEngine.CalculateEmi` arithmetic to 2 decimal places.
+  - **Architecture Invariant — Preview vs. Authoritative EMI**:
+    Client-side EMI calculations in `emi-calculator.ts` provide instant, zero-latency reactive feedback in the POS dialog. JavaScript numbers are 64-bit IEEE 754 floating point. The backend server remains the sole, authoritative source of truth for the persisted sale and financing records, strictly recalculating principal and EMI via `FinanceEngine` (P-515) in decimal arithmetic inside `CheckoutCommandHandler`.
+- Finance Dialog Modal (`frontend/src/app/features/pos/payment/finance-dialog.component.ts`, `.html`, `.scss`):
+  - `FinanceDialogData`: `{ grandTotal: number; initialDownPayment?: number; initialTenureMonths?: number; initialInterestRate?: number; }`.
+  - `FinanceDialogComponent`: Standalone Angular component (`selector: 'app-finance-dialog'`).
+    - Renders provider dropdown loaded dynamically via `SettingsClient.getFinanceProviders()`.
+    - **Inline Provider Creation**: Inline action calling `SettingsClient.addFinanceProvider({ displayName })` (`POST /api/settings/finance-providers`), refreshing the provider list and auto-selecting the newly created financer.
+    - Reactive signals: `selectedProvider`, `customFinancerName`, `downPayment`, `tenureMonths`, `annualInterestRate`.
+    - Computed `emiPreview`: Live reactive preview computing financed principal, monthly EMI, and total payable amount with error validation.
+    - Returns typed `CheckoutFinanceDetails` upon confirmation.
+- Payment Panel Component (`frontend/src/app/features/pos/payment/payment-panel.component.ts`, `.html`, `.scss`):
+  - `PaymentMode`: `'cash' | 'upi' | 'card' | 'credit'`.
+  - `PaymentLine`: `{ id: string; mode: PaymentMode; amount: number; }`.
+  - `PaymentPanelComponent`: Standalone Angular component (`selector: 'app-payment-panel'`).
+    - Inputs & Outputs:
+      - `@Input() grandTotal: number`, `@Input() invoiceDiscount: number`.
+      - `@Output() readonly paymentsChange: EventEmitter<CheckoutPayment[]>`.
+      - `@Output() readonly financeChange: EventEmitter<CheckoutFinanceDetails | null>`.
+    - Split-Payment Support: Dynamically manages multiple payment lines with mode selector (`Cash`, `UPI`, `Card`, `Credit`) and editable amount fields.
+    - Reactive Calculations:
+      - `totalPayable`: `Math.max(0, grandTotal - invoiceDiscount)`.
+      - `financedPrincipal`: Financed portion minus down payment.
+      - `totalPaid`: Live summation of all payment lines.
+      - `remainingBalance`: `Math.max(0, totalPayable - financedPrincipal - totalPaid)`.
+      - `changeDue`: Calculated when cash tendered exceeds net amount payable.
+    - Modal Trigger: "Finance / EMI" button launches `FinanceDialogComponent` via `PzDialogService`, applying financed details and synchronizing down payment lines.
+- Unit Tests:
+  - `frontend/src/app/features/pos/payment/emi-calculator.spec.ts`:
+    - Validates zero-interest EMI (12000 / 12 -> 1000.00).
+    - Validates positive-interest EMI with integer power loop (12000 @ 12% for 12 mos -> 1066.19).
+    - Verifies validations for tenure <= 0, principal <= 0, rate < 0, and down payment bounds.
+  - `frontend/src/app/features/pos/payment/finance-dialog.component.spec.ts`:
+    - Loads finance providers and selects default.
+    - Computes live EMI preview reactively.
+    - Verifies inline add-new-provider flow with API persistence and list reload.
+    - Confirms dialog and delivers `CheckoutFinanceDetails`.
+  - `frontend/src/app/features/pos/payment/payment-panel.component.spec.ts`:
+    - Supports split-payment summation across multiple modes.
+    - Computes change due correctly upon cash overpayment.
+    - Adds, updates, and removes payment lines while maintaining non-empty state.
+    - Auto-fills remaining balance.
+    - Opens finance dialog and integrates financed principal and down payment.

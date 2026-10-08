@@ -1,0 +1,94 @@
+<div class="payment-panel-container">
+  <div class="panel-header">
+    <div class="header-left">
+      <span class="icon" aria-hidden="true">💳</span>
+      <h3 class="panel-title">Payment & Settlement</h3>
+    </div>
+    <button type="button" class="btn-finance-toggle" [class.active]="!!financeDetails()" (click)="openFinanceDialog()">
+      {{ financeDetails() ? '⚙️ Edit EMI' : '🏦 Finance / EMI' }}
+    </button>
+  </div>
+
+  <!-- Active Financing Notice -->
+  @if (financeDetails(); as fin) {
+  <div class="finance-active-badge">
+    <div class="fin-details">
+      <span class="fin-title">Financed via {{ fin.financeProvider }}</span>
+      <span class="fin-sub">
+        Down Payment: {{ (fin.downPayment ?? 0) | pzMoney }} &bull;
+        Financed: {{ financedPrincipal() | pzMoney }} &bull;
+        {{ fin.tenureMonths }} mos @ {{ fin.annualInterestRate }}%
+      </span>
+    </div>
+    <button type="button" class="btn-remove-finance" (click)="removeFinance()" aria-label="Remove finance">✕</button>
+  </div>
+  }
+
+  <!-- Split Payment Lines -->
+  <div class="payment-lines-list">
+    @for (p of payments(); track p.id; let idx = $index) {
+    <div class="payment-line-row">
+      <div class="mode-select-wrapper">
+        <select class="form-control form-select select-mode" [ngModel]="p.mode"
+          (ngModelChange)="updateMode(p.id, $event)" aria-label="Payment mode">
+          @for (mode of availableModes; track mode.value) {
+          <option [value]="mode.value">{{ mode.label }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="amount-input-wrapper">
+        <input type="number" class="form-control input-amount" min="0" step="any" placeholder="0.00"
+          [ngModel]="p.amount" (ngModelChange)="updateAmount(p.id, +$event)" aria-label="Payment amount" />
+        @if (remainingBalance() > 0) {
+        <button type="button" class="btn-fill-remaining" title="Fill remaining balance"
+          (click)="fillRemaining(p.id)">Fill</button>
+        }
+      </div>
+
+      <button type="button" class="btn-remove-line" [disabled]="payments().length <= 1 && p.amount === 0"
+        (click)="removePaymentLine(p.id)" aria-label="Remove payment line">✕</button>
+    </div>
+    }
+  </div>
+
+  <div class="add-split-line-action">
+    <button type="button" class="btn-add-split" (click)="addPaymentLine()">
+      + Add Split Payment Method
+    </button>
+  </div>
+
+  <!-- Live Balance Summary Breakdown -->
+  <div class="payment-summary-box">
+    <div class="summary-line">
+      <span class="label">Grand Total:</span>
+      <span class="val">{{ totalPayable() | pzMoney }}</span>
+    </div>
+
+    @if (financedPrincipal() > 0) {
+    <div class="summary-line text-accent">
+      <span class="label">Financed Principal:</span>
+      <span class="val">-{{ financedPrincipal() | pzMoney }}</span>
+    </div>
+    }
+
+    <div class="summary-line">
+      <span class="label">Total Tendered:</span>
+      <span class="val font-semibold">{{ totalPaid() | pzMoney }}</span>
+    </div>
+
+    @if (remainingBalance() > 0) {
+    <div class="summary-line balance-remaining">
+      <span class="label">Remaining Due:</span>
+      <span class="val text-danger">{{ remainingBalance() | pzMoney }}</span>
+    </div>
+    }
+
+    @if (changeDue() > 0) {
+    <div class="summary-line balance-change">
+      <span class="label">Change Due:</span>
+      <span class="val text-success">{{ changeDue() | pzMoney }}</span>
+    </div>
+    }
+  </div>
+</div>
