@@ -1,7 +1,7 @@
 import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import {
   CdkDragDrop,
@@ -66,6 +66,11 @@ export class JobBoardComponent implements OnInit {
   private readonly repairJobsClient = inject(RepairJobsClient);
   private readonly settingsClient = inject(SettingsClient);
   private readonly toastService = inject(ToastService);
+  private readonly router = inject(Router);
+
+  navigateToJob(id: string): void {
+    this.router.navigate(['/repairs/jobs', id]);
+  }
 
   readonly activeColumns = ACTIVE_COLUMNS;
   readonly isRepairsEnabled = signal<boolean>(true);

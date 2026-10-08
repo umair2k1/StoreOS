@@ -48,7 +48,7 @@
       <div class="kanban-drop-list" cdkDropList [cdkDropListData]="columnsMap()[col]"
         (cdkDropListDropped)="onDrop($event, col)">
         @for (job of columnsMap()[col]; track job.id) {
-        <div class="job-card" cdkDrag [attr.data-job-id]="job.id">
+        <div class="job-card" cdkDrag [attr.data-job-id]="job.id" (click)="navigateToJob(job.id)">
           <div class="card-top">
             <span class="job-number-badge">{{ job.jobNumber }}</span>
             @if (job.estimatedCost || job.finalTotal) {
