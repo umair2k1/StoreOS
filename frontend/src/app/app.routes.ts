@@ -92,7 +92,16 @@ export const routes: Routes = [
           { path: ':id', loadComponent: () => import('./features/repairs/detail/repair-job-detail.component').then(m => m.RepairJobDetailComponent) }
         ]
       },
-      { path: 'reports', children: [] },
+      {
+        path: 'reports',
+        children: [
+          { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+          { path: 'dashboard', loadComponent: () => import('./features/reports/dashboard-widgets.component').then(m => m.DashboardWidgetsComponent) },
+          { path: 'daily-audit', loadComponent: () => import('./features/reports/daily-audit.component').then(m => m.DailyAuditComponent) },
+          { path: 'branch-comparison', loadComponent: () => import('./features/reports/branch-comparison.component').then(m => m.BranchComparisonComponent) },
+          { path: 'exports', loadComponent: () => import('./features/reports/exports.component').then(m => m.ExportsComponent) }
+        ]
+      },
     ]
   }
 ];

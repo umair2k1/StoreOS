@@ -1,0 +1,80 @@
+@if (isMultiBranch()) {
+<div class="branch-comparison-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="reports-breadcrumb">
+        <a routerLink="/reports/dashboard" class="back-link">&larr; Reports Dashboard</a>
+      </div>
+      <h1 class="page-title">Multi-Branch Performance Comparison</h1>
+      <p class="page-subtitle">Cross-branch comparison of daily revenue, order volume, and repair activity</p>
+    </div>
+    <div class="header-actions">
+      <div class="date-filter-group">
+        <label for="compDate" class="date-label">Date:</label>
+        <input id="compDate" name="compDate" type="date" class="form-control date-input" [ngModel]="selectedDate()"
+          (ngModelChange)="selectedDate.set($event)" />
+        <button type="button" class="btn btn-outline btn-refresh" (click)="loadComparison()">
+          Compare
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  @if (isLoading()) {
+  <div class="loading-state">
+    <span>Loading branch comparison...</span>
+  </div>
+  }
+
+  @if (!isLoading() && comparisonData(); as data) {
+  <section class="card comparison-card">
+    <div class="card-header">
+      <h2 class="section-title">Branch Comparison Matrix ({{ selectedDate() }})</h2>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Branch Name</th>
+              <th class="text-center">Invoices</th>
+              <th class="text-right">Revenue</th>
+              <th class="text-right">Gross Profit</th>
+              <th class="text-center">Active Repairs</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of data.branches; track b.branchId) {
+            <tr class="branch-row" [attr.data-branch-id]="b.branchId">
+              <td class="font-semibold">{{ b.branchName }}</td>
+              <td class="text-center">{{ b.invoiceCount }}</td>
+              <td class="text-right font-semibold text-primary">{{ b.revenue | pzMoney }}</td>
+              <td class="text-right text-success">{{ b.profit | pzMoney }}</td>
+              <td class="text-center">{{ b.activeRepairs }}</td>
+            </tr>
+            }
+          </tbody>
+          @if (data.consolidated; as cons) {
+          <tfoot>
+            <tr class="consolidated-row">
+              <td class="font-bold">Consolidated (Total)</td>
+              <td class="text-center font-bold">{{ cons.invoiceCount }}</td>
+              <td class="text-right font-bold text-primary">{{ cons.revenue | pzMoney }}</td>
+              <td class="text-right font-bold text-success">{{ cons.profit | pzMoney }}</td>
+              <td class="text-center font-bold">{{ cons.activeRepairs }}</td>
+            </tr>
+          </tfoot>
+          }
+        </table>
+      </div>
+    </div>
+  </section>
+  }
+</div>
+}

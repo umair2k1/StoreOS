@@ -1,0 +1,125 @@
+<div class="dashboard-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Executive Dashboard</h1>
+      <p class="page-subtitle">Real-time revenue metrics, trends, and inventory alerts</p>
+    </div>
+    <div class="header-actions">
+      <nav class="reports-nav">
+        <a routerLink="/reports/daily-audit" class="nav-link">Daily Audit</a>
+        <a routerLink="/reports/branch-comparison" class="nav-link">Branch Comparison</a>
+        <a routerLink="/reports/exports" class="nav-link">Exports</a>
+      </nav>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  @if (isLoading()) {
+  <div class="loading-state">
+    <span>Loading dashboard data...</span>
+  </div>
+  }
+
+  @if (!isLoading() && dashboardData(); as d) {
+  <!-- Top Metrics Row -->
+  <div class="metrics-grid">
+    <div class="metric-card revenue-card">
+      <span class="metric-label">Today's Revenue</span>
+      <span class="metric-value font-semibold text-primary">{{ d.todayRevenue | pzMoney }}</span>
+      <span class="metric-hint">Across current store branches</span>
+    </div>
+
+    <div class="metric-card invoices-card">
+      <span class="metric-label">Invoices Completed</span>
+      <span class="metric-value font-semibold">{{ d.todayInvoiceCount }}</span>
+      <span class="metric-hint">Processed sales today</span>
+    </div>
+
+    <div class="metric-card profit-card">
+      <span class="metric-label">Monthly Gross Profit</span>
+      <span class="metric-value font-semibold text-success">{{ d.monthlyProfit | pzMoney }}</span>
+      <span class="metric-hint">Sales less inventory cost</span>
+    </div>
+
+    <!-- HARD CONSTRAINT: ENTIRELY HIDDEN when repairs feature is disabled -->
+    @if (isRepairsEnabled()) {
+    <div class="metric-card repairs-active-card">
+      <span class="metric-label">Active Repairs</span>
+      <span class="metric-value font-semibold text-warning">{{ d.activeRepairsCount }}</span>
+      <span class="metric-hint">Devices currently on bench</span>
+    </div>
+
+    <div class="metric-card repairs-ready-card">
+      <span class="metric-label">Ready For Pickup</span>
+      <span class="metric-value font-semibold text-info">{{ d.readyForPickupCount }}</span>
+      <span class="metric-hint">Awaiting customer collection</span>
+    </div>
+    }
+  </div>
+
+  <!-- Main Content Grid: Chart & Tables -->
+  <div class="dashboard-grid">
+    <!-- 7-Day Revenue Line Chart -->
+    <section class="card chart-card">
+      <div class="card-header">
+        <h2 class="section-title">7-Day Revenue Trend</h2>
+      </div>
+      <div class="card-body chart-wrapper">
+        <canvas #revenueChart></canvas>
+      </div>
+    </section>
+
+    <!-- Side Lists: Low Stock Alerts & Top 5 Sellers -->
+    <div class="side-lists">
+      <!-- Low Stock Alerts -->
+      <section class="card low-stock-card">
+        <div class="card-header">
+          <h2 class="section-title">Low Stock Alerts</h2>
+        </div>
+        <div class="card-body">
+          @if (d.lowStockItems.length === 0) {
+          <p class="empty-text text-muted text-sm">All inventory is above threshold.</p>
+          } @else {
+          <ul class="stock-list">
+            @for (item of d.lowStockItems; track item.productId) {
+            <li class="stock-item">
+              <span class="item-name font-semibold">{{ item.name }}</span>
+              <span class="stock-badge text-danger">
+                {{ item.stockQty }} left (min {{ item.threshold }})
+              </span>
+            </li>
+            }
+          </ul>
+          }
+        </div>
+      </section>
+
+      <!-- Top Selling Items -->
+      <section class="card top-sellers-card">
+        <div class="card-header">
+          <h2 class="section-title">Top 5 Sellers</h2>
+        </div>
+        <div class="card-body">
+          @if (d.topSellingItems.length === 0) {
+          <p class="empty-text text-muted text-sm">No sales data recorded yet.</p>
+          } @else {
+          <ul class="seller-list">
+            @for (seller of d.topSellingItems; track seller.itemName) {
+            <li class="seller-item">
+              <span class="item-name">{{ seller.itemName }}</span>
+              <span class="qty-badge font-semibold">{{ seller.totalQtySold }} sold</span>
+            </li>
+            }
+          </ul>
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+  }
+</div>

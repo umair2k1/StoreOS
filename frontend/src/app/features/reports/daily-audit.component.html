@@ -1,0 +1,224 @@
+<div class="daily-audit-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="reports-breadcrumb">
+        <a routerLink="/reports/dashboard" class="back-link">&larr; Reports Dashboard</a>
+      </div>
+      <h1 class="page-title">Daily Sales Audit</h1>
+      <p class="page-subtitle">End-of-day sales reconciliation, cash breakdown, inventory audit, and itemized log</p>
+    </div>
+    <div class="header-actions">
+      <div class="date-filter-group">
+        <label for="auditDate" class="date-label">Audit Date:</label>
+        <input id="auditDate" name="auditDate" type="date" class="form-control date-input" [ngModel]="selectedDate()"
+          (ngModelChange)="selectedDate.set($event)" />
+        <button type="button" class="btn btn-outline btn-load" (click)="loadReport()">
+          Refresh
+        </button>
+      </div>
+      <button type="button" class="btn btn-primary btn-print" [disabled]="isPrinting()" (click)="printReport()">
+        &#128424; Print Report
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  @if (isLoading()) {
+  <div class="loading-state">
+    <span>Loading daily audit report...</span>
+  </div>
+  }
+
+  @if (!isLoading() && report(); as r) {
+  <!-- 1. Sales Summary Section -->
+  <section class="card section-sales-summary">
+    <div class="card-header">
+      <h2 class="section-title">Sales Summary ({{ r.date }})</h2>
+    </div>
+    <div class="card-body summary-grid">
+      <div class="metric-box">
+        <span class="metric-label">Total Revenue</span>
+        <span class="metric-value font-semibold text-primary">{{ r.sales.revenue | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Buying Cost</span>
+        <span class="metric-value font-semibold text-muted">{{ r.sales.buyingCost | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Gross Profit</span>
+        <span class="metric-value font-semibold text-success">{{ r.sales.profit | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">GST Collected</span>
+        <span class="metric-value font-semibold text-info">{{ r.sales.gstCollected | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Invoices Count</span>
+        <span class="metric-value font-semibold">{{ r.sales.invoiceCount }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Items Sold</span>
+        <span class="metric-value font-semibold">{{ r.sales.itemsSold }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Financial Collections & Outstanding Section -->
+  <section class="card section-financials">
+    <div class="card-header">
+      <h2 class="section-title">Collections & Receivables</h2>
+    </div>
+    <div class="card-body summary-grid-duo">
+      <div class="metric-box highlight-box success-bg">
+        <span class="metric-label">Total Collected Today</span>
+        <span class="metric-value font-semibold text-success">{{ r.collectedAmount | pzMoney }}</span>
+      </div>
+      <div class="metric-box highlight-box danger-bg">
+        <span class="metric-label">Outstanding Balance Due</span>
+        <span class="metric-value font-semibold text-danger">{{ r.outstandingAmount | pzMoney }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Payment Modes Breakdown Section -->
+  <section class="card section-payments">
+    <div class="card-header">
+      <h2 class="section-title">Payment Breakdown</h2>
+    </div>
+    <div class="card-body summary-grid">
+      <div class="metric-box">
+        <span class="metric-label">Cash Collected</span>
+        <span class="metric-value font-semibold">{{ r.payments.cash | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">UPI / Digital</span>
+        <span class="metric-value font-semibold">{{ r.payments.upi | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Finance / EMI</span>
+        <span class="metric-value font-semibold">{{ r.payments.finance | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Other Modes</span>
+        <span class="metric-value font-semibold">{{ r.payments.other | pzMoney }}</span>
+      </div>
+      <div class="metric-box full-span">
+        <span class="metric-label">Total Payments Reconciled</span>
+        <span class="metric-value font-semibold text-primary">{{ r.payments.total | pzMoney }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Inventory Valuation Section -->
+  <section class="card section-inventory">
+    <div class="card-header">
+      <h2 class="section-title">Inventory Status</h2>
+    </div>
+    <div class="card-body summary-grid">
+      <div class="metric-box">
+        <span class="metric-label">Total Stock Volume</span>
+        <span class="metric-value font-semibold">{{ r.inventory.totalStockVolume }} units</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Stock Worth (Cost)</span>
+        <span class="metric-value font-semibold">{{ r.inventory.stockWorthAtCost | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Retail Valuation</span>
+        <span class="metric-value font-semibold">{{ r.inventory.retailValuation | pzMoney }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Low Stock Items</span>
+        <span class="metric-value font-semibold text-warning">{{ r.inventory.lowStockCount }}</span>
+      </div>
+      <div class="metric-box">
+        <span class="metric-label">Out of Stock</span>
+        <span class="metric-value font-semibold text-danger">{{ r.inventory.outOfStockCount }}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Category Sales Breakdown Section -->
+  <section class="card section-category-sales">
+    <div class="card-header">
+      <h2 class="section-title">Category Sales Breakdown</h2>
+    </div>
+    <div class="card-body">
+      @if (r.byCategory.length === 0) {
+      <p class="text-muted text-sm">No category sales recorded today.</p>
+      } @else {
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th class="text-center">Items Sold</th>
+              <th class="text-right">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (cat of r.byCategory; track cat.category) {
+            <tr>
+              <td class="font-semibold">{{ cat.category }}</td>
+              <td class="text-center">{{ cat.itemsSold }}</td>
+              <td class="text-right font-semibold">{{ cat.revenue | pzMoney }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+    </div>
+  </section>
+
+  <!-- 6. Itemized Sale Log Section -->
+  <section class="card section-itemized-log">
+    <div class="card-header">
+      <h2 class="section-title">Itemized Transaction Log</h2>
+    </div>
+    <div class="card-body">
+      @if (r.itemizedLog.length === 0) {
+      <p class="text-muted text-sm">No line item sales transactions on this date.</p>
+      } @else {
+      <div class="table-responsive">
+        <table class="report-table">
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Customer</th>
+              <th>Item Name</th>
+              <th>IMEI / Serial</th>
+              <th class="text-center">Qty</th>
+              <th>Payment</th>
+              <th class="text-right">Cost</th>
+              <th class="text-right">Selling Value</th>
+              <th class="text-right">GST</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (log of r.itemizedLog; track log.invoiceNumber + log.itemName) {
+            <tr>
+              <td class="font-semibold">{{ log.invoiceNumber }}</td>
+              <td>{{ log.customerName }}</td>
+              <td>{{ log.itemName }}</td>
+              <td class="font-mono text-xs">{{ log.imei || '—' }}</td>
+              <td class="text-center">{{ log.qty }}</td>
+              <td><span class="badge badge-secondary">{{ log.paymentMode || 'Cash' }}</span></td>
+              <td class="text-right text-muted">{{ log.costValue | pzMoney }}</td>
+              <td class="text-right font-semibold">{{ log.sellingValue | pzMoney }}</td>
+              <td class="text-right text-info">{{ log.gst | pzMoney }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+    </div>
+  </section>
+  }
+</div>

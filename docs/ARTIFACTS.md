@@ -5446,3 +5446,37 @@ var sgst = Money.Round2(totalGst - cgst);
   - Validates that the Bill button only appears when `finalTotal > 0` and `saleId == null`.
   - Validates that parts Reserve, Consume, and Return actions call their respective API endpoints and refresh the parts list.
   - Validates that billing submission invokes `billRepair` and navigates to the resulting sale detail route `/sales/:saleId`.
+
+## P-1119
+### Reports Screen: Dashboard Widgets, Daily Audit, Branch Comparison, Exports
+- Pinned Dependency (`frontend/package.json`):
+  - `chart.js`: `4.4.6` (exact pin per P-007 package allowlist).
+- Backend Extension:
+  - `ReportsController.cs`: Added `GET /api/reports/daily-sales.pdf` returning QuestPDF rendered daily sales audit document.
+- Dashboard Widgets Component (`frontend/src/app/features/reports/dashboard-widgets.component.ts`, `.html`, `.scss`):
+  - `DashboardWidgetsComponent`: Standalone Angular component (`selector: 'app-dashboard-widgets'`).
+  - Route: `/reports/dashboard` (and default redirect `/reports` -> `/reports/dashboard`).
+  - Widgets: Today's Revenue card, Invoices Completed count, Monthly Profit, Low Stock Alerts list, Top 5 Sellers ranking.
+  - 7-Day Revenue Trend: Line chart rendered via `chart.js@4.4.6`.
+  - **Hard Constraint — Entirely Hidden Repair Widgets**: Active repairs and ready-for-pickup cards are entirely hidden from the DOM when the repairs feature flag is disabled (`isRepairsEnabled() == false`).
+- Daily Audit Component (`frontend/src/app/features/reports/daily-audit.component.ts`, `.html`, `.scss`):
+  - `DailyAuditComponent`: Standalone Angular component (`selector: 'app-daily-audit'`).
+  - Route: `/reports/daily-audit`.
+  - Date Filter: Date selector defaulting to today.
+  - Renders all `DailySalesReportDto` sections: Sales summary, Collection vs Outstanding totals, Payment method reconciliation (Cash, UPI, Finance, Other), Inventory valuation (Volume, Cost worth, Retail value, Low/Out stock), Category sales breakdown table, and Itemized transaction log.
+  - Print Button: Triggers `/api/reports/daily-sales.pdf?date={date}` download/print.
+- Branch Comparison Component (`frontend/src/app/features/reports/branch-comparison.component.ts`, `.html`, `.scss`):
+  - `BranchComparisonComponent`: Standalone Angular component (`selector: 'app-branch-comparison'`).
+  - Route: `/reports/branch-comparison`.
+  - **Hard Constraint — Multi-Branch Only**: Completely hidden from the DOM if the user is single-branch (`isMultiBranch() == false`, evaluating `AuthSignalStore.allBranches() || branchIds().length > 1`).
+  - Table: Side-by-side branch comparison matrix (Revenue, Invoices, Profit, Active Repairs) with consolidated total footer row.
+- Exports Component (`frontend/src/app/features/reports/exports.component.ts`, `.html`, `.scss`):
+  - `ExportsComponent`: Standalone Angular component (`selector: 'app-exports'`).
+  - Route: `/reports/exports`.
+  - Inventory Master Export: Category multi-select checkboxes triggering `ExportsClient.exportInventory(categories, null, 'csv')`.
+  - GSTR-1 Tax Return Export: Date-range picker triggering `ExportsClient.exportGstr1(from, to, 'csv')`.
+- Unit Tests:
+  - `frontend/src/app/features/reports/dashboard-widgets.component.spec.ts`: Validates metric cards rendering and confirms repair cards are entirely absent from DOM when repairs feature is disabled.
+  - `frontend/src/app/features/reports/daily-audit.component.spec.ts`: Validates rendering of every `DailySalesReportDto` section and presence of the print action.
+  - `frontend/src/app/features/reports/branch-comparison.component.spec.ts`: Validates comparison matrix display for multi-branch users and verifies component is entirely hidden for single-branch users.
+  - `frontend/src/app/features/reports/exports.component.spec.ts`: Validates triggering inventory export with selected category chips and GSTR-1 export with date range.

@@ -32,6 +32,19 @@ public class ReportsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("daily-sales.pdf")]
+    public async Task<IActionResult> GetDailySalesPdf(
+        [FromQuery] DateOnly? date,
+        [FromQuery] Guid[]? branchIds,
+        [FromServices] StoreOS.Infrastructure.Printing.ReportPdfRenderer renderer,
+        CancellationToken ct)
+    {
+        var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var result = await _mediator.Send(new GetDailySalesReportQuery(targetDate, branchIds), ct);
+        var bytes = renderer.RenderDailySales(result);
+        return File(bytes, "application/pdf", $"daily-sales-{targetDate:yyyyMMdd}.pdf");
+    }
+
     [HttpGet("compare")]
     public async Task<IActionResult> GetBranchComparison(
         [FromQuery] DateOnly? date,

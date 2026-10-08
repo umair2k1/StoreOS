@@ -1,0 +1,81 @@
+<div class="exports-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="reports-breadcrumb">
+        <a routerLink="/reports/dashboard" class="back-link">&larr; Reports Dashboard</a>
+      </div>
+      <h1 class="page-title">Data Exports & Statutory Reports</h1>
+      <p class="page-subtitle">Download filtered inventory spreadsheets and official GST compliance datasets</p>
+    </div>
+  </div>
+
+  <div class="exports-grid">
+    <!-- 1. Inventory Export Card -->
+    <section class="card export-card inventory-export-card">
+      <div class="card-header">
+        <h2 class="section-title">Inventory Master Export</h2>
+      </div>
+      <div class="card-body">
+        <p class="export-desc">
+          Export SKU-level inventory counts, purchase costs, retail valuations, and current branch stock.
+          Select specific categories to filter the generated spreadsheet:
+        </p>
+
+        <div class="category-filter-section">
+          <span class="filter-label">Filter by Categories:</span>
+          <div class="category-chips">
+            @for (cat of availableCategories; track cat) {
+            <label class="category-chip" [class.selected]="isCategorySelected(cat)">
+              <input type="checkbox" [checked]="isCategorySelected(cat)" (change)="toggleCategory(cat)" />
+              <span>{{ cat }}</span>
+            </label>
+            }
+          </div>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn btn-primary btn-export-inventory" [disabled]="isExportingInventory()"
+            (click)="downloadInventoryExport()">
+            {{ isExportingInventory() ? 'Exporting...' : 'Download Inventory CSV' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. GSTR-1 Tax Return Export Card -->
+    <section class="card export-card gstr1-export-card">
+      <div class="card-header">
+        <h2 class="section-title">GSTR-1 Outward Supplies Export</h2>
+      </div>
+      <div class="card-body">
+        <p class="export-desc">
+          Export B2B/B2C invoices, taxable turnovers, and CGST/SGST/IGST breakdowns ready for
+          GST portal upload and reconciliation.
+        </p>
+
+        <div class="date-range-section">
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="gstr1From">From Date *</label>
+              <input id="gstr1From" name="gstr1From" type="date" class="form-control" [ngModel]="gstr1From()"
+                (ngModelChange)="gstr1From.set($event)" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="gstr1To">To Date *</label>
+              <input id="gstr1To" name="gstr1To" type="date" class="form-control" [ngModel]="gstr1To()"
+                (ngModelChange)="gstr1To.set($event)" required />
+            </div>
+          </div>
+        </div>
+
+        <div class="export-actions">
+          <button type="button" class="btn btn-primary btn-export-gstr1" [disabled]="isExportingGstr1()"
+            (click)="downloadGstr1Export()">
+            {{ isExportingGstr1() ? 'Exporting...' : 'Download GSTR-1 CSV' }}
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
