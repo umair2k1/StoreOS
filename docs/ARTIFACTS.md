@@ -5696,3 +5696,36 @@ var sgst = Money.Round2(totalGst - cgst);
     12. `daily audit report generates correctly`: Navigates to `/reports/daily-audit`, checks audit date controls, and verifies sales summary section.
     13. `GSTR-1 export downloads`: Navigates to `/reports/exports`, checks outward supplies export card, enters date range, and verifies download action.
     14. `JSON backup export then import round-trips`: Navigates to `/settings/backup`, verifies tenant export trigger and destructive restore file picker and confirmation challenge card.
+
+## P-1203
+### CI Full Pipeline: Integration, Concurrency, RLS Schema, and Live E2E Stack
+- Pipeline Configuration (`.github/workflows/ci.yml`):
+  - **Job Graph & Dependencies**:
+    ```
+    [backend-build-test] ──► [backend-integration-tests] ──┐
+                                                           ├─► [e2e-tests]
+    [frontend-build]     ──────────────────────────────────┘
+    ```
+  - Job Specifications:
+    1. `backend-build-test`:
+       - Runner: `ubuntu-latest`.
+       - Actions: Setup .NET 10.0.x, restore `StoreOS.sln`, build Release, execute `StoreOS.Domain.Tests`, upload TRX results.
+    2. `frontend-build`:
+       - Runner: `ubuntu-latest`.
+       - Actions: Setup Node 24 & .NET 10, generate API client and assert zero drift (`git diff --exit-code generated-client.ts`), build Angular production bundle.
+    3. `backend-integration-tests`:
+       - Runner: `ubuntu-latest` (Docker engine provided for Testcontainers).
+       - Dependencies: `needs: [backend-build-test]`.
+       - Actions: Build solution, run `StoreOS.IntegrationTests` (exercising `RlsCoverageTests`, API controller integration suites, role tests), run `StoreOS.ConcurrencyTests` (pessimistic lock and sequence concurrency suites), upload `integration-test-results` artifact.
+    4. `e2e-tests`:
+       - Runner: `ubuntu-latest`.
+       - Dependencies: `needs: [backend-integration-tests, frontend-build]`.
+       - Actions:
+         - Spin up Docker services: `postgres`, `minio`, `otel-collector`.
+         - Restore local tools (`dotnet tool restore` using `.config/dotnet-tools.json`).
+         - Run database migrations as owner role: `dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api`.
+         - Apply post-migration grants and revokes: `sh deploy/db/apply-post-migrate.sh`.
+         - Seed demo tenant with owner connection: `dotnet run --project tools/seed -- --tenant-name "Apex Mobiles Demo CI" --subdomain apexci`.
+         - Start backend API on `http://localhost:5000` under app role and poll `/health/ready` until responsive.
+         - Install Playwright chromium with system dependencies.
+         - Run full Playwright test suite (`npx --prefix frontend playwright test`).

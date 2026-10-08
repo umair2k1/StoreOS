@@ -47,3 +47,54 @@ jobs:
           git diff --exit-code frontend/src/app/core/api/generated-client.ts
       - name: Build frontend
         run: npm run build --prefix frontend -- --configuration production
+
+  backend-integration-tests:
+    runs-on: ubuntu-latest
+    needs: [backend-build-test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - run: dotnet restore StoreOS.sln
+      - run: dotnet build StoreOS.sln --no-restore -c Release
+      - run: dotnet test backend/tests/StoreOS.IntegrationTests --no-build -c Release --logger "trx;LogFileName=integration-tests.trx"
+      - run: dotnet test backend/tests/StoreOS.ConcurrencyTests --no-build -c Release --logger "trx;LogFileName=concurrency-tests.trx"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: "**/*-tests.trx"
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: [backend-integration-tests, frontend-build]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: docker compose -f deploy/docker-compose.yml up -d postgres minio otel-collector
+      - name: Migrate (owner role) and apply grants
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+          STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          sh deploy/db/apply-post-migrate.sh
+      - name: Seed demo tenant
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+        run: dotnet run --project tools/seed -- --tenant-name "Apex Mobiles Demo CI" --subdomain apexci
+      - name: Start API (app role) and wait until ready
+        run: |
+          nohup dotnet run --project backend/src/StoreOS.Api --urls http://localhost:5000 > api.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://localhost:5000/health/ready && break; sleep 2; done
+          curl -fsS http://localhost:5000/health/ready
+      - run: npm ci --prefix frontend && npx --prefix frontend playwright install --with-deps chromium
+      - run: npm --prefix frontend run build -- --configuration production
+      - run: npx --prefix frontend playwright test
