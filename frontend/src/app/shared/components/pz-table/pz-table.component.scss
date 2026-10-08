@@ -108,3 +108,68 @@
     }
   }
 }
+
+.col-select {
+  width: 44px;
+  text-align: center;
+  padding: 0.5rem !important;
+
+  input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent, #2563eb);
+  }
+}
+
+.row-selected {
+  background-color: #eff6ff !important;
+}
+
+.badge-stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+
+  .stock-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  &.in-stock {
+    background-color: #ecfdf5;
+    color: #059669;
+    border: 1px solid #a7f3d0;
+
+    .stock-dot {
+      background-color: #10b981;
+    }
+  }
+
+  &.low-stock {
+    background-color: #fffbeb;
+    color: #d97706;
+    border: 1px solid #fde68a;
+
+    .stock-dot {
+      background-color: #f59e0b;
+    }
+  }
+
+  &.out-of-stock {
+    background-color: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+
+    .stock-dot {
+      background-color: #ef4444;
+    }
+  }
+}

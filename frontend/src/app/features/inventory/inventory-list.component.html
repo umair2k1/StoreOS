@@ -1,0 +1,107 @@
+<div class="inventory-container">
+  <div class="inventory-header">
+    <div class="header-titles">
+      <h1 class="page-title">Inventory Management</h1>
+      <p class="page-subtitle">Track real-time stock levels, valuations, and catalog availability.</p>
+    </div>
+  </div>
+
+  <div class="filter-panel card">
+    <div class="filter-row">
+      <div class="filter-field search-field">
+        <label for="invSearch">Search</label>
+        <input id="invSearch" type="text" class="form-control" placeholder="Search by product name, HSN..."
+          [ngModel]="search()" (ngModelChange)="updateParam('search', $event)" />
+      </div>
+
+      <div class="filter-field">
+        <label for="invCategory">Category</label>
+        <input id="invCategory" type="text" class="form-control" placeholder="Filter by category..."
+          [ngModel]="category()" (ngModelChange)="updateParam('category', $event)" />
+      </div>
+
+      <div class="filter-field">
+        <label for="invStockStatus">Stock Availability</label>
+        <select id="invStockStatus" class="form-control" [ngModel]="stockStatus()"
+          (ngModelChange)="updateParam('stockStatus', $event)">
+          <option value="">All Stock Levels</option>
+          <option value="in_stock">In Stock</option>
+          <option value="low_stock">Low Stock</option>
+          <option value="out_of_stock">Out of Stock</option>
+        </select>
+      </div>
+
+      <div class="filter-field">
+        <label for="invMarginScheme">Scheme</label>
+        <select id="invMarginScheme" class="form-control" [ngModel]="isMarginScheme()"
+          (ngModelChange)="updateParam('isMarginScheme', $event)">
+          <option value="all">All Schemes</option>
+          <option value="true">Margin Scheme Only</option>
+          <option value="false">Standard GST Only</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="button" class="btn btn-outline" (click)="resetFilters()">
+          Reset
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (hasSelection()) {
+  <div class="bulk-action-bar">
+    <div class="bulk-info">
+      <span class="selection-pill">{{ selectedCount() }}</span>
+      <span class="bulk-text"> product(s) selected</span>
+    </div>
+    <div class="bulk-buttons">
+      <button type="button" class="btn btn-primary btn-bulk-export" (click)="exportSelected()">
+        Export Selected to Inventory Export
+      </button>
+      <button type="button" class="btn btn-link btn-clear-selection" (click)="clearSelection()">
+        Clear Selection
+      </button>
+    </div>
+  </div>
+  }
+
+  @if (errorMessage()) {
+  <app-error-state [message]="errorMessage()!" [retryable]="true" (retry)="fetchInventory()"></app-error-state>
+  }
+
+  <div class="table-card card">
+    <pz-table [columns]="columns" [rows]="items()" [sortColumn]="sortBy()" [sortDirection]="sortDirection()"
+      [loading]="isLoading()" [selectable]="true" [selectedRows]="selectedProductIds()" trackByKey="productId"
+      emptyMessage="No inventory items found." (sort)="onSort($event)" (rowClick)="onRowClick($event)"
+      (selectAll)="onSelectAll($event)" (selectRow)="onSelectRow($event)"></pz-table>
+
+    <div class="pagination-bar">
+      <div class="page-size-selector">
+        <label for="invPageSize">Show:</label>
+        <select id="invPageSize" class="page-size-select" [ngModel]="pageSize()"
+          (ngModelChange)="onPageSizeChange(+$event)">
+          <option [value]="25">25</option>
+          <option [value]="50">50</option>
+          <option [value]="100">100</option>
+          <option [value]="10000">All</option>
+        </select>
+        <span class="total-records">Total: {{ totalCount() }}</span>
+      </div>
+
+      <div class="page-controls">
+        <button type="button" class="btn-page-nav" [disabled]="page() <= 1 || isLoading()"
+          (click)="onPageChange(page() - 1)">
+          &larr; Prev
+        </button>
+        <span class="page-indicator">
+          Page {{ page() }} of {{ totalPages() }}
+        </span>
+        <button type="button" class="btn-page-nav" [disabled]="page() >= totalPages() || isLoading()"
+          (click)="onPageChange(page() + 1)">
+          Next &rarr;
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

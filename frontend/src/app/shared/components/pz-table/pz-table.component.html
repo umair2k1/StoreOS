@@ -5,6 +5,12 @@
   <table class="pz-table">
     <thead>
       <tr>
+        @if (selectable) {
+        <th class="col-select" style="width: 44px; text-align: center;">
+          <input type="checkbox" [checked]="areAllSelected()" (change)="onSelectAllToggle($event)"
+            aria-label="Select all rows" />
+        </th>
+        }
         @for (col of columns; track col.key) {
         <th [class.sortable]="col.sortable" [class.sorted]="sortColumn === col.key" [style.width]="col.width"
           [style.text-align]="col.align || 'left'" (click)="onHeaderClick(col)"
@@ -29,22 +35,35 @@
     <tbody>
       @if (loading && rows.length === 0) {
       <tr>
-        <td [attr.colspan]="columns.length || 1" class="empty-cell">
+        <td [attr.colspan]="columns.length + (selectable ? 1 : 0)" class="empty-cell">
           <span class="loading-text">Loading...</span>
         </td>
       </tr>
       } @else if (rows.length === 0) {
       <tr>
-        <td [attr.colspan]="columns.length || 1" class="empty-cell">
+        <td [attr.colspan]="columns.length + (selectable ? 1 : 0)" class="empty-cell">
           {{ emptyMessage }}
         </td>
       </tr>
       } @else {
       @for (row of rows; track getRowKey(row, $index)) {
-      <tr (click)="onRowClick(row)">
+      <tr (click)="onRowClick(row)" [class.row-selected]="isRowSelected(row, $index)">
+        @if (selectable) {
+        <td class="col-select" style="width: 44px; text-align: center;" (click)="$event.stopPropagation()">
+          <input type="checkbox" [checked]="isRowSelected(row, $index)" (change)="onRowSelectToggle(row, $event)"
+            aria-label="Select row" />
+        </td>
+        }
         @for (col of columns; track col.key) {
         <td [style.text-align]="col.align || 'left'">
+          @if (isStockStatusCol(col)) {
+          <span class="badge-stock" [ngClass]="getStockStatusClass(row, col)">
+            <span class="stock-dot"></span>
+            {{ getCellValue(row, col) }}
+          </span>
+          } @else {
           {{ getCellValue(row, col) }}
+          }
         </td>
         }
       </tr>

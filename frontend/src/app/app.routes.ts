@@ -39,7 +39,12 @@ export const routes: Routes = [
           { path: ':id', loadComponent: () => import('./features/sales-history/detail/sale-detail.component').then(m => m.SaleDetailComponent) }
         ]
       },
-      { path: 'inventory', children: [] },
+      {
+        path: 'inventory',
+        children: [
+          { path: '', loadComponent: () => import('./features/inventory/inventory-list.component').then(m => m.InventoryListComponent) }
+        ]
+      },
       { path: 'customers', children: [] },
       { path: 'reports', children: [] },
     ]

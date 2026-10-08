@@ -5239,3 +5239,28 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Validates conditional visibility of Record Payment, Void, and Refund based on Balance, Status, and user permissions.
   - (b) Validates that Void and Refund dialogs disable submission when Reason is empty or whitespace-only.
   - (c) Validates that successful actions trigger `voidSale`/`recordPayment` and refresh the detail view with updated status and balance.
+
+## P-1109
+### Inventory List Screen: Search / Filter / Sort / Paginate / Bulk Select
+- Shared Table Component Enhancements (`frontend/src/app/shared/components/pz-table/`):
+  - `PzTableComponent`:
+    - Added `@Input() selectable = false` enabling bulk selection mode.
+    - Added `@Input() selectedRows = new Set<unknown>()` tracking selected row keys.
+    - Added `@Output() selectAll` and `@Output() selectRow` event emitters.
+    - Header select-all checkbox with partial/full state reflection.
+    - Row-level checkboxes with event propagation isolation (`$event.stopPropagation()`).
+    - **Architecture Invariant — Clear Stock Availability Visual Treatment (Requirements §35)**:
+      Columns with `type: 'stock-status'` render immediately distinguishable pill badges with filled color indicators (`.stock-dot`), colored borders, and backgrounds (`.in-stock`, `.low-stock`, `.out-of-stock`), exceeding plain text labels.
+- Inventory List Component (`frontend/src/app/features/inventory/inventory-list.component.ts`, `.html`, `.scss`):
+  - `InventoryListComponent`: Standalone Angular component (`selector: 'app-inventory-list'`).
+  - Route: `/inventory` (registered in `frontend/src/app/app.routes.ts`).
+  - Filters: Search (`search`), Category (`category`), Stock Availability (`stockStatus`), and Margin Scheme (`isMarginScheme`).
+  - Sortable columns (`ProductName`, `Category`, `StockQty`, `StockStatus`, `EffectiveSellPrice`).
+  - Pagination: Page-size selector (25, 50, 100, 10000) and page navigation.
+  - **Bulk Action Wiring (Requirements §11.3 & P-804/P-1111)**:
+    When one or more products are checked in the table, the bulk action bar slides in, displaying the count of selected items and an "Export Selected to Inventory Export" button. Triggering this button navigates to `/inventory/export` with query parameter `productIds` carrying the selected IDs.
+- Unit Tests (`frontend/src/app/features/inventory/inventory-list.component.spec.ts`):
+  - Validates fetching and rendering items with visual stock status badges.
+  - Validates filter controls updating router query parameters and triggering re-fetch.
+  - Validates sorting and pagination modifying URL state.
+  - Validates row selection tracking and bulk action export navigation with pre-selected product IDs.
