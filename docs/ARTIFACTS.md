@@ -5621,3 +5621,52 @@ var sgst = Money.Round2(totalGst - cgst);
   - `DuplicateSubdomain_FailsWithExitCode2_AndCreatesNothing`
   - `InvalidSubdomainOrBranchCode_RejectedBeforeAnyWrite`
   - `TwoTenants_ProvisionedBackToBack_CannotSeeEachOthersRoles_ThroughAppRole`
+
+## P-1201
+### Seed Script: Demo Tenant, 2 Branches, Users Per Role, Catalog, Stock, IMEIs (`tools/seed`)
+- Seeding Console Application (`tools/seed`):
+  - Entry point: `dotnet run --project tools/seed -- [options]`
+  - CLI Options:
+    - `--tenant-name <name>`: Tenant display name (default: `"Apex Mobiles Demo"`)
+    - `--subdomain <subdomain>`: Tenant subdomain (default: `"apex"`)
+    - `--force`: Wipe existing tenant data (using `public.delete_tenant_data_for_restore`) and re-seed
+    - `--connection <conn>`: Database owner connection string (defaults to `STOREOS_MIGRATIONS_CONNECTION`)
+  - Classes:
+    - `StoreOS.Seed.SeedDemoTenant`: Static engine orchestrating real domain factories and application entities.
+    - `StoreOS.Seed.SeedResult`: Structured execution record with entity counts and IDs.
+- Seeded User Credentials (Password for all users: `Demo@12345`):
+  - `owner@apex.example`: Role `Owner` (Tenant-wide / all branches, all 17 permissions)
+  - `manager@apex.example`: Role `BranchManager` (Scoped to Branch `B01`)
+  - `cashier@apex.example`: Role `Cashier` (Scoped to Branch `B01`)
+  - `technician@apex.example`: Role `Technician` (Scoped to Branch `B01`)
+- Seeded Inventory Categories & Entity Counts:
+  - **Tenancy**: 1 Tenant (`"Apex Mobiles Demo"`, `repairs = true`), 2 Branches (`B01` "Main Branch", `B02` "Mall Branch").
+  - **Users**: 4 Users (Owner, Branch Manager, Cashier, Technician) with Argon2id hashed password `Demo@12345`.
+  - **Catalog**: 23 Products across 4 categories:
+    - New Phones: 5 items (iPhone 15 Pro, S24 Ultra, Pixel 8 Pro, OnePlus 12, Xiaomi 14).
+    - Used Phones: 5 items with `IsMarginScheme = true` (iPhone 13, iPhone 14, S22, Pixel 7, OnePlus 11).
+    - Accessories: 10 items (chargers, cables, screen protectors, cases, audio).
+    - Repair Services: 3 items (screen replacement, battery replacement, port repair).
+  - **Stock & Inventories**: 40 `BranchInventory` rows (all 20 physical products at both branches). Includes low-stock item (`stock = 2, threshold = 5`) and out-of-stock item (`stock = 0, threshold = 3`).
+  - **Purchases & IMEIs**: 20 `Purchase` records and 60 `InventoryImei` records (`InStock`, 3 per phone product per branch).
+  - **Customers**: 5 `Customer` records:
+    - Rahul Dravid (GST registered).
+    - Sachin Tendulkar (regular buyer).
+    - VVS Laxman (credit limit 50,000, active balance near limit with partial payment recorded).
+    - Sourav Ganguly (walk-in).
+    - Anonymized Customer (exercised via `customer.Anonymize()`).
+  - **Suppliers**: 3 `Supplier` records with `SupplierTransaction` and `SupplierLedgerEntry` balances (`TechSource`, `RenewMobiles`, `QuickFix`), plus 1 `SupplierReturn` with `PendingCredit` settlement.
+  - **Sales History**: 9 `Sale` records:
+    - 7 Daily `TaxInvoice`s across past 7 days.
+    - 1 `Estimate` quote.
+    - 1 Credit Sale with subsequent `CustomerPayment` and ledger debit/credit.
+    - 1 Voided sale (`Status = Voided`).
+    - 1 Refunded sale (`Status = Refunded`).
+    - 1 Financed sale (`PaymentMode = Finance`, provider `Bajaj Finserv`).
+  - **Expenses**: 5 `Expense` records across Rent, Utilities, and Office categories for both branches.
+  - **Liabilities**: 1 `Liability` loan with recorded `LiabilityPayment` installment.
+  - **Repair Jobs**: 7 `RepairJob` records covering all statuses (`Received`, `Diagnosing`, `WaitingForApproval`, `WaitingForParts`, `InRepair`, `ReadyForPickup`, `Delivered`), with 1 job having parts consumed and 1 billed job linked to a sale.
+- Test Project (`tools/seed.Tests`):
+  - `SeedDemoTenantTests.cs`:
+    - `SeedAsync_CreatesAllRequiredDemoData_WithCorrectCountsAndInvariants`
+    - `SeedAsync_WhenTenantExists_SkipsWithoutForce_AndReseedsWithForce`
