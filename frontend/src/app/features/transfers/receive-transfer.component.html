@@ -1,0 +1,61 @@
+<div class="receive-transfer-container">
+  <div class="page-header">
+    <h1 class="page-title">Pending Branch Transfers</h1>
+    <p class="page-subtitle">Incoming inventory transfers in transit to this branch awaiting receipt confirmation</p>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <div class="card table-card">
+    <div *ngIf="isLoading()" class="loading-state">
+      <span>Loading pending transfers...</span>
+    </div>
+
+    <div *ngIf="!isLoading() && pendingTransfers().length === 0" class="empty-state">
+      <p class="empty-title">No pending incoming transfers</p>
+      <p class="empty-subtitle">All inventory transfers addressed to this branch have been received.</p>
+    </div>
+
+    <div *ngIf="!isLoading() && pendingTransfers().length > 0" class="table-responsive">
+      <table class="table transfers-table">
+        <thead>
+          <tr>
+            <th class="col-transfer-id">Transfer ID</th>
+            <th class="col-product">Product</th>
+            <th class="col-qty">Quantity</th>
+            <th class="col-from">From Branch</th>
+            <th class="col-status">Status</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let item of pendingTransfers()" class="transfer-row">
+            <td class="col-transfer-id">
+              <code>{{ item.id.substring(0, 8) }}...</code>
+            </td>
+            <td class="col-product">
+              <strong>{{ item.productName || item.productId }}</strong>
+            </td>
+            <td class="col-qty">
+              {{ item.qty }}
+            </td>
+            <td class="col-from">
+              <code>{{ item.fromBranchId.substring(0, 8) }}...</code>
+            </td>
+            <td class="col-status">
+              <span class="badge-status badge-pending">{{ item.status }}</span>
+            </td>
+            <td class="col-actions">
+              <button type="button" class="btn btn-primary btn-sm btn-receive"
+                [disabled]="receivingTransferId() === item.id" (click)="receiveTransfer(item)">
+                {{ receivingTransferId() === item.id ? 'Receiving...' : 'Receive' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>

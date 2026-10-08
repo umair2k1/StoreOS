@@ -1,0 +1,76 @@
+<div class="transfer-out-container">
+  <div class="page-header">
+    <h1 class="page-title">Transfer Out Inventory</h1>
+    <p class="page-subtitle">Initiate an inventory transfer to another branch location</p>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <div *ngIf="successMessage()" class="alert alert-success" role="alert">
+    {{ successMessage() }}
+  </div>
+
+  <div class="card form-card">
+    <form (ngSubmit)="submitTransfer()">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="destBranch">Destination Branch <span class="required">*</span></label>
+          <select id="destBranch" class="form-control select-dest-branch" [ngModel]="toBranchId()"
+            (ngModelChange)="toBranchId.set($event)" name="destBranch">
+            <option value="" disabled>Select destination branch</option>
+            <option *ngFor="let b of destinationBranches()" [value]="b.id">
+              {{ b.name }}
+            </option>
+          </select>
+          <small *ngIf="destinationBranches().length === 0" class="field-hint text-warning">
+            No alternative branches available for transfer.
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="productIdInput">Product Identifier <span class="required">*</span></label>
+          <input id="productIdInput" type="text" class="form-control input-product-id" placeholder="Product ID (GUID)"
+            [ngModel]="productId()" (ngModelChange)="productId.set($event)" name="productId" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="qtyInput">Quantity <span class="required">*</span></label>
+          <input id="qtyInput" type="number" class="form-control input-qty" min="1" [ngModel]="qty()"
+            (ngModelChange)="qty.set($event)" name="qty" />
+        </div>
+      </div>
+
+      <!-- Optional IMEIs Section -->
+      <section class="imei-section">
+        <div class="imei-section-header">
+          <h2 class="imei-title">IMEI Serials (Optional)</h2>
+          <span class="imei-subtitle">Specify individual serialized hardware identifiers being moved in this
+            transfer</span>
+        </div>
+
+        <div class="imei-list">
+          <div *ngFor="let imei of imeiList(); let i = index" class="imei-row">
+            <input type="text" class="form-control input-imei" placeholder="15-digit IMEI serial" [ngModel]="imei"
+              (ngModelChange)="updateImei(i, $event)" [name]="'imei_' + i" />
+            <button type="button" class="btn btn-danger btn-sm btn-remove-imei" [disabled]="imeiList().length <= 1"
+              (click)="removeImeiField(i)">
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <button type="button" class="btn btn-secondary btn-sm btn-add-imei" (click)="addImeiField()">
+          + Add Serial / IMEI
+        </button>
+      </section>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-submit-transfer" [disabled]="!isValid() || isSubmitting()">
+          {{ isSubmitting() ? 'Initiating Transfer...' : 'Initiate Transfer Out' }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

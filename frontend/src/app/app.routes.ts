@@ -52,6 +52,14 @@ export const routes: Routes = [
           { path: 'import', loadComponent: () => import('./features/purchases/import/supplier-invoice-import.component').then(m => m.SupplierInvoiceImportComponent) }
         ]
       },
+      {
+        path: 'transfers',
+        children: [
+          { path: '', redirectTo: 'receive', pathMatch: 'full' },
+          { path: 'out', loadComponent: () => import('./features/transfers/transfer-out.component').then(m => m.TransferOutComponent) },
+          { path: 'receive', loadComponent: () => import('./features/transfers/receive-transfer.component').then(m => m.ReceiveTransferComponent) }
+        ]
+      },
       { path: 'customers', children: [] },
       { path: 'reports', children: [] },
     ]

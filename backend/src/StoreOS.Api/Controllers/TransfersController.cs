@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using StoreOS.Application.Inventory.Transfers.GetPendingTransfers;
 using StoreOS.Application.Inventory.Transfers.ReceiveTransfer;
 using StoreOS.Application.Inventory.Transfers.TransferOut;
 
@@ -26,4 +27,8 @@ public class TransfersController : ControllerBase
         await _mediator.Send(new ReceiveTransferCommand(id), ct);
         return Ok(new { success = true });
     }
+
+    [HttpGet("pending")]
+    public async Task<IActionResult> GetPending(CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetPendingTransfersQuery(), ct));
 }

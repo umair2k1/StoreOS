@@ -5306,3 +5306,26 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) A response with zero ambiguous lines displays a success summary banner.
   - (b) A response with ambiguous lines renders the correct confirmation UI per line type (no-match shortcut vs multiple-match dropdown & disabled retry button).
   - (c) Disambiguating a multiple-match line and clicking "Retry" calls `PurchasesClient.stockIn` with the selected product ID, quantity, rate, invoice number, and IMEI.
+
+## P-1112
+### Branch Transfer Screen (Transfer Out, Pending Transfers List, Receive Action)
+- Query Slice (`backend/src/StoreOS.Application/Inventory/Transfers/GetPendingTransfers/`):
+  - `GetPendingTransfersQuery`: Implements `IRequest<IReadOnlyList<InventoryTransferDto>>`, `IRequiresPermission("inventory:manage")`, `IReadOnlyRequest`.
+  - `GetPendingTransfersHandler`: Queries pending transfers addressed to the current branch (`ToBranchId == CurrentBranchId` and `Status == "Pending"`), resolving product names from `Product` entity.
+  - `InventoryTransferDto`: Record containing `Id`, `FromBranchId`, `ToBranchId`, `ProductId`, `ProductName`, `Qty`, `Status`, `Imeis`, `CreatedAt`.
+- Controller (`backend/src/StoreOS.Api/Controllers/TransfersController.cs`):
+  - `GET /api/inventory/transfers/pending`: Returns pending incoming transfers for the active branch context.
+- Transfer Out Component (`frontend/src/app/features/transfers/transfer-out.component.ts`, `.html`, `.scss`):
+  - `TransferOutComponent`: Standalone Angular component (`selector: 'app-transfer-out'`).
+  - Route: `/transfers/out` (registered in `frontend/src/app/app.routes.ts`).
+  - Form fields: Destination branch selection (`toBranchId`), Product ID (`productId`), Quantity (`qty`), and dynamic IMEI serial rows (`imeiList`).
+  - **Architecture Invariant — Destination Branch Validation**: Destination branch dropdown dynamically filters out the current branch context (`b.id !== currentBranchId`), preventing transfers to self.
+  - Submits `TransferOutCommand` via `TransfersClient.transferOut(command)`.
+- Receive Transfer Component (`frontend/src/app/features/transfers/receive-transfer.component.ts`, `.html`, `.scss`):
+  - `ReceiveTransferComponent`: Standalone Angular component (`selector: 'app-receive-transfer'`).
+  - Route: `/transfers/receive` (registered in `frontend/src/app/app.routes.ts`).
+  - **Hard Constraint — Destination Branch Filtering**: The `pendingTransfers` computed signal strictly filters transfers such that only transfers addressed to the current branch context (`toBranchId === currentBranchId`) and with `Status == 'Pending'` are visible; transfers where the branch is merely the source are never displayed.
+  - Receive action: Invokes `TransfersClient.receive(transferId)` and removes the transfer from the pending list on success.
+- Unit Tests:
+  - `frontend/src/app/features/transfers/transfer-out.component.spec.ts`: Validates destination branches excluding current branch and transfer-out submission command shape.
+  - `frontend/src/app/features/transfers/receive-transfer.component.spec.ts`: Validates that pending-transfers list only shows transfers where `ToBranchId` matches current branch context, and receiving one calls the endpoint and removes it from the pending list.
