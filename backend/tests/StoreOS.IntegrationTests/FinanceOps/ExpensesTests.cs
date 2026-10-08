@@ -283,4 +283,30 @@ public class ExpensesTests : IAsyncLifetime
         result.Month.Should().Be(today.Month);
         result.TotalAmount.Should().Be(5000m);
     }
+
+    [Fact]
+    public async Task CreateExpense_And_List_WithIsoStringDates_Succeeds()
+    {
+        var token = IssueToken();
+        using var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        client.DefaultRequestHeaders.Add("X-Branch-Id", _branchId.ToString());
+
+        // Post expense using ISO 8601 string for expenseDate
+        var jsonPayload = """
+        {
+            "description": "ISO String AC Servicing",
+            "amount": 2500,
+            "category": "Maintenance",
+            "expenseDate": "2026-10-08T00:00:00.000Z"
+        }
+        """;
+        var postContent = new StringContent(jsonPayload, System.Text.Encoding.UTF8, "application/json");
+        var postResp = await client.PostAsync("/api/expenses", postContent);
+        postResp.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        // Query expenses using ISO 8601 strings in query params
+        var getResp = await client.GetAsync("/api/expenses?from=2026-10-01T00:00:00.000Z&to=2026-10-08T23:59:59.000Z");
+        getResp.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
 }

@@ -15,12 +15,21 @@ using System.Text.Json;
 using StoreOS.Application.Abstractions;
 using StoreOS.Application.Platform.BackupExport;
 using StoreOS.Application.Platform.BackupImport;
+using StoreOS.Api.Serialization;
 var builder = WebApplication.CreateBuilder(args);
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.ModelBinderProviders.Insert(0, new DateOnlyModelBinderProvider());
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new FlexibleDateOnlyJsonConverter());
+    options.JsonSerializerOptions.Converters.Add(new FlexibleNullableDateOnlyJsonConverter());
+});
 
 // Rate Limiting (P-312)
 builder.Services.AddRateLimiter(options =>
