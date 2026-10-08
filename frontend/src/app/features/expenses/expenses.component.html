@@ -117,7 +117,7 @@
         <div class="form-group">
           <label class="form-label" for="expenseAmt">Amount (₹) <span class="required">*</span></label>
           <input id="expenseAmt" type="number" min="1" step="0.01" class="form-control input-new-amount"
-            [ngModel]="newAmount()" (ngModelChange)="newAmount.set($event)" />
+            [ngModel]="newAmount()" (ngModelChange)="setAmount($event)" />
         </div>
 
         <!-- Category Input with Datalist Suggestions (Accepts ANY free-text input) -->

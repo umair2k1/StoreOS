@@ -46,7 +46,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let s of suppliers()" class="supplier-row">
+          <tr *ngFor="let s of suppliers()" class="supplier-row pz-table-row">
             <td class="col-name">
               <a [routerLink]="['/suppliers', s.id]" class="supplier-link">
                 <strong>{{ s.name }}</strong>

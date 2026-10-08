@@ -63,6 +63,11 @@ export class ExpensesComponent implements OnInit {
   readonly newExpenseDate = signal<string>(this.computeToday());
   readonly newNotes = signal<string>('');
 
+  setAmount(val: unknown): void {
+    const num = typeof val === 'number' ? val : parseFloat(String(val) || '0');
+    this.newAmount.set(isNaN(num) ? 0 : num);
+  }
+
   ngOnInit(): void {
     this.loadAll();
   }
