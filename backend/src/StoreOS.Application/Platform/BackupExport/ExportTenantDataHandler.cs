@@ -97,13 +97,15 @@ public class ExportTenantDataHandler : IRequestHandler<ExportTenantDataCommand, 
             ))
             .ToArrayAsync(ct);
 
-        var userRoleAssignments = await _db.Set<UserRoleAssignment>().IgnoreQueryFilters()
-            .Where(ura => userIds.Contains(ura.UserId))
-            .AsNoTracking()
-            .Select(ura => new BackupUserRoleAssignmentDto(
-                ura.UserId, ura.RoleId, ura.BranchId
-            ))
-            .ToArrayAsync(ct);
+        var userRoleAssignments = await (
+            from ura in _db.Set<UserRoleAssignment>().IgnoreQueryFilters().AsNoTracking()
+            where userIds.Contains(ura.UserId)
+            join b in _db.Set<Branch>().IgnoreQueryFilters().AsNoTracking() on ura.BranchId equals b.Id into branchGroup
+            from b in branchGroup.DefaultIfEmpty()
+            select new BackupUserRoleAssignmentDto(
+                ura.UserId, ura.RoleId, (Guid?)b.Id
+            )
+        ).ToArrayAsync(ct);
 
         var products = await _db.Set<Product>().IgnoreQueryFilters()
             .Where(p => p.TenantId == tenantId)

@@ -5729,3 +5729,37 @@ var sgst = Money.Round2(totalGst - cgst);
          - Start backend API on `http://localhost:5000` under app role and poll `/health/ready` until responsive.
          - Install Playwright chromium with system dependencies.
          - Run full Playwright test suite (`npx --prefix frontend playwright test`).
+
+## P-1204
+### Backup Restore Drill Automation (Monthly CI/Staging Job)
+- CLI Mode in `StoreOS.Api` (`backend/src/StoreOS.Api/Program.cs`):
+  - `Program.ExecuteCliModeAsync(string[] args, IServiceProvider services)`:
+    - Supports CLI invocation flags:
+      - `--export-backup-and-exit`: Exports tenant data directly using `ExportTenantDataHandler` into a JSON backup file.
+      - `--import-backup-and-exit`: Restores tenant data directly using `ImportTenantDataHandler` inside an explicit transaction with RLS branch restriction lifted.
+      - `--backup-path <path>`: Local file path for export target and import source (default: `restore-drill-backup.json`).
+      - `--tenant-id <id>`: Target tenant identifier to export (optional; defaults to first tenant).
+      - `--connection <cs>`: Explicit database connection string (optional; falls back to `STOREOS_MIGRATIONS_CONNECTION` or injected context).
+  - `DrillAccessScope`:
+    - Internal `IAccessScope` implementation supplying tenant context and `settings:manage` authorization for CLI execution.
+- Restore Drill Workflow (`.github/workflows/restore-drill.yml`):
+  - Schedule: `0 3 1 * *` (monthly, 03:00 UTC on the 1st).
+  - Manual dispatch: `workflow_dispatch: {}`.
+  - Execution Sequence:
+    1. Spin up Postgres & MinIO containers.
+    2. Run migrations and post-migration grants.
+    3. Seed demo tenant via `tools/seed`.
+    4. Export JSON backup snapshot via `StoreOS.Api -- --export-backup-and-exit`.
+    5. Tear down containers and destroy persistent volumes (`docker compose down -v`).
+    6. Re-create empty database and re-apply schema migrations.
+    7. Restore tenant dataset via `StoreOS.Api -- --import-backup-and-exit`.
+    8. Run reconciliation test suite (`RestoreDrillReconciliationTests`).
+  - Alerting Placeholder:
+    - `echo "RESTORE DRILL FAILED - see job logs for detailed stack trace"` (honestly-scoped placeholder for external Slack/webhook alerting secrets configured at deployment environment level).
+- Integration Tests (`backend/tests/StoreOS.IntegrationTests/Platform/RestoreDrillReconciliationTests.cs`):
+  - `RestoreDrill_ExportWipeImport_ReconciliationMatchesPreWipeSnapshot`:
+    - Seeds full demo dataset.
+    - Captures pre-wipe baseline: row counts for 18 distinct tables, net customer ledger balance sum, net supplier ledger balance sum, total stock quantity across all branch inventories.
+    - Performs CLI export, wipes tenant completely, and performs CLI restore.
+    - Re-evaluates post-restore state and asserts exact equality against baseline.
+    - Confirms multi-tenant RLS isolation and visibility under `storeos_app` connection.

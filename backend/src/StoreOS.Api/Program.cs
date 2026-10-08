@@ -11,6 +11,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using System.Text.Json;
+using StoreOS.Application.Abstractions;
+using StoreOS.Application.Platform.BackupExport;
+using StoreOS.Application.Platform.BackupImport;
 var builder = WebApplication.CreateBuilder(args);
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -257,6 +261,151 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 // Recurring Jobs (P-905, P-906)
 app.UseHangfireConfiguration();
 
+if (args.Contains("--export-backup-and-exit") || args.Contains("--import-backup-and-exit"))
+{
+    var exitCode = await Program.ExecuteCliModeAsync(args, app.Services);
+    return;
+}
+
 app.Run();
 
-public partial class Program { }
+public partial class Program
+{
+    public static async Task<int> ExecuteCliModeAsync(string[] args, IServiceProvider services)
+    {
+        string backupPath = "restore-drill-backup.json";
+        string? connectionString = null;
+        Guid? targetTenantId = null;
+        string? targetSubdomain = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--backup-path" && i + 1 < args.Length)
+                backupPath = args[++i];
+            else if (args[i] is "--connection" or "-c" && i + 1 < args.Length)
+                connectionString = args[++i];
+            else if (args[i] == "--tenant-id" && i + 1 < args.Length && Guid.TryParse(args[i + 1], out var parsedId))
+                targetTenantId = parsedId;
+            else if (args[i] == "--subdomain" && i + 1 < args.Length)
+                targetSubdomain = args[++i];
+        }
+
+        var cs = connectionString
+            ?? Environment.GetEnvironmentVariable("STOREOS_MIGRATIONS_CONNECTION");
+
+        using var scope = services.CreateScope();
+        StoreOsDbContext db;
+        bool disposeDb = false;
+
+        if (!string.IsNullOrWhiteSpace(cs))
+        {
+            var opts = new DbContextOptionsBuilder<StoreOsDbContext>()
+                .UseNpgsql(cs)
+                .Options;
+            db = new StoreOsDbContext(opts, new NullAccessScope());
+            disposeDb = true;
+        }
+        else
+        {
+            db = scope.ServiceProvider.GetRequiredService<StoreOsDbContext>();
+        }
+
+        try
+        {
+            if (args.Contains("--export-backup-and-exit"))
+            {
+                StoreOS.Domain.Tenancy.Tenant? tenant = null;
+                if (targetTenantId.HasValue)
+                {
+                    tenant = await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Id == targetTenantId.Value);
+                }
+                else if (!string.IsNullOrWhiteSpace(targetSubdomain))
+                {
+                    tenant = await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.Subdomain == targetSubdomain);
+                }
+                else
+                {
+                    tenant = await db.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync();
+                }
+
+                if (tenant == null)
+                {
+                    Console.Error.WriteLine("No tenant found to export.");
+                    return 1;
+                }
+
+                var accessScope = new DrillAccessScope(tenant.Id);
+                var storage = scope.ServiceProvider.GetRequiredService<IObjectStorageService>();
+                var handler = new ExportTenantDataHandler(db, accessScope, storage);
+
+                await using var tx = await db.Database.BeginTransactionAsync();
+                var backup = await handler.Handle(new ExportTenantDataCommand(), CancellationToken.None);
+                await tx.CommitAsync();
+
+                var json = JsonSerializer.Serialize(backup, new JsonSerializerOptions { WriteIndented = true });
+                await File.WriteAllTextAsync(backupPath, json);
+                Console.WriteLine($"Exported backup for tenant {tenant.Id} to {backupPath}");
+                return 0;
+            }
+
+            if (args.Contains("--import-backup-and-exit"))
+            {
+                if (!File.Exists(backupPath))
+                {
+                    Console.Error.WriteLine($"Backup file '{backupPath}' not found.");
+                    return 1;
+                }
+
+                var json = await File.ReadAllTextAsync(backupPath);
+                var backup = JsonSerializer.Deserialize<TenantBackupDto>(json);
+                if (backup == null)
+                {
+                    Console.Error.WriteLine("Failed to deserialize backup file.");
+                    return 1;
+                }
+
+                var accessScope = new DrillAccessScope(backup.TenantId);
+                var handler = new ImportTenantDataHandler(db, accessScope);
+
+                await using var tx = await db.Database.BeginTransactionAsync();
+                var result = await handler.Handle(new ImportTenantDataCommand(backup), CancellationToken.None);
+                if (!result.Success)
+                {
+                    await tx.RollbackAsync();
+                    Console.Error.WriteLine($"Restore failed: {result.ErrorMessage}");
+                    return 1;
+                }
+                await tx.CommitAsync();
+
+                Console.WriteLine($"Restored backup for tenant {backup.TenantId}. Tables restored: {result.RecordCounts.Count}");
+                return 0;
+            }
+
+            return 0;
+        }
+        finally
+        {
+            if (disposeDb)
+            {
+                await db.DisposeAsync();
+            }
+        }
+    }
+}
+
+internal sealed class DrillAccessScope : IAccessScope
+{
+    public DrillAccessScope(Guid tenantId) => TenantId = tenantId;
+    public Guid TenantId { get; }
+    public bool HasTenantContext => true;
+    public Guid UserId { get; } = Guid.NewGuid();
+    public IReadOnlySet<Guid> BranchIds { get; } = new HashSet<Guid>();
+    public bool AllBranches => true;
+    public IReadOnlySet<string> Permissions { get; } = new HashSet<string> { "settings:manage" };
+    public int TokenVersion => 1;
+    public bool IsAuthenticated => true;
+    public bool HasBranchAccess(Guid branchId) => true;
+    public bool HasPermission(string permissionCode) => true;
+    public void UseAnonymousTenant(Guid tenantId) { }
+    public void UseSystemContext(Guid tenantId) { }
+}

@@ -143,11 +143,23 @@ public class ImportTenantDataHandler : IRequestHandler<ImportTenantDataCommand, 
         var userRoleDtos = DeserializeTable<BackupUserRoleAssignmentDto>(request.Backup.UserRoleAssignments);
         if (userRoleDtos.Count > 0)
         {
-            var userRoleEntities = userRoleDtos.Select(ura => UserRoleAssignment.Create(
+            // Flush staged Roles, Users, Branches to DB so foreign keys exist for raw SQL inserts
+            await _db.SaveChangesAsync(ct);
+            var branchSpecific = userRoleDtos.Where(ura => ura.BranchId.HasValue).Select(ura => UserRoleAssignment.Create(
                 ura.UserId, ura.RoleId, ura.BranchId
             )).ToList();
-            await _db.Set<UserRoleAssignment>().AddRangeAsync(userRoleEntities, ct);
-            counts["user_role_assignments"] = userRoleEntities.Count;
+            if (branchSpecific.Count > 0)
+            {
+                await _db.Set<UserRoleAssignment>().AddRangeAsync(branchSpecific, ct);
+            }
+
+            foreach (var ura in userRoleDtos.Where(ura => !ura.BranchId.HasValue))
+            {
+                await _db.ExecuteRawSqlAsync(
+                    "INSERT INTO user_role_assignments (user_id, role_id, branch_id) VALUES ({0}, {1}, NULL)",
+                    new object[] { ura.UserId, ura.RoleId }, ct);
+            }
+            counts["user_role_assignments"] = userRoleDtos.Count;
         }
 
         // Products
@@ -268,7 +280,7 @@ public class ImportTenantDataHandler : IRequestHandler<ImportTenantDataCommand, 
         if (custLedgerDtos.Count > 0)
         {
             var custLedgerEntities = custLedgerDtos.Select(cle => CustomerLedgerEntry.Rehydrate(
-                cle.Id, cle.TenantId, cle.CustomerId, cle.SaleId, cle.EntryType,
+                0, cle.TenantId, cle.CustomerId, cle.SaleId, cle.EntryType,
                 cle.Debit, cle.Credit, cle.BranchId, cle.EntryDate, cle.RefId, cle.CreatedAt
             )).ToList();
             await _db.Set<CustomerLedgerEntry>().AddRangeAsync(custLedgerEntities, ct);
@@ -303,7 +315,7 @@ public class ImportTenantDataHandler : IRequestHandler<ImportTenantDataCommand, 
         if (supplierLedgerDtos.Count > 0)
         {
             var supplierLedgerEntities = supplierLedgerDtos.Select(sle => SupplierLedgerEntry.Rehydrate(
-                sle.Id, sle.TenantId, sle.SupplierId, sle.BranchId, sle.EntryType,
+                0, sle.TenantId, sle.SupplierId, sle.BranchId, sle.EntryType,
                 sle.Debit, sle.Credit, sle.EntryDate, sle.RefId, sle.CreatedAt
             )).ToList();
             await _db.Set<SupplierLedgerEntry>().AddRangeAsync(supplierLedgerEntities, ct);

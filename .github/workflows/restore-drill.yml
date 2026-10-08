@@ -1,0 +1,62 @@
+name: Monthly Restore Drill
+
+on:
+  schedule:
+    - cron: "0 3 1 * *" # 03:00 UTC on the 1st of each month
+  workflow_dispatch: {} # allow manual trigger too
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Start Postgres and Object Storage
+        run: docker compose -f deploy/docker-compose.yml up -d postgres minio
+
+      - name: Apply migrations and grants
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+          STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          sh deploy/db/apply-post-migrate.sh
+
+      - name: Seed demo tenant
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+        run: dotnet run --project tools/seed -- --tenant-name "Restore Drill Seed" --subdomain drillspec
+
+      - name: Export backup
+        run: dotnet run --project backend/src/StoreOS.Api -- --export-backup-and-exit --backup-path restore-drill-backup.json
+
+      - name: Wipe database
+        run: |
+          docker compose -f deploy/docker-compose.yml down -v
+          docker compose -f deploy/docker-compose.yml up -d postgres minio
+
+      - name: Re-apply schema and migrations
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+          STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          sh deploy/db/apply-post-migrate.sh
+
+      - name: Restore from backup
+        run: dotnet run --project backend/src/StoreOS.Api -- --import-backup-and-exit --backup-path restore-drill-backup.json
+
+      - name: Reconciliation assertions
+        run: dotnet test backend/tests/StoreOS.IntegrationTests --filter RestoreDrillReconciliationTests
+
+      - name: Alert on failure
+        if: failure()
+        # ALERTING PLACEHOLDER: In production, post to incident management / Slack webhook.
+        # External webhook URLs/secrets are configured in repository deployment environments.
+        run: echo "RESTORE DRILL FAILED - see job logs for detailed stack trace"

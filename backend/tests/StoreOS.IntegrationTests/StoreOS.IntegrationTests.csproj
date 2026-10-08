@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\StoreOS.Api\StoreOS.Api.csproj" />
     <ProjectReference Include="..\..\..\tools\StoreOS.Provisioning\StoreOS.Provisioning.csproj" />
+    <ProjectReference Include="..\..\..\tools\seed\seed.csproj" />
   </ItemGroup>
 
 </Project>
