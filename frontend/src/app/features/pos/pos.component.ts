@@ -171,4 +171,12 @@ export class PosComponent implements AfterViewInit {
       invoiceDiscount: 0
     });
   }
+
+  async saveAsEstimate(): Promise<void> {
+    await this.checkoutService.saveEstimate({
+      customer: this.selectedCustomer(),
+      payments: this.payments(),
+      invoiceDiscount: 0
+    });
+  }
 }

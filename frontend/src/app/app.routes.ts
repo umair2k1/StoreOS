@@ -26,9 +26,17 @@ export const routes: Routes = [
       { path: '', redirectTo: 'pos', pathMatch: 'full' },
       {
         path: 'pos',
-        loadComponent: () => import('./features/pos/pos.component').then(m => m.PosComponent)
+        children: [
+          { path: '', loadComponent: () => import('./features/pos/pos.component').then(m => m.PosComponent) },
+          { path: 'estimates/:id', loadComponent: () => import('./features/pos/estimate/estimate-detail.component').then(m => m.EstimateDetailComponent) }
+        ]
       },
-      { path: 'sales', children: [] },
+      {
+        path: 'sales',
+        children: [
+          { path: 'estimates/:id', loadComponent: () => import('./features/pos/estimate/estimate-detail.component').then(m => m.EstimateDetailComponent) }
+        ]
+      },
       { path: 'inventory', children: [] },
       { path: 'customers', children: [] },
       { path: 'reports', children: [] },

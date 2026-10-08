@@ -7,7 +7,8 @@ import type {
   CheckoutPayment,
   CheckoutFinanceDetails,
   CustomerListItemDto,
-  FileResponse
+  FileResponse,
+  CreateEstimateBody
 } from '../../core/api/generated-client';
 import { CartStateService } from './cart/cart-state.service';
 import { ToastService } from '../../shared/services/toast.service';
@@ -18,6 +19,19 @@ export interface CheckoutOptions {
   finance?: CheckoutFinanceDetails | null;
   invoiceDiscount?: number;
   description?: string;
+}
+export interface EstimateOptions {
+  customer?: CustomerListItemDto | null;
+  payments?: CheckoutPayment[];
+  invoiceDiscount?: number;
+  description?: string;
+}
+
+export interface EstimateResult {
+  success: boolean;
+  estimateId?: string;
+  invoiceNumber?: string;
+  error?: string;
 }
 
 export interface CheckoutResult {
@@ -118,6 +132,64 @@ export class CheckoutService {
     }
   }
 
+  async saveEstimate(options: EstimateOptions): Promise<EstimateResult> {
+    const items = this.cartState.items();
+    if (items.length === 0) {
+      this.toastService.warning('Cannot save estimate with an empty cart.');
+      return { success: false, error: 'empty_cart' };
+    }
+
+    const lines: CheckoutCartLine[] = items.map(item => ({
+      productId: item.productId,
+      qty: item.qty,
+      imei: item.imei,
+      useMarginScheme: item.useMarginScheme,
+      isGift: item.isGift,
+      overridePricePerUnit: item.overridePricePerUnit
+    }));
+
+    const customerId = options.customer?.id;
+    const walkInCustomerName = !customerId
+      ? (options.customer?.name || 'Walk-in Customer')
+      : undefined;
+
+    const body: CreateEstimateBody = {
+      lines,
+      customerId,
+      walkInCustomerName,
+      invoiceDiscount: options.invoiceDiscount ?? 0,
+      payments: options.payments && options.payments.length > 0 ? options.payments : [],
+      description: options.description
+    };
+
+    this.isSubmitting.set(true);
+
+    try {
+      const response = await firstValueFrom(this.posClient.createEstimate(body));
+      const parsedData = await this.parseSaleResponse(response);
+      const estimateId = parsedData.saleId;
+      const invoiceNumber = parsedData.invoiceNumber || 'Estimate';
+
+      // Estimate saved: clear cart
+      this.cartState.clear();
+      this.toastService.success(`Estimate saved (${invoiceNumber})`);
+
+      return {
+        success: true,
+        estimateId,
+        invoiceNumber
+      };
+    } catch (err: unknown) {
+      const errorMessage = this.extractErrorMessage(err);
+      this.toastService.error(`Failed to save estimate: ${errorMessage}`);
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      this.isSubmitting.set(false);
+    }
+  }
   async reprintInvoice(saleId?: string): Promise<boolean> {
     const targetId = saleId || this.lastSaleId();
     if (!targetId) {

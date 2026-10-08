@@ -1,0 +1,176 @@
+<div class="estimate-detail-container">
+  <div class="page-nav-bar">
+    <a routerLink="/sales" class="nav-back-link">
+      &larr; Back to Sales & Estimates
+    </a>
+  </div>
+
+  @if (isLoading()) {
+  <app-loading-state message="Loading estimate details..."></app-loading-state>
+  } @else if (errorMessage()) {
+  <app-error-state [message]="errorMessage()!" [retryable]="true" (retry)="loadEstimate()"></app-error-state>
+  } @else if (estimate(); as est) {
+  <div class="estimate-content">
+    <header class="estimate-header">
+      <div class="header-titles">
+        <div class="header-badge-row">
+          <span class="type-pill">ESTIMATE</span>
+          @if (isConverted()) {
+          <span class="status-badge converted">Converted</span>
+          } @else {
+          <span class="status-badge open">Open / Valid</span>
+          }
+        </div>
+        <h1 class="estimate-title">{{ est.invoiceNumber || 'Estimate' }}</h1>
+        <p class="estimate-date">{{ est.saleDate | pzDate }}</p>
+      </div>
+
+      @if (!isConverted() && !showPaymentPrompt()) {
+      <div class="header-actions">
+        <button type="button" class="btn-convert-prominent" (click)="startConversion()">
+          Convert to Invoice
+        </button>
+      </div>
+      }
+    </header>
+
+    @if (isConverted()) {
+    <div class="converted-banner">
+      <div class="banner-icon">&#x2714;</div>
+      <div class="banner-text">
+        <strong>This estimate has been converted to an official Tax Invoice.</strong>
+        @if (est.linkedTaxInvoiceId) {
+        <a [routerLink]="['/sales', est.linkedTaxInvoiceId]" class="banner-link">
+          View Tax Invoice &rarr;
+        </a>
+        }
+      </div>
+    </div>
+    }
+
+    <div class="detail-grid">
+      <div class="main-column">
+        <section class="card customer-card">
+          <h2 class="card-heading">Customer Information</h2>
+          <div class="info-row">
+            <span class="info-label">Customer Name:</span>
+            <span class="info-value font-semibold">
+              {{ est.customerName || 'Walk-in Customer' }}
+            </span>
+          </div>
+          @if (est.customerGstin) {
+          <div class="info-row">
+            <span class="info-label">GSTIN:</span>
+            <span class="info-value font-mono">{{ est.customerGstin }}</span>
+          </div>
+          }
+        </section>
+
+        <section class="card items-card">
+          <h2 class="card-heading">Estimate Line Items</h2>
+          <div class="table-responsive">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th class="text-right">Qty</th>
+                  <th class="text-right">Rate</th>
+                  <th class="text-right">Taxable</th>
+                  <th class="text-right">GST</th>
+                  <th class="text-right">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of est.items || []; track item.id || item.itemName) {
+                <tr>
+                  <td>
+                    <div class="item-name">{{ item.itemName }}</div>
+                    @if (item.category) {
+                    <span class="item-category">{{ item.category }}</span>
+                    }
+                  </td>
+                  <td class="text-right">{{ item.qty }}</td>
+                  <td class="text-right">{{ item.pricePerUnit | pzMoney }}</td>
+                  <td class="text-right">{{ item.taxable | pzMoney }}</td>
+                  <td class="text-right">
+                    {{ ((item.cgst || 0) + (item.sgst || 0)) | pzMoney }}
+                  </td>
+                  <td class="text-right font-semibold">
+                    {{ ((item.taxable || 0) + (item.cgst || 0) + (item.sgst || 0)) | pzMoney }}
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <div class="side-column">
+        <section class="card summary-card">
+          <h2 class="card-heading">Financial Summary</h2>
+          <div class="summary-breakdown">
+            <div class="summary-line">
+              <span>Taxable Amount</span>
+              <span>{{ est.totalTaxable | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span>CGST</span>
+              <span>{{ est.totalCgst | pzMoney }}</span>
+            </div>
+            <div class="summary-line">
+              <span>SGST</span>
+              <span>{{ est.totalSgst | pzMoney }}</span>
+            </div>
+            @if (est.discount && est.discount > 0) {
+            <div class="summary-line text-discount">
+              <span>Discount</span>
+              <span>-{{ est.discount | pzMoney }}</span>
+            </div>
+            }
+            <div class="summary-divider"></div>
+            <div class="summary-line total-line">
+              <span>Grand Total</span>
+              <span class="total-amount">{{ est.grandTotal | pzMoney }}</span>
+            </div>
+          </div>
+        </section>
+
+        @if (!isConverted()) {
+        @if (!showPaymentPrompt()) {
+        <div class="convert-cta-card card">
+          <h3>Ready to finalize?</h3>
+          <p>Convert this estimate into an official GST tax invoice with live inventory deduction.</p>
+          <button type="button" class="btn-convert-full" (click)="startConversion()">
+            Convert to Invoice
+          </button>
+        </div>
+        } @else {
+        <section class="card payment-prompt-card">
+          <div class="payment-prompt-header">
+            <h2 class="card-heading">Specify Payment for Invoice</h2>
+            <button type="button" class="btn-text-close" (click)="cancelConversion()">
+              &times; Cancel
+            </button>
+          </div>
+
+          <app-payment-panel [grandTotal]="est.grandTotal || 0"
+            (paymentsChange)="onPaymentsChange($event)"></app-payment-panel>
+
+          <div class="convert-actions">
+            <button type="button" class="btn btn-secondary" [disabled]="isConverting()" (click)="cancelConversion()">
+              Back
+            </button>
+            <button type="button" class="btn btn-primary btn-confirm-convert" [disabled]="isConverting()"
+              (click)="convert()">
+              {{ isConverting() ? 'Converting...' : 'Confirm & Generate Invoice' }}
+            </button>
+          </div>
+        </section>
+        }
+        }
+      </div>
+    </div>
+  </div>
+  }
+</div>

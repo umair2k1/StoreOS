@@ -68,5 +68,10 @@
         </span>
         <kbd class="hotkey-badge">F4</kbd>
       </button>
+
+      <button type="button" class="btn-save-estimate"
+        [disabled]="cartState.items().length === 0 || checkoutService.isSubmitting()" (click)="saveAsEstimate()">
+        <span>Save as Estimate</span>
+      </button>
     </div>
   </div>

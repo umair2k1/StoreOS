@@ -174,6 +174,9 @@
 
 .checkout-actions-wrapper {
   margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .btn-complete-checkout {
@@ -215,5 +218,32 @@
     font-weight: 700;
     padding: 0.15rem 0.4rem;
     border-radius: var(--radius-sm, 4px);
+  }
+}
+
+.btn-save-estimate {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 1rem;
+  background: var(--surface, #ffffff);
+  color: var(--accent, #2563eb);
+  border: 1px solid var(--accent, #2563eb);
+  border-radius: var(--radius-md, 8px);
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: #eff6ff;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #cbd5e1;
+    color: #94a3b8;
   }
 }

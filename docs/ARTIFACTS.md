@@ -5159,3 +5159,34 @@ var sgst = Money.Round2(totalGst - cgst);
   - (a) Successful checkout response clears the cart and shows a success toast.
   - (b) Successful checkout response followed by failed PDF fetch still shows the sale-succeeded toast with printing-failed notice, never framing the sale as a failure.
   - (c) Genuine checkout failure (e.g. 422 insufficient stock) shows an error toast and does NOT clear the cart, allowing user correction.
+
+## P-1106
+### POS: Estimate Save + Convert-to-Invoice Action
+- Estimate Save Wiring (`frontend/src/app/features/pos/checkout.service.ts`):
+  - `EstimateOptions`: `{ customer?: CustomerListItemDto | null; payments?: CheckoutPayment[]; invoiceDiscount?: number; description?: string; }`.
+  - `EstimateResult`: `{ success: boolean; estimateId?: string; invoiceNumber?: string; error?: string; }`.
+  - `CheckoutService.saveEstimate(options: EstimateOptions): Promise<EstimateResult>`:
+    - Assembles `CreateEstimateBody` from `cartState.items()`, customer, invoice discount, and optional payments.
+    - Structurally excludes finance details (per P-518 schema).
+    - Invokes `PosClient.createEstimate(body)`.
+    - Clears cart upon 201 Created and displays "Estimate saved ({invoiceNumber})" toast.
+- POS Shell Integration (`frontend/src/app/features/pos/pos.component.ts`, `.html`, `.scss`):
+  - Added "Save as Estimate" action button adjacent to "Complete Sale (F4)".
+  - Wired `saveAsEstimate()` in `PosComponent`.
+- Estimate Detail Component (`frontend/src/app/features/pos/estimate/estimate-detail.component.ts`, `.html`, `.scss`):
+  - `EstimateDetailComponent`: Standalone Angular component (`selector: 'app-estimate-detail'`).
+  - Routes: `/pos/estimates/:id` and `/sales/estimates/:id`.
+  - Lifecycle & Signals:
+    - Fetches estimate details on init via `SalesClient.getSaleById(id)`.
+    - `isConverted`: Computed signal checking `linkedTaxInvoiceId` or status `'converted'`.
+    - Prominently displays "Convert to Invoice" button for open estimates.
+    - If already converted: displays persistent status banner with link to `/sales/:linkedTaxInvoiceId` and suppresses conversion CTA.
+  - Invariant — Zero Cart Rebuild:
+    - Converts estimate directly via `PosClient.convertEstimate(estimateId, { payments })` without requiring the cashier to re-enter line items (Requirements §8.1).
+    - Re-prompts only for payment tender using reused `PaymentPanelComponent`.
+    - On successful conversion: navigates to `/sales/:newSaleId` and displays confirmation toast.
+- Unit Tests (`frontend/src/app/features/pos/estimate/estimate-detail.component.spec.ts`):
+  - Verifies estimate details load and render without rebuilding cart items.
+  - Verifies payment prompt interaction and conversion call to `PosClient.convertEstimate(id, { payments })`.
+  - Verifies post-conversion navigation to `/sales/:saleId` and success toast.
+  - Verifies conversion button suppression and converted badge rendering when estimate was previously converted.
