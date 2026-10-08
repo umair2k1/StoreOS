@@ -57,7 +57,7 @@ jobs:
         with:
           dotnet-version: "10.0.x"
       - name: Start Postgres and MinIO services
-        run: docker compose -f deploy/docker-compose.yml up -d postgres minio
+        run: docker compose -f deploy/docker-compose.yml up -d --wait postgres minio
       - name: Apply schema migrations and grants
         env:
           STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
-      - run: docker compose -f deploy/docker-compose.yml up -d postgres minio otel-collector
+      - run: docker compose -f deploy/docker-compose.yml up -d --wait postgres minio otel-collector
       - name: Migrate (owner role) and apply grants
         env:
           STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"

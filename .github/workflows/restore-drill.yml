@@ -16,7 +16,7 @@ jobs:
           dotnet-version: "10.0.x"
 
       - name: Start Postgres and Object Storage
-        run: docker compose -f deploy/docker-compose.yml up -d postgres minio
+        run: docker compose -f deploy/docker-compose.yml up -d --wait postgres minio
 
       - name: Apply migrations and grants
         env:
@@ -38,7 +38,7 @@ jobs:
       - name: Wipe database
         run: |
           docker compose -f deploy/docker-compose.yml down -v
-          docker compose -f deploy/docker-compose.yml up -d postgres minio
+          docker compose -f deploy/docker-compose.yml up -d --wait postgres minio
 
       - name: Re-apply schema and migrations
         env:

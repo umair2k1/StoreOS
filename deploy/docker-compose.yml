@@ -21,7 +21,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: elestio/minio:latest
     container_name: storeos-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
