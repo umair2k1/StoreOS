@@ -104,7 +104,10 @@ export const routes: Routes = [
       },
       {
         path: 'settings',
-        loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent)
+        children: [
+          { path: '', loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent) },
+          { path: 'backup', loadComponent: () => import('./features/settings/backup/backup-restore.component').then(m => m.BackupRestoreComponent) }
+        ]
       },
       {
         path: 'admin',

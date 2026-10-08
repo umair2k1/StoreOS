@@ -5526,3 +5526,25 @@ var sgst = Money.Round2(totalGst - cgst);
   - `frontend/src/app/features/admin/branches-admin.component.spec.ts`: Validates branch listing, creation, and updating.
   - `frontend/src/app/features/admin/users-admin.component.spec.ts`: Validates user listing, creation, deactivation state reflection, and password reset.
   - `frontend/src/app/features/admin/roles-admin.component.spec.ts`: Validates role listing, 17-row permission matrix rendering, and submitting selected permission subsets.
+
+## P-1122
+### Backup/Restore Screen (Export / Import UI with Destructive Confirmation Guard)
+- Backup / Restore Component (`frontend/src/app/features/settings/backup/backup-restore.component.ts`, `.html`, `.scss`):
+  - `BackupRestoreComponent`: Standalone Angular component (`selector: 'app-backup-restore'`).
+  - Route: `/settings/backup` (registered in `frontend/src/app/app.routes.ts`).
+  - Screen Security: Guarded with `*pzCan="'settings:manage'"`.
+  - Export Action: Invokes `POST /api/tenant/export` via `PlatformClient.export()`, downloads structured JSON as file (`Blob` + `URL.createObjectURL`).
+  - **Hard Constraint — Type-to-Confirm Destructive Import Pattern**:
+    - Importing backup files completely replaces and overwrites tenant data (transactional full restore).
+    - File selection opens an explicit confirmation challenge modal.
+    - Prominently warns user of irreversible data replacement.
+    - Requires typing the exact store name (`BrandingSignalStore.tenantName()`) into a confirmation text field.
+    - The "Permanently Overwrite & Restore" button remains strictly disabled until the confirmation phrase matches.
+    - On submission, calls `PlatformClient.import(backupDto)`.
+    - Success surfaces an alert displaying individual restored table record counts (`RecordCounts`).
+    - Rejections (such as schema version mismatches) display clear error messaging without navigating away.
+- Unit Tests (`frontend/src/app/features/settings/backup/backup-restore.component.spec.ts`):
+  - Validates that export triggers JSON file download with correct filename pattern.
+  - Validates that restore action is blocked until the confirmation phrase matches exactly.
+  - Validates that successful restore renders success message with breakdown of restored record counts.
+  - Validates that failed/rejected restore surfaces error message without navigating away.

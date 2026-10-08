@@ -1,0 +1,132 @@
+<div *pzCan="'settings:manage'" class="backup-restore-screen">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="settings-breadcrumb">
+        <a routerLink="/settings" class="back-link">&larr; Back to Settings</a>
+      </div>
+      <h1 class="page-title">Tenant Backup & Restore</h1>
+      <p class="page-subtitle">
+        Export complete tenant datasets or restore from an existing JSON backup archive
+      </p>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    <strong>Error:</strong> {{ errorMessage() }}
+  </div>
+  }
+
+  @if (importSuccessResult(); as res) {
+  <div class="alert alert-success" role="alert">
+    <h3 class="alert-heading font-semibold">&#10003; Restore Completed Successfully</h3>
+    <p class="text-sm">
+      All tenant datasets have been replaced and restored from the backup file.
+    </p>
+    @if (res.recordCounts) {
+    <div class="record-counts-grid">
+      @for (entry of getRecordCountEntries(res.recordCounts); track entry.table) {
+      <div class="count-chip">
+        <span class="count-table">{{ entry.table }}:</span>
+        <span class="count-val font-semibold">{{ entry.count }} rows</span>
+      </div>
+      }
+    </div>
+    }
+  </div>
+  }
+
+  <div class="backup-grid">
+    <!-- 1. Export Backup Card -->
+    <section class="card backup-card export-card">
+      <div class="card-header">
+        <h2 class="section-title">&#128190; Export Tenant Snapshot</h2>
+      </div>
+      <div class="card-body">
+        <p class="card-desc">
+          Generate an immutable JSON backup of all tenant data. The export includes all branches,
+          settings, catalog products, inventory batches, IMEI records, customer ledger entries,
+          sales history, and repair tickets.
+        </p>
+
+        <div class="card-actions">
+          <button type="button" class="btn btn-primary btn-export-backup" [disabled]="isExporting()"
+            (click)="exportBackup()">
+            {{ isExporting() ? 'Exporting...' : 'Export Backup' }}
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Import / Restore Backup Card -->
+    <section class="card backup-card import-card">
+      <div class="card-header">
+        <h2 class="section-title">&#9888; Restore from Backup</h2>
+      </div>
+      <div class="card-body">
+        <p class="card-desc text-danger font-semibold">
+          Warning: Restoring a backup is fully destructive and transactional.
+          All current tenant records will be wiped and replaced with the contents of the uploaded backup file.
+        </p>
+
+        <div class="file-picker-section">
+          <input #fileInput type="file" id="backupFile" class="hidden-file-input" accept=".json,application/json"
+            (change)="onFileSelected($event)" />
+
+          <button type="button" class="btn btn-outline btn-select-file" (click)="fileInput.click()">
+            Select Backup File (.json)
+          </button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- HARD CONSTRAINT: Strong confirmation dialog requiring user to type confirmation phrase -->
+  @if (isConfirmDialogOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card modal-confirm-restore">
+      <div class="modal-header danger-header">
+        <h2 class="modal-title text-danger">&#9888; Confirm Destructive Data Restore</h2>
+        <button type="button" class="btn-close" (click)="closeConfirmDialog()">&times;</button>
+      </div>
+      <form (ngSubmit)="executeRestore()">
+        <div class="modal-body">
+          <div class="warning-callout">
+            <p class="font-semibold text-danger">
+              THIS ACTION WILL IRREVERSIBLY OVERWRITE ALL TENANT DATA.
+            </p>
+            <p class="text-sm">
+              Selected backup file: <strong>{{ selectedFileName() }}</strong>
+            </p>
+            <p class="text-sm">
+              Every sale, stock adjustment, product, and customer record in your store will be replaced.
+              Ensure you have exported a current backup before proceeding.
+            </p>
+          </div>
+
+          <div class="confirmation-challenge">
+            <label for="confirmPhrase" class="challenge-label">
+              To confirm, type the store name:
+              <span class="required-phrase font-bold">{{ expectedConfirmationPhrase() }}</span>
+            </label>
+            <input id="confirmPhrase" name="confirmPhrase" type="text"
+              class="form-control confirmation-input font-semibold" [ngModel]="confirmationInput()"
+              (ngModelChange)="confirmationInput.set($event)" placeholder="Type store name exactly to confirm"
+              autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeConfirmDialog()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-danger btn-confirm-restore"
+            [disabled]="!isConfirmationMatching() || isImporting()">
+            {{ isImporting() ? 'Restoring Data...' : 'Permanently Overwrite & Restore' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+</div>
