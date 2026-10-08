@@ -5548,3 +5548,76 @@ var sgst = Money.Round2(totalGst - cgst);
   - Validates that restore action is blocked until the confirmation phrase matches exactly.
   - Validates that successful restore renders success message with breakdown of restored record counts.
   - Validates that failed/rejected restore surfaces error message without navigating away.
+
+## P-1206
+### Tenant Provisioning CLI (`tools/provision`) & Provisioning Service (`tools/StoreOS.Provisioning`)
+- Shared Provisioning Library (`tools/StoreOS.Provisioning`):
+  - `StandardRoles`:
+    - Roles: `Owner`, `RegionalManager`, `BranchManager`, `Cashier`, `Technician`
+    - Role Permissions Matrix:
+      - `Owner`: All 17 permissions (`pos:checkout`, `sales:discount:apply`, `sales:void`, `sales:refund`, `sales:credit:override`, `sales:read:any-branch`, `inventory:cost:view`, `reports:profit:view`, `inventory:manage`, `purchases:manage`, `inventory:adjustments`, `expenses:manage`, `liabilities:manage`, `repairs:manage`, `settings:manage`, `users:manage`, `branches:manage`)
+      - `RegionalManager`: `sales:read:any-branch`, `inventory:cost:view`, `reports:profit:view`
+      - `BranchManager`: `pos:checkout`, `sales:discount:apply`, `sales:credit:override`, `inventory:cost:view`, `reports:profit:view`, `inventory:manage`, `purchases:manage`, `inventory:adjustments`, `repairs:manage`
+      - `Cashier`: `pos:checkout`
+      - `Technician`: `repairs:manage`
+  - `ProvisionRequest`:
+    ```csharp
+    public record ProvisionRequest(
+        string Name,
+        string Subdomain,
+        string OwnerEmail,
+        string OwnerName,
+        string BranchCode = "B01",
+        string BranchName = "Main Branch",
+        string? Gstin = null,
+        string Timezone = "Asia/Kolkata",
+        bool Repairs = false,
+        string? OwnerPassword = null
+    );
+    ```
+  - `ProvisionResult`:
+    ```csharp
+    public record ProvisionResult
+    {
+        public bool Success { get; init; }
+        public int ExitCode { get; init; }
+        public string? Error { get; init; }
+        public Guid TenantId { get; init; }
+        public Guid BranchId { get; init; }
+        public Guid OwnerUserId { get; init; }
+        public string Subdomain { get; init; }
+        public string OwnerPassword { get; init; }
+        public string LoginUrl { get; init; }
+    }
+    ```
+  - `ProvisioningService`:
+    ```csharp
+    public class ProvisioningService
+    {
+        public ProvisioningService(StoreOsDbContext dbContext);
+        public ProvisioningService(string connectionString);
+        public Task<ProvisionResult> ProvisionAsync(ProvisionRequest request, CancellationToken ct = default);
+    }
+    ```
+- CLI Application (`tools/provision`):
+  - Entry point: `dotnet run --project tools/provision -- [options]`
+  - CLI Options:
+    - `--name`, `-n`: Tenant name (required)
+    - `--subdomain`, `-s`: Tenant subdomain (required)
+    - `--owner-email`: Owner user email (required)
+    - `--owner-name`: Owner user display name (required)
+    - `--branch-code`: Default branch code (optional, default: `B01`)
+    - `--branch-name`: Default branch name (optional, default: `Main Branch`)
+    - `--gstin`: 15-character GSTIN (optional)
+    - `--timezone`: Timezone (optional, default: `Asia/Kolkata`)
+    - `--repairs`: Repairs feature flag (optional, default: `false`)
+    - `--owner-password`: Explicit owner password (optional, default: generated 16-character secure random password)
+    - `--connection`, `-c`: DB connection string (optional, default: `STOREOS_MIGRATIONS_CONNECTION`)
+  - Output: prints temporary owner password and login URL once to stdout; exits with code 0 on success, code 1 on validation error, code 2 if subdomain already exists.
+- Documentation:
+  - `docs/RUNBOOK-provisioning.md`: Operator runbook for CLI usage, options, and manual tenant deactivation via SQL.
+- Integration Tests (`backend/tests/StoreOS.IntegrationTests/Identity/ProvisioningTests.cs`):
+  - `Provisioning_CreatesExpectedEntities_AndOwnerCanLoginWithFullPermissions`
+  - `DuplicateSubdomain_FailsWithExitCode2_AndCreatesNothing`
+  - `InvalidSubdomainOrBranchCode_RejectedBeforeAnyWrite`
+  - `TwoTenants_ProvisionedBackToBack_CannotSeeEachOthersRoles_ThroughAppRole`

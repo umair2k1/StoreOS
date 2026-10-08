@@ -23,6 +23,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StoreOS.Api\StoreOS.Api.csproj" />
+    <ProjectReference Include="..\..\..\tools\StoreOS.Provisioning\StoreOS.Provisioning.csproj" />
   </ItemGroup>
 
 </Project>
