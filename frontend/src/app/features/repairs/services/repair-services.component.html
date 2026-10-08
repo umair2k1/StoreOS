@@ -1,0 +1,197 @@
+<div class="repair-services-container">
+  <!-- Feature Disabled Fallback -->
+  @if (!isRepairsEnabled()) {
+  <div class="card module-disabled-card">
+    <div class="disabled-content">
+      <h2 class="disabled-title">Repairs Module Is Not Enabled</h2>
+      <p class="disabled-text">
+        Repair service management and ticketing are currently disabled for your store.
+        You can enable the repairs module under shop settings.
+      </p>
+      <a routerLink="/settings" class="btn btn-primary">Go to Settings</a>
+    </div>
+  </div>
+  } @else {
+  <!-- Main Content when repairs feature is enabled -->
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Repair Service Catalogue</h1>
+      <p class="page-subtitle">Configure repair service types, default SAC codes, GST rates, duration, and warranty</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-new-service" (click)="openCreateModal()">
+        + New Service
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  <!-- Services Table Card -->
+  <section class="card table-card">
+    @if (isLoading()) {
+    <div class="loading-state">
+      <span>Loading repair services...</span>
+    </div>
+    }
+
+    @if (!isLoading() && services().length === 0) {
+    <div class="empty-state">
+      <p>No repair services configured yet.</p>
+      <button type="button" class="btn btn-outline" (click)="openCreateModal()">Add Service</button>
+    </div>
+    }
+
+    @if (!isLoading() && services().length > 0) {
+    <div class="table-responsive">
+      <table class="services-table">
+        <thead>
+          <tr>
+            <th>Service Name</th>
+            <th>SAC Code</th>
+            <th class="text-right">Standard Charge</th>
+            <th>Taxable / GST</th>
+            <th>Duration</th>
+            <th>Warranty</th>
+            <th>Status</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of services(); track item.id) {
+          <tr class="service-row" [attr.data-id]="item.id">
+            <td class="col-name">
+              <div class="font-semibold">{{ item.name }}</div>
+              @if (item.description) {
+              <div class="text-muted text-xs">{{ item.description }}</div>
+              }
+            </td>
+            <td class="col-sac">{{ item.sacCode || '—' }}</td>
+            <td class="col-charge text-right font-semibold">{{ item.standardCharge | pzMoney }}</td>
+            <td class="col-tax">
+              @if (item.taxable) {
+              <span class="badge badge-info">{{ item.gstRate }}% GST</span>
+              } @else {
+              <span class="badge badge-secondary">Exempt</span>
+              }
+            </td>
+            <td class="col-duration">{{ item.estimatedDurationMinutes ? item.estimatedDurationMinutes + ' mins' : '—' }}
+            </td>
+            <td class="col-warranty">{{ item.warrantyDays ? item.warrantyDays + ' days' : '—' }}</td>
+            <td class="col-status">
+              <span class="badge" [class.badge-success]="item.isActive" [class.badge-secondary]="!item.isActive">
+                {{ item.isActive ? 'Active' : 'Inactive' }}
+              </span>
+            </td>
+            <td class="col-actions text-center">
+              <button type="button" class="btn btn-sm btn-outline btn-edit" (click)="openEditModal(item)">
+                Edit
+              </button>
+              <button type="button" class="btn btn-sm btn-outline btn-toggle-status" [class.text-danger]="item.isActive"
+                (click)="toggleDeactivate(item)">
+                {{ item.isActive ? 'Deactivate' : 'Reactivate' }}
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Create / Edit Modal -->
+  @if (isModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">{{ editingServiceId() ? 'Edit Repair Service' : 'Add Repair Service' }}</h2>
+        <button type="button" class="btn-close" (click)="closeModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="saveService()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="formName">Service Name *</label>
+            <input id="formName" name="formName" type="text" class="form-control" [ngModel]="formName()"
+              (ngModelChange)="formName.set($event)" placeholder="e.g. Screen Replacement, Battery Replacement"
+              required />
+          </div>
+
+          <div class="form-group">
+            <label for="formDescription">Description</label>
+            <textarea id="formDescription" name="formDescription" class="form-control" rows="2"
+              [ngModel]="formDescription()" (ngModelChange)="formDescription.set($event)"
+              placeholder="Optional service details or repair notes">
+            </textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="formStandardCharge">Standard Charge (₹) *</label>
+              <input id="formStandardCharge" name="formStandardCharge" type="number" step="0.01" min="0"
+                class="form-control" [ngModel]="formStandardCharge()" (ngModelChange)="formStandardCharge.set($event)"
+                required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="formSacCode">SAC Code</label>
+              <input id="formSacCode" name="formSacCode" type="text" class="form-control" [ngModel]="formSacCode()"
+                (ngModelChange)="formSacCode.set($event)" placeholder="998713" />
+              <span class="field-hint">Default 998713 for IT/device maintenance</span>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <div class="checkbox-container">
+                <label class="checkbox-label">
+                  <input type="checkbox" [ngModel]="formTaxable()" (ngModelChange)="formTaxable.set($event)"
+                    name="formTaxable" />
+                  Taxable Service
+                </label>
+              </div>
+            </div>
+
+            @if (formTaxable()) {
+            <div class="form-group col-half">
+              <label for="formGstRate">GST Rate (%)</label>
+              <input id="formGstRate" name="formGstRate" type="number" step="0.01" min="0" class="form-control"
+                [ngModel]="formGstRate()" (ngModelChange)="formGstRate.set($event)" />
+              <span class="field-hint">Default 18% GST (P-701)</span>
+            </div>
+            }
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="formEstimatedDuration">Estimated Duration (Minutes)</label>
+              <input id="formEstimatedDuration" name="formEstimatedDuration" type="number" min="0" class="form-control"
+                [ngModel]="formEstimatedDuration()" (ngModelChange)="formEstimatedDuration.set($event)" />
+              <span class="field-hint">Default 60 mins (P-701)</span>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="formWarrantyDays">Warranty (Days)</label>
+              <input id="formWarrantyDays" name="formWarrantyDays" type="number" min="0" class="form-control"
+                [ngModel]="formWarrantyDays()" (ngModelChange)="formWarrantyDays.set($event)" />
+              <span class="field-hint">Default 30 days (P-701)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+            {{ isSaving() ? 'Saving...' : (editingServiceId() ? 'Update Service' : 'Create Service') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+  }
+</div>

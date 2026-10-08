@@ -5406,3 +5406,24 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests (`frontend/src/app/features/liabilities/liabilities.component.spec.ts`):
   - Validates that the liabilities list correctly displays Title, Type, LenderName, TotalPrincipal, CurrentBalance, DueDate, and Status.
   - Validates that recording a repayment updates the displayed CurrentBalance and verifies that no control exists to edit TotalPrincipal.
+
+## P-1117
+### Repairs: Service Catalogue + Job Board (Kanban by Status, Feature Flag Guard)
+- Repair Services Component (`frontend/src/app/features/repairs/services/repair-services.component.ts`, `.html`, `.scss`):
+  - `RepairServicesComponent`: Standalone Angular component (`selector: 'app-repair-services'`).
+  - Route: `/repairs/services` (registered in `frontend/src/app/app.routes.ts`).
+  - Pre-check: Queries `SettingsClient.getRepairsEnabled()` on init. When disabled, displays a graceful warning card with link to `/settings`.
+  - Catalogue List Table: Lists repair services with SAC code, standard charge, taxable/GST rate, duration, warranty, status, and edit/deactivate actions.
+  - Create/Edit Form: Pre-populates documented P-701 defaults: SAC `998713`, GST `18%`, duration `60` min, warranty `30` days, taxable `true`.
+  - CRUD Actions: Submits `CreateRepairServiceCommand` via `RepairServicesClient.create(command)`, updates via `update(id, body)`, and toggles status via `deactivate(id)`.
+- Job Board Component (`frontend/src/app/features/repairs/job-board.component.ts`, `.html`, `.scss`):
+  - `JobBoardComponent`: Standalone Angular component (`selector: 'app-job-board'`).
+  - Route: `/repairs/board` (and default redirect `/repairs` -> `/repairs/board`).
+  - Pre-check: Queries `SettingsClient.getRepairsEnabled()`. Gracefully displays disabled fallback card when flag is false.
+  - Kanban Board Columns: 6 active columns corresponding to `Received`, `Diagnosing`, `WaitingForApproval`, `WaitingForParts`, `InRepair`, and `ReadyForPickup`.
+  - Closed Section: Collapsible panel rendering `Delivered` and `Cancelled` jobs per Requirements §22.4.
+  - **Hard Constraint — CDK DragDrop & Illegal Transition Revert (P-704)**:
+    On drop between columns, calls `RepairJobsClient.changeStatus(id, { status })`. If the backend rejects the transition (e.g. 422 `RepairStatusTransitions` violation), the card is visually reverted to its original column and index, and an error toast is surfaced.
+- Unit Tests:
+  - `frontend/src/app/features/repairs/services/repair-services.component.spec.ts`: Validates service catalogue listing, P-701 defaults on service creation, and feature-disabled fallback view.
+  - `frontend/src/app/features/repairs/job-board.component.spec.ts`: Validates active/closed status separation, legal drag-drop status updates, revert-and-toast on 422 rejected transition, and feature-disabled fallback view.

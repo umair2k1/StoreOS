@@ -83,6 +83,14 @@ export const routes: Routes = [
         path: 'liabilities',
         loadComponent: () => import('./features/liabilities/liabilities.component').then(m => m.LiabilitiesComponent)
       },
+      {
+        path: 'repairs',
+        children: [
+          { path: '', redirectTo: 'board', pathMatch: 'full' },
+          { path: 'board', loadComponent: () => import('./features/repairs/job-board.component').then(m => m.JobBoardComponent) },
+          { path: 'services', loadComponent: () => import('./features/repairs/services/repair-services.component').then(m => m.RepairServicesComponent) }
+        ]
+      },
       { path: 'reports', children: [] },
     ]
   }

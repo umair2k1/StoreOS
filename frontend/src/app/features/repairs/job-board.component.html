@@ -1,0 +1,142 @@
+<div class="job-board-container">
+  <!-- Feature Disabled Fallback -->
+  @if (!isRepairsEnabled()) {
+  <div class="card module-disabled-card">
+    <div class="disabled-content">
+      <h2 class="disabled-title">Repairs Module Is Not Enabled</h2>
+      <p class="disabled-text">
+        Repair ticketing and the Kanban job board are currently disabled for your store.
+        You can enable the repairs module under shop settings.
+      </p>
+      <a routerLink="/settings" class="btn btn-primary">Go to Settings</a>
+    </div>
+  </div>
+  } @else {
+  <!-- Main Kanban Board -->
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Repair Job Board</h1>
+      <p class="page-subtitle">Drag and drop repair job tickets across service stages</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/repairs/services" class="btn btn-outline">
+        Service Catalogue
+      </a>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  @if (isLoading()) {
+  <div class="loading-state">
+    <span>Loading repair jobs...</span>
+  </div>
+  }
+
+  <div class="kanban-wrapper" cdkDropListGroup>
+    @for (col of activeColumns; track col) {
+    <div class="kanban-column" [attr.data-column]="col">
+      <div class="column-header">
+        <span class="column-title">{{ col }}</span>
+        <span class="column-count-badge">{{ columnsMap()[col]?.length || 0 }}</span>
+      </div>
+
+      <div class="kanban-drop-list" cdkDropList [cdkDropListData]="columnsMap()[col]"
+        (cdkDropListDropped)="onDrop($event, col)">
+        @for (job of columnsMap()[col]; track job.id) {
+        <div class="job-card" cdkDrag [attr.data-job-id]="job.id">
+          <div class="card-top">
+            <span class="job-number-badge">{{ job.jobNumber }}</span>
+            @if (job.estimatedCost || job.finalTotal) {
+            <span class="job-cost font-semibold">
+              {{ (job.finalTotal || job.estimatedCost || 0) | pzMoney }}
+            </span>
+            }
+          </div>
+
+          <div class="device-info">
+            <span class="device-name font-semibold">
+              {{ job.deviceBrand }} {{ job.deviceModel }}
+            </span>
+          </div>
+
+          @if (job.customerName) {
+          <div class="customer-info text-muted text-xs">
+            <span>{{ job.customerName }}</span>
+            @if (job.customerPhone) {
+            <span> · {{ job.customerPhone }}</span>
+            }
+          </div>
+          }
+
+          @if (job.problemDescription) {
+          <div class="problem-desc text-muted text-xs">
+            {{ job.problemDescription }}
+          </div>
+          }
+        </div>
+        } @empty {
+        <div class="empty-column-placeholder">
+          <span>No jobs</span>
+        </div>
+        }
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Collapsed Section for Delivered / Cancelled Jobs (Requirements §22.4) -->
+  <section class="closed-jobs-section card">
+    <div class="closed-header" (click)="toggleClosedSection()">
+      <span class="closed-title">
+        Closed Jobs (Delivered / Cancelled) ({{ closedJobs().length }})
+      </span>
+      <button type="button" class="btn btn-sm btn-outline toggle-closed-btn">
+        {{ isClosedSectionExpanded() ? 'Hide' : 'Show' }}
+      </button>
+    </div>
+
+    @if (isClosedSectionExpanded()) {
+    <div class="closed-body">
+      @if (closedJobs().length === 0) {
+      <p class="empty-closed text-muted">No closed repair jobs.</p>
+      } @else {
+      <div class="table-responsive">
+        <table class="closed-table">
+          <thead>
+            <tr>
+              <th>Job #</th>
+              <th>Device</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th class="text-right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (job of closedJobs(); track job.id) {
+            <tr class="closed-row">
+              <td class="font-semibold">{{ job.jobNumber }}</td>
+              <td>{{ job.deviceBrand }} {{ job.deviceModel }}</td>
+              <td>{{ job.customerName || '—' }}</td>
+              <td>
+                <span class="badge" [class.badge-success]="job.status === 'Delivered'"
+                  [class.badge-secondary]="job.status === 'Cancelled'">
+                  {{ job.status }}
+                </span>
+              </td>
+              <td class="text-right">{{ (job.finalTotal || 0) | pzMoney }}</td>
+            </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      }
+    </div>
+    }
+  </section>
+  }
+</div>
