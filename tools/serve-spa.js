@@ -34,6 +34,26 @@ const mimeTypes = {
 };
 
 const server = http.createServer((req, res) => {
+  if (req.url.startsWith('/api')) {
+    const apiPort = parseInt(process.env.API_PORT || '5000', 10);
+    const apiHost = process.env.API_HOST || '127.0.0.1';
+    const proxyReq = http.request({
+      hostname: apiHost,
+      port: apiPort,
+      path: req.url,
+      method: req.method,
+      headers: { ...req.headers, host: `${apiHost}:${apiPort}` }
+    }, (proxyRes) => {
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      proxyRes.pipe(res);
+    });
+    proxyReq.on('error', () => {
+      res.writeHead(502, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Bad Gateway: Backend API unreachable on port ' + apiPort }));
+    });
+    req.pipe(proxyReq);
+    return;
+  }
   // Normalize URL and remove query strings
   const cleanUrl = req.url.split('?')[0];
   let filePath = path.join(distDir, cleanUrl);
