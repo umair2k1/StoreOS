@@ -21,10 +21,27 @@ const EMPTY_STATE: AuthState = {
   branchIds: [],
   permissions: []
 };
+const STORAGE_KEY = 'storeos_auth_state';
+
+function loadStoredState(): AuthState {
+  if (typeof window === 'undefined' || !window.localStorage) {
+    return EMPTY_STATE;
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && parsed.accessToken) {
+        return parsed as AuthState;
+      }
+    }
+  } catch {}
+  return EMPTY_STATE;
+}
 
 @Injectable({ providedIn: 'root' })
 export class AuthSignalStore {
-  private readonly state = signal<AuthState>(EMPTY_STATE);
+  private readonly state = signal<AuthState>(loadStoredState());
 
   readonly isAuthenticated = computed(() => this.state().accessToken !== null);
   readonly accessToken = computed(() => this.state().accessToken);
@@ -37,12 +54,21 @@ export class AuthSignalStore {
 
   setAuthenticated(data: Omit<AuthState, never>): void {
     this.state.set({ ...data });
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch {}
   }
 
   clear(): void {
     this.state.set(EMPTY_STATE);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {}
   }
-
   hasPermission(code: string): boolean {
     return this.state().permissions.includes(code);
   }

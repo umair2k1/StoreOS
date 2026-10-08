@@ -14,6 +14,7 @@ describe('LoginComponent', () => {
   let router: Router;
 
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [LoginComponent],
       providers: [
@@ -34,6 +35,7 @@ describe('LoginComponent', () => {
   });
 
   afterEach(() => {
+    localStorage.clear();
     httpMock.verify();
   });
 
