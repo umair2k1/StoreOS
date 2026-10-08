@@ -5502,3 +5502,27 @@ var sgst = Money.Round2(totalGst - cgst);
   - Validates that the theme toggle sets the `data-theme` attribute on the document root element.
   - Validates that the repairs module toggle is hidden for users lacking `settings:manage` permission and visible when granted.
   - Validates change password invokes API, clears session, and redirects to `/login`.
+
+## P-1121
+### Admin Screen: Branches, Users, Roles, Permission Matrix
+- Permission Catalog Constant (`frontend/src/app/core/permissions/permission-catalog.ts`):
+  - **Hard Constraint — 17 Fixed Permission Codes (P-115 Mirror)**:
+    `pos:checkout`, `sales:discount:apply`, `sales:void`, `sales:refund`, `sales:credit:override`, `sales:read:any-branch`, `inventory:cost:view`, `reports:profit:view`, `inventory:manage`, `purchases:manage`, `inventory:adjustments`, `expenses:manage`, `liabilities:manage`, `repairs:manage`, `settings:manage`, `users:manage`, `branches:manage`.
+    Exact string match with backend `PermissionCatalog.cs`.
+- Branches Admin Component (`frontend/src/app/features/admin/branches-admin.component.ts`, `.html`, `.scss`):
+  - `BranchesAdminComponent`: Standalone Angular component (`selector: 'app-branches-admin'`).
+  - Route: `/admin/branches` (registered in `frontend/src/app/app.routes.ts`).
+  - Actions: List branches, create new branch (`POST /api/branches`), edit branch profile (`PATCH /api/branches/{id}`).
+- Users Admin Component (`frontend/src/app/features/admin/users-admin.component.ts`, `.html`, `.scss`):
+  - `UsersAdminComponent`: Standalone Angular component (`selector: 'app-users-admin'`).
+  - Route: `/admin/users` (default `/admin` redirect).
+  - Actions: List users with assigned roles and branches, create user (`POST /api/users`), deactivate user (`POST /api/users/{id}/deactivate`), reset password row action (`POST /api/users/{id}/reset-password`).
+- Roles Admin Component (`frontend/src/app/features/admin/roles-admin.component.ts`, `.html`, `.scss`):
+  - `RolesAdminComponent`: Standalone Angular component (`selector: 'app-roles-admin'`).
+  - Route: `/admin/roles`.
+  - List defined roles and assigned permissions count.
+  - **Permission Matrix UI**: 17-row permission grid showing category, label, code, description, and individual allow checkbox. Submits role name and selected subset of codes to `POST /api/roles`.
+- Unit Tests:
+  - `frontend/src/app/features/admin/branches-admin.component.spec.ts`: Validates branch listing, creation, and updating.
+  - `frontend/src/app/features/admin/users-admin.component.spec.ts`: Validates user listing, creation, deactivation state reflection, and password reset.
+  - `frontend/src/app/features/admin/roles-admin.component.spec.ts`: Validates role listing, 17-row permission matrix rendering, and submitting selected permission subsets.

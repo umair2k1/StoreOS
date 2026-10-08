@@ -1,0 +1,192 @@
+<div class="admin-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="admin-nav-bar">
+        <a routerLink="/admin/branches" class="nav-tab">Branches</a>
+        <a routerLink="/admin/users" class="nav-tab active">Users & Roles</a>
+        <a routerLink="/admin/roles" class="nav-tab">Permission Matrix</a>
+      </div>
+      <h1 class="page-title">User Accounts & Access</h1>
+      <p class="page-subtitle">Manage employee accounts, role assignments, branch access, and credentials</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-new-user" (click)="openCreateModal()">
+        + New User
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  <section class="card table-card">
+    @if (isLoading()) {
+    <div class="loading-state">
+      <span>Loading users...</span>
+    </div>
+    }
+
+    @if (!isLoading() && users().length === 0) {
+    <div class="empty-state">
+      <p>No user accounts found.</p>
+      <button type="button" class="btn btn-outline" (click)="openCreateModal()">Create User</button>
+    </div>
+    }
+
+    @if (!isLoading() && users().length > 0) {
+    <div class="table-responsive">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Assigned Roles</th>
+            <th>Branch Access</th>
+            <th class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (u of users(); track u.id) {
+          <tr class="user-row" [attr.data-user-id]="u.id">
+            <td class="col-name font-semibold">{{ u.displayName }}</td>
+            <td class="col-email">{{ u.email }}</td>
+            <td class="col-status">
+              <span class="badge" [class.badge-success]="u.isActive" [class.badge-secondary]="!u.isActive">
+                {{ u.isActive ? 'Active' : 'Deactivated' }}
+              </span>
+            </td>
+            <td class="col-roles">
+              @for (r of u.roles || []; track r.roleId) {
+              <span class="badge badge-role">{{ r.roleName }}</span>
+              } @empty {
+              <span class="text-muted text-xs">No role</span>
+              }
+            </td>
+            <td class="col-branches">
+              @for (b of u.branches || []; track b.branchId) {
+              <span class="badge badge-branch">{{ b.branchName }}</span>
+              } @empty {
+              <span class="text-muted text-xs">All / None</span>
+              }
+            </td>
+            <td class="col-actions text-center">
+              @if (u.isActive) {
+              <button type="button" class="btn btn-sm btn-outline text-danger btn-deactivate"
+                (click)="deactivateUser(u)">
+                Deactivate
+              </button>
+              }
+              <button type="button" class="btn btn-sm btn-outline btn-reset-password"
+                (click)="openResetPasswordModal(u)">
+                Reset Password
+              </button>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Create User Modal -->
+  @if (isCreateModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Employee Account</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitCreateUser()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="newDisplayName">Full Name *</label>
+            <input id="newDisplayName" name="newDisplayName" type="text" class="form-control"
+              [ngModel]="newDisplayName()" (ngModelChange)="newDisplayName.set($event)" placeholder="e.g. Ramesh Kumar"
+              required />
+          </div>
+
+          <div class="form-group">
+            <label for="newEmail">Work Email / Username *</label>
+            <input id="newEmail" name="newEmail" type="email" class="form-control" [ngModel]="newEmail()"
+              (ngModelChange)="newEmail.set($event)" placeholder="ramesh@phonezone.in" required />
+          </div>
+
+          <div class="form-group">
+            <label for="newPassword">Initial Password *</label>
+            <input id="newPassword" name="newPassword" type="password" class="form-control" [ngModel]="newPassword()"
+              (ngModelChange)="newPassword.set($event)" placeholder="Temporary login password" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="newRoleId">Initial Role</label>
+              <select id="newRoleId" name="newRoleId" class="form-control" [ngModel]="newRoleId()"
+                (ngModelChange)="newRoleId.set($event)">
+                <option value="">-- Select Role --</option>
+                @for (r of roles(); track r.id) {
+                <option [value]="r.id">{{ r.name }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group col-half">
+              <label for="newBranchId">Primary Branch</label>
+              <select id="newBranchId" name="newBranchId" class="form-control" [ngModel]="newBranchId()"
+                (ngModelChange)="newBranchId.set($event)">
+                <option value="">-- All Branches --</option>
+                @for (b of branches(); track b.id) {
+                <option [value]="b.id">{{ b.name }} ({{ b.code }})</option>
+                }
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeCreateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isCreating()">
+            {{ isCreating() ? 'Creating...' : 'Create User' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Reset Password Modal (Review v2) -->
+  @if (isResetModalOpen() && selectedUser(); as u) {
+  <div class="modal-backdrop">
+    <div class="modal-card modal-reset-password">
+      <div class="modal-header">
+        <h2 class="modal-title">Reset Password: {{ u.displayName }}</h2>
+        <button type="button" class="btn-close" (click)="closeResetPasswordModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitResetPassword()">
+        <div class="modal-body">
+          <p class="text-sm text-muted">
+            Issuing a new temporary password will invalidate all existing JWT tokens and active sessions for this user.
+          </p>
+
+          <div class="form-group">
+            <label for="tempPassword">New Temporary Password *</label>
+            <input id="tempPassword" name="tempPassword" type="password" class="form-control" [ngModel]="tempPassword()"
+              (ngModelChange)="tempPassword.set($event)" placeholder="Enter temporary password" required />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeResetPasswordModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isResetting()">
+            {{ isResetting() ? 'Resetting...' : 'Confirm Password Reset' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+</div>

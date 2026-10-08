@@ -106,6 +106,15 @@ export const routes: Routes = [
         path: 'settings',
         loadComponent: () => import('./features/settings/settings.component').then(m => m.SettingsComponent)
       },
+      {
+        path: 'admin',
+        children: [
+          { path: '', redirectTo: 'users', pathMatch: 'full' },
+          { path: 'branches', loadComponent: () => import('./features/admin/branches-admin.component').then(m => m.BranchesAdminComponent) },
+          { path: 'users', loadComponent: () => import('./features/admin/users-admin.component').then(m => m.UsersAdminComponent) },
+          { path: 'roles', loadComponent: () => import('./features/admin/roles-admin.component').then(m => m.RolesAdminComponent) }
+        ]
+      },
     ]
   }
 ];

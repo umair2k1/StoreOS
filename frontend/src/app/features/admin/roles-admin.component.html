@@ -1,0 +1,144 @@
+<div class="admin-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="admin-nav-bar">
+        <a routerLink="/admin/branches" class="nav-tab">Branches</a>
+        <a routerLink="/admin/users" class="nav-tab">Users & Roles</a>
+        <a routerLink="/admin/roles" class="nav-tab active">Permission Matrix</a>
+      </div>
+      <h1 class="page-title">Roles & Permission Matrix</h1>
+      <p class="page-subtitle">Configure granular functional permissions across POS, Inventory, and Administration</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-new-role" (click)="openCreateModal()">
+        + Create Role
+      </button>
+    </div>
+  </div>
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  <!-- Existing Roles Section -->
+  <section class="card table-card">
+    <div class="card-header">
+      <h2 class="section-title">Defined Roles ({{ roles().length }})</h2>
+    </div>
+
+    @if (isLoading()) {
+    <div class="loading-state">
+      <span>Loading roles...</span>
+    </div>
+    }
+
+    @if (!isLoading() && roles().length === 0) {
+    <div class="empty-state">
+      <p>No custom roles defined.</p>
+      <button type="button" class="btn btn-outline" (click)="openCreateModal()">Create Role</button>
+    </div>
+    }
+
+    @if (!isLoading() && roles().length > 0) {
+    <div class="table-responsive">
+      <table class="roles-table">
+        <thead>
+          <tr>
+            <th>Role Name</th>
+            <th class="text-center">Permissions Count</th>
+            <th>Assigned Permissions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of roles(); track r.id) {
+          <tr class="role-row" [attr.data-role-id]="r.id">
+            <td class="font-semibold col-role-name">{{ r.name }}</td>
+            <td class="text-center font-semibold col-perm-count">{{ r.permissions?.length || 0 }} / 17</td>
+            <td class="col-permissions">
+              <div class="permission-chips">
+                @for (code of r.permissions || []; track code) {
+                <span class="badge badge-perm">{{ code }}</span>
+                }
+              </div>
+            </td>
+          </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    }
+  </section>
+
+  <!-- Create Role Modal with 17-Permission Matrix Grid -->
+  @if (isCreateModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Role & Configure Permission Matrix</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitCreateRole()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="newRoleName">Role Name *</label>
+            <input id="newRoleName" name="newRoleName" type="text" class="form-control" [ngModel]="newRoleName()"
+              (ngModelChange)="newRoleName.set($event)"
+              placeholder="e.g. Store Supervisor, Inventory Auditor, Head Technician" required />
+          </div>
+
+          <div class="matrix-header-bar">
+            <span class="matrix-title font-semibold">
+              Permission Matrix ({{ selectedPermissionCodes().length }} / 17 Selected)
+            </span>
+            <div class="matrix-quick-actions">
+              <button type="button" class="btn btn-xs btn-outline" (click)="selectAllPermissions()">Select All</button>
+              <button type="button" class="btn btn-xs btn-outline" (click)="clearAllPermissions()">Clear All</button>
+            </div>
+          </div>
+
+          <!-- PERMISSION MATRIX GRID (17 fixed permission codes) -->
+          <div class="table-responsive matrix-table-container">
+            <table class="matrix-table">
+              <thead>
+                <tr>
+                  <th class="col-check text-center">Allow</th>
+                  <th>Category</th>
+                  <th>Permission Name</th>
+                  <th>Code</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (perm of permissionDefinitions; track perm.code) {
+                <tr class="matrix-row" [class.row-selected]="isPermissionSelected(perm.code)"
+                  (click)="togglePermission(perm.code)">
+                  <td class="col-check text-center" (click)="$event.stopPropagation()">
+                    <input type="checkbox" class="perm-checkbox" [attr.data-code]="perm.code"
+                      [checked]="isPermissionSelected(perm.code)" (change)="togglePermission(perm.code)" />
+                  </td>
+                  <td class="col-cat">
+                    <span class="badge badge-cat">{{ perm.category }}</span>
+                  </td>
+                  <td class="font-semibold col-label">{{ perm.label }}</td>
+                  <td class="font-mono text-xs text-muted col-code">{{ perm.code }}</td>
+                  <td class="text-xs text-muted col-desc">{{ perm.description }}</td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeCreateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary btn-save-role" [disabled]="isCreating()">
+            {{ isCreating() ? 'Creating Role...' : 'Create Role' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+</div>
