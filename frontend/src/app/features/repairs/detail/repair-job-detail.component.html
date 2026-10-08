@@ -1,0 +1,368 @@
+<div class="repair-detail-container">
+  @if (isLoading()) {
+  <div class="loading-state">
+    <span>Loading repair job details...</span>
+  </div>
+  }
+
+  @if (errorMessage()) {
+  <div class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+  }
+
+  @if (!isLoading() && job(); as j) {
+  <!-- Page Header & Action Bar -->
+  <div class="page-header">
+    <div class="header-titles">
+      <div class="job-meta-line">
+        <a routerLink="/repairs/board" class="back-link">&larr; Back to Board</a>
+        <span class="badge badge-status" [attr.data-status]="j.status">{{ j.status }}</span>
+        @if (j.approvalState) {
+        <span class="badge badge-approval" [attr.data-approval]="j.approvalState">
+          Approval: {{ j.approvalState }}
+        </span>
+        }
+      </div>
+      <h1 class="page-title">Job #{{ j.jobNumber }}</h1>
+      <p class="page-subtitle">{{ j.deviceBrand }} {{ j.deviceModel }} &mdash; {{ j.customerName }}</p>
+    </div>
+
+    <div class="header-actions">
+      <!-- HARD CONSTRAINT (a): Deliver button ONLY appears when Status is ReadyForPickup -->
+      @if (j.status === 'ReadyForPickup') {
+      <button type="button" class="btn btn-success btn-deliver" (click)="deliverJob()">
+        &#10003; Deliver Device
+      </button>
+      }
+
+      <!-- HARD CONSTRAINT (b): Bill button ONLY appears once FinalTotal is set and no sale is linked -->
+      @if ((j.finalTotal ?? 0) > 0 && !j.saleId) {
+      <button type="button" class="btn btn-primary btn-bill" (click)="openBillingModal()">
+        &#128179; Bill This Repair
+      </button>
+      }
+
+      @if (j.saleId) {
+      <a [routerLink]="['/sales', j.saleId]" class="btn btn-outline btn-view-sale">
+        View Sale Invoice
+      </a>
+      }
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <!-- Left Column: Intake Info & Diagnosis -->
+    <div class="grid-col main-col">
+      <!-- 1. Intake / Device Info Section -->
+      <section class="card intake-card">
+        <div class="card-header">
+          <h2 class="section-title">Intake & Device Information</h2>
+        </div>
+        <div class="card-body info-grid">
+          <div class="info-item">
+            <span class="label">Customer Name:</span>
+            <span class="val font-semibold">{{ j.customerName || '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Phone:</span>
+            <span class="val">{{ j.customerPhone || '—' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Device:</span>
+            <span class="val font-semibold">{{ j.deviceBrand }} {{ j.deviceModel }} ({{ j.deviceType || 'Mobile'
+              }})</span>
+          </div>
+          <div class="info-item">
+            <span class="label">Serial / IMEI:</span>
+            <span class="val font-mono">{{ j.imei1 || j.serialNumber || '—' }}</span>
+          </div>
+          <div class="info-item full-width">
+            <span class="label">Problem Reported:</span>
+            <span class="val text-highlight">{{ j.problemDescription || '—' }}</span>
+          </div>
+          <div class="info-item full-width">
+            <span class="label">Condition & Accessories:</span>
+            <span class="val">{{ j.deviceCondition || 'Normal' }}; Accessories: {{ j.accessoriesReceived || 'None'
+              }}</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Diagnosis & Technician Notes Section -->
+      <section class="card diagnosis-card">
+        <div class="card-header">
+          <h2 class="section-title">Diagnosis & Technician Notes</h2>
+        </div>
+        <form (ngSubmit)="saveDiagnosis()" class="card-body">
+          <div class="form-group">
+            <label for="diagDiagnosis">Diagnosis Findings</label>
+            <textarea id="diagDiagnosis" name="diagDiagnosis" rows="3" class="form-control" [ngModel]="diagDiagnosis()"
+              (ngModelChange)="diagDiagnosis.set($event)"
+              placeholder="Observed technical issues, diagnostic check results...">
+            </textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="diagTechnician">Assigned Technician</label>
+              <input id="diagTechnician" name="diagTechnician" type="text" class="form-control"
+                [ngModel]="diagTechnician()" (ngModelChange)="diagTechnician.set($event)"
+                placeholder="Technician name" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="diagTechnicianNotes">Technician Notes</label>
+              <input id="diagTechnicianNotes" name="diagTechnicianNotes" type="text" class="form-control"
+                [ngModel]="diagTechnicianNotes()" (ngModelChange)="diagTechnicianNotes.set($event)"
+                placeholder="Bench notes, progress updates" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="diagInternalNotes">Internal Notes</label>
+            <input id="diagInternalNotes" name="diagInternalNotes" type="text" class="form-control"
+              [ngModel]="diagInternalNotes()" (ngModelChange)="diagInternalNotes.set($event)"
+              placeholder="Confidential store notes" />
+          </div>
+
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary btn-save-diag" [disabled]="isSavingDiagnosis()">
+              {{ isSavingDiagnosis() ? 'Saving...' : 'Save Diagnosis' }}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- 3. Parts Management Section -->
+      <section class="card parts-card">
+        <div class="card-header flex-header">
+          <h2 class="section-title">Replaced & Reserved Parts</h2>
+          <button type="button" class="btn btn-sm btn-outline btn-add-part" (click)="openReservePartModal()">
+            + Reserve Part
+          </button>
+        </div>
+        <div class="card-body">
+          @if (parts().length === 0) {
+          <p class="empty-text text-muted">No spare parts attached to this repair job.</p>
+          } @else {
+          <div class="table-responsive">
+            <table class="parts-table">
+              <thead>
+                <tr>
+                  <th>Part Name</th>
+                  <th class="text-center">Qty</th>
+                  <th class="text-right">Unit Cost</th>
+                  <th class="text-right">Charge</th>
+                  <th>Status</th>
+                  <th class="text-center">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (part of parts(); track part.id) {
+                <tr class="part-row" [attr.data-part-id]="part.id">
+                  <td class="font-semibold">{{ part.partName }}</td>
+                  <td class="text-center">{{ part.quantity }}</td>
+                  <td class="text-right">{{ part.unitCost | pzMoney }}</td>
+                  <td class="text-right font-semibold">{{ part.chargeAmount | pzMoney }}</td>
+                  <td>
+                    <span class="badge" [class.badge-info]="part.status === 'Reserved'"
+                      [class.badge-success]="part.status === 'Consumed'"
+                      [class.badge-secondary]="part.status === 'Returned'">
+                      {{ part.status }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    @if (part.status === 'Reserved') {
+                    <button type="button" class="btn btn-xs btn-outline btn-consume-part" (click)="consumePart(part)">
+                      Consume
+                    </button>
+                    <button type="button" class="btn btn-xs btn-outline btn-return-part" (click)="returnPart(part)">
+                      Return
+                    </button>
+                    } @else {
+                    <span class="text-muted text-xs">&mdash;</span>
+                    }
+                  </td>
+                </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          }
+        </div>
+      </section>
+    </div>
+
+    <!-- Right Column: Commercials & Approval -->
+    <div class="grid-col side-col">
+      <!-- 4. Approval Control Card -->
+      <section class="card approval-card">
+        <div class="card-header">
+          <h2 class="section-title">Customer Approval</h2>
+        </div>
+        <div class="card-body">
+          <p class="text-sm text-muted">Set estimate approval response received from customer:</p>
+          <div class="approval-btn-group">
+            @for (st of approvalStates; track st) {
+            <button type="button" class="btn btn-sm btn-approval-option" [class.active]="j.approvalState === st"
+              (click)="setApprovalState(st)">
+              {{ st }}
+            </button>
+            }
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. Commercials & Auto-Computed Balance Due Card -->
+      <section class="card commercials-card">
+        <div class="card-header">
+          <h2 class="section-title">Commercials & Billing</h2>
+        </div>
+        <form (ngSubmit)="saveCommercials()" class="card-body">
+          <div class="form-group">
+            <label for="commEstimatedCost">Estimated Cost</label>
+            <input id="commEstimatedCost" name="commEstimatedCost" type="number" step="0.01" class="form-control"
+              [ngModel]="commEstimatedCost()" (ngModelChange)="commEstimatedCost.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label for="commApprovedCost">Approved Cost</label>
+            <input id="commApprovedCost" name="commApprovedCost" type="number" step="0.01" class="form-control"
+              [ngModel]="commApprovedCost()" (ngModelChange)="commApprovedCost.set($event)" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="commPartsCost">Parts Cost</label>
+              <input id="commPartsCost" name="commPartsCost" type="number" step="0.01" class="form-control"
+                [ngModel]="commPartsCost()" (ngModelChange)="commPartsCost.set($event)" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="commLaborCharge">Labor Charge</label>
+              <input id="commLaborCharge" name="commLaborCharge" type="number" step="0.01" class="form-control"
+                [ngModel]="commLaborCharge()" (ngModelChange)="commLaborCharge.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="commDiscount">Discount</label>
+              <input id="commDiscount" name="commDiscount" type="number" step="0.01" class="form-control"
+                [ngModel]="commDiscount()" (ngModelChange)="commDiscount.set($event)" />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="commTax">Tax</label>
+              <input id="commTax" name="commTax" type="number" step="0.01" class="form-control" [ngModel]="commTax()"
+                (ngModelChange)="commTax.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="commFinalTotal">Final Total (₹) *</label>
+            <input id="commFinalTotal" name="commFinalTotal" type="number" step="0.01"
+              class="form-control font-semibold" [ngModel]="commFinalTotal()"
+              (ngModelChange)="commFinalTotal.set($event)" />
+          </div>
+
+          <div class="form-group">
+            <label for="commAdvancePaid">Advance Paid (₹)</label>
+            <input id="commAdvancePaid" name="commAdvancePaid" type="number" step="0.01" class="form-control"
+              [ngModel]="commAdvancePaid()" (ngModelChange)="commAdvancePaid.set($event)" />
+          </div>
+
+          <!-- Auto-computed Balance Due Display (mirrors server calculation) -->
+          <div class="balance-due-display">
+            <span class="label">Balance Due:</span>
+            <span class="val font-semibold text-danger balance-due-val">
+              {{ computedBalanceDue() | pzMoney }}
+            </span>
+          </div>
+
+          <div class="card-actions">
+            <button type="submit" class="btn btn-primary btn-save-comm" [disabled]="isSavingCommercials()">
+              {{ isSavingCommercials() ? 'Saving...' : 'Save Commercials' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <!-- Reserve Part Modal -->
+  @if (isReservePartModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Reserve Replacement Part</h2>
+        <button type="button" class="btn-close" (click)="closeReservePartModal()">&times;</button>
+      </div>
+      <form (ngSubmit)="submitReservePart()">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="partName">Part Name *</label>
+            <input id="partName" name="partName" type="text" class="form-control" [ngModel]="partName()"
+              (ngModelChange)="partName.set($event)" placeholder="e.g. iPhone 13 Screen Assembly" required />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="partQuantity">Quantity *</label>
+              <input id="partQuantity" name="partQuantity" type="number" min="1" class="form-control"
+                [ngModel]="partQuantity()" (ngModelChange)="partQuantity.set($event)" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label for="partUnitCost">Unit Cost (₹)</label>
+              <input id="partUnitCost" name="partUnitCost" type="number" step="0.01" min="0" class="form-control"
+                [ngModel]="partUnitCost()" (ngModelChange)="partUnitCost.set($event)" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="partChargeAmount">Customer Charge Amount (₹)</label>
+            <input id="partChargeAmount" name="partChargeAmount" type="number" step="0.01" min="0" class="form-control"
+              [ngModel]="partChargeAmount()" (ngModelChange)="partChargeAmount.set($event)" />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" (click)="closeReservePartModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" [disabled]="isReservingPart()">
+            {{ isReservingPart() ? 'Reserving...' : 'Reserve Part' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Billing Modal (Reusing PaymentPanelComponent from P-1104) -->
+  @if (isBillingModalOpen()) {
+  <div class="modal-backdrop">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h2 class="modal-title">Bill Repair Job #{{ j.jobNumber }}</h2>
+        <button type="button" class="btn-close" (click)="closeBillingModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="billing-summary text-sm">
+          Total to collect: <strong class="font-semibold">{{ (j.finalTotal || 0) | pzMoney }}</strong>
+        </p>
+
+        <app-payment-panel [grandTotal]="j.finalTotal || 0" (paymentsChange)="onPaymentsChange($event)" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" (click)="closeBillingModal()">Cancel</button>
+        <button type="button" class="btn btn-primary btn-confirm-bill" [disabled]="isSubmittingBilling()"
+          (click)="submitBilling()">
+          {{ isSubmittingBilling() ? 'Billing...' : 'Confirm & Generate Invoice' }}
+        </button>
+      </div>
+    </div>
+  </div>
+  }
+  }
+</div>

@@ -88,7 +88,8 @@ export const routes: Routes = [
         children: [
           { path: '', redirectTo: 'board', pathMatch: 'full' },
           { path: 'board', loadComponent: () => import('./features/repairs/job-board.component').then(m => m.JobBoardComponent) },
-          { path: 'services', loadComponent: () => import('./features/repairs/services/repair-services.component').then(m => m.RepairServicesComponent) }
+          { path: 'services', loadComponent: () => import('./features/repairs/services/repair-services.component').then(m => m.RepairServicesComponent) },
+          { path: ':id', loadComponent: () => import('./features/repairs/detail/repair-job-detail.component').then(m => m.RepairJobDetailComponent) }
         ]
       },
       { path: 'reports', children: [] },

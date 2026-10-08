@@ -5427,3 +5427,22 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/features/repairs/services/repair-services.component.spec.ts`: Validates service catalogue listing, P-701 defaults on service creation, and feature-disabled fallback view.
   - `frontend/src/app/features/repairs/job-board.component.spec.ts`: Validates active/closed status separation, legal drag-drop status updates, revert-and-toast on 422 rejected transition, and feature-disabled fallback view.
+
+## P-1118
+### Repairs: Job Detail (Intake, Diagnosis, Parts, Approval, Billing)
+- Repair Job Detail Component (`frontend/src/app/features/repairs/detail/repair-job-detail.component.ts`, `.html`, `.scss`):
+  - `RepairJobDetailComponent`: Standalone Angular component (`selector: 'app-repair-job-detail'`).
+  - Route: `/repairs/:id` (registered in `frontend/src/app/app.routes.ts`).
+  - Intake / Device Section: Displays read-mostly device identity (brand, model, IMEI, serial), reported defects, customer contacts, and intake condition.
+  - Diagnosis Form: Updates findings, assigned technician, and bench/internal notes via `RepairJobsClient.updateDiagnosis(id, body)`.
+  - Commercials Form: Edits estimated, approved, parts cost, labor charge, discount, tax, final total, and advance paid via `RepairJobsClient.updateCommercials(id, body)`. Dynamically auto-computes and displays balance due (`(finalTotal ?? estimatedCost ?? 0) - (advancePaid ?? 0)`).
+  - Customer Approval Control: Sets approval state (`Pending`, `Approved`, `Rejected`) via `RepairJobsClient.recordApproval(id, { approvalState })`.
+  - Spare Parts Management: Lists attached parts with Reserve (`reservePart(id, body)`), Consume (`consumePart(id, partId)`), and Return (`returnPart(id, partId)`) actions.
+  - **Hard Constraint — Conditional Action Visibility**:
+    - Deliver Button (`.btn-deliver`): Strictly visible only when `job.status === 'ReadyForPickup'`. Calls `RepairJobsClient.deliver(id, body)`.
+    - Bill Button (`.btn-bill`): Strictly visible only when `(job.finalTotal ?? 0) > 0` AND no sale is linked (`!job.saleId`). Reuses `PaymentPanelComponent` to collect payments and submits `BillRepairCommand` via `RepairJobsClient.billRepair(id, { payments })`, navigating directly to `/sales/${saleId}` on completion.
+- Unit Tests (`frontend/src/app/features/repairs/detail/repair-job-detail.component.spec.ts`):
+  - Validates that the Deliver button only appears when `status === 'ReadyForPickup'`.
+  - Validates that the Bill button only appears when `finalTotal > 0` and `saleId == null`.
+  - Validates that parts Reserve, Consume, and Return actions call their respective API endpoints and refresh the parts list.
+  - Validates that billing submission invokes `billRepair` and navigates to the resulting sale detail route `/sales/:saleId`.
