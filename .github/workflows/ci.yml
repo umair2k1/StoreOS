@@ -56,6 +56,16 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "10.0.x"
+      - name: Start Postgres and MinIO services
+        run: docker compose -f deploy/docker-compose.yml up -d postgres minio
+      - name: Apply schema migrations and grants
+        env:
+          STOREOS_MIGRATIONS_CONNECTION: "Host=localhost;Port=5432;Database=storeos;Username=storeos;Password=storeos_dev_password"
+          STOREOS_MIGRATIONS_CONNECTION_URI: "postgresql://storeos:storeos_dev_password@localhost:5432/storeos"
+        run: |
+          dotnet tool restore
+          dotnet ef database update --project backend/src/StoreOS.Infrastructure --startup-project backend/src/StoreOS.Api
+          sh deploy/db/apply-post-migrate.sh
       - run: dotnet restore StoreOS.sln
       - run: dotnet build StoreOS.sln --no-restore -c Release
       - run: dotnet test backend/tests/StoreOS.IntegrationTests --no-build -c Release --logger "trx;LogFileName=integration-tests.trx"
