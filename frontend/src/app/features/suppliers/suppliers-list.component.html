@@ -1,0 +1,121 @@
+<div class="suppliers-container">
+  <div class="page-header">
+    <div class="header-titles">
+      <h1 class="page-title">Suppliers Directory</h1>
+      <p class="page-subtitle">Track wholesale suppliers, purchase bills, payments, and product returns</p>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn btn-primary btn-create-supplier" (click)="openCreateModal()">
+        + New Supplier
+      </button>
+    </div>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <!-- Search Bar -->
+  <div class="card toolbar-card">
+    <div class="search-box">
+      <input type="text" class="form-control input-search" placeholder="Search by supplier name or phone..."
+        [ngModel]="searchQuery()" (ngModelChange)="onSearch($event)" />
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="card table-card">
+    <div *ngIf="isLoading()" class="loading-state">
+      <span>Loading suppliers...</span>
+    </div>
+
+    <div *ngIf="!isLoading() && suppliers().length === 0" class="empty-state">
+      <p class="empty-title">No suppliers found</p>
+      <p class="empty-subtitle">Create a supplier record or adjust your search term.</p>
+    </div>
+
+    <div *ngIf="!isLoading() && suppliers().length > 0" class="table-responsive">
+      <table class="table suppliers-table">
+        <thead>
+          <tr>
+            <th class="col-name">Supplier Name</th>
+            <th class="col-phone">Phone</th>
+            <th class="col-category">Brand / Category</th>
+            <th class="col-address">Address</th>
+            <th class="col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let s of suppliers()" class="supplier-row">
+            <td class="col-name">
+              <a [routerLink]="['/suppliers', s.id]" class="supplier-link">
+                <strong>{{ s.name }}</strong>
+              </a>
+            </td>
+            <td class="col-phone">
+              {{ s.phone || '—' }}
+            </td>
+            <td class="col-category">
+              {{ s.brandOrCategory || '—' }}
+            </td>
+            <td class="col-address">
+              {{ s.address || '—' }}
+            </td>
+            <td class="col-actions">
+              <a [routerLink]="['/suppliers', s.id]" class="btn btn-secondary btn-sm btn-view-supplier">
+                View Ledger & Details
+              </a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Create Supplier Modal -->
+  <div *ngIf="isCreateModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Supplier</h2>
+        <button type="button" class="btn-close" (click)="closeCreateModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="supName">Supplier / Company Name <span class="required">*</span></label>
+          <input id="supName" type="text" class="form-control input-new-name"
+            placeholder="e.g. Apex Telecom Wholesalers" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="supPhone">Phone</label>
+          <input id="supPhone" type="text" class="form-control input-new-phone" placeholder="Contact phone"
+            [ngModel]="newPhone()" (ngModelChange)="newPhone.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="supCategory">Brand / Category</label>
+          <input id="supCategory" type="text" class="form-control input-new-category"
+            placeholder="e.g. Apple / Smartphones" [ngModel]="newCategory()"
+            (ngModelChange)="newCategory.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="supAddress">Address</label>
+          <input id="supAddress" type="text" class="form-control input-new-address"
+            placeholder="Supplier business address" [ngModel]="newAddress()" (ngModelChange)="newAddress.set($event)" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-new-supplier"
+          [disabled]="!newName().trim() || isCreating()" (click)="submitCreateSupplier()">
+          {{ isCreating() ? 'Saving...' : 'Create Supplier' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

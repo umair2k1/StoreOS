@@ -5349,3 +5349,30 @@ var sgst = Money.Round2(totalGst - cgst);
 - Unit Tests:
   - `frontend/src/app/features/customers/customers-list.component.spec.ts`: Validates customer search querying and customer creation submission and list refresh.
   - `frontend/src/app/features/customers/detail/customer-detail.component.spec.ts`: Validates that the credit-limit edit control is hidden without `settings:manage` even when the profile-edit control (`pos:checkout`) is visible, and becomes visible when `settings:manage` is granted.
+
+## P-1114
+### Suppliers Directory + Detail (Transactions, Live Payable Balance, Returns)
+- Suppliers List Component (`frontend/src/app/features/suppliers/suppliers-list.component.ts`, `.html`, `.scss`):
+  - `SuppliersListComponent`: Standalone Angular component (`selector: 'app-suppliers-list'`).
+  - Route: `/suppliers` (registered in `frontend/src/app/app.routes.ts`).
+  - Search, pagination, and "+ New Supplier" creation dialog modal.
+  - Submits `CreateSupplierCommand` via `SuppliersClient.create(command)` and fetches list via `SuppliersClient.list(...)`.
+- Supplier Detail Component (`frontend/src/app/features/suppliers/detail/supplier-detail.component.ts`, `.html`, `.scss`):
+  - `SupplierDetailComponent`: Standalone Angular component (`selector: 'app-supplier-detail'`).
+  - Route: `/suppliers/:id` (registered in `frontend/src/app/app.routes.ts`).
+  - Profile Section: Displays name, phone, address, brand/category, and notes.
+  - **Hard Constraint — Server-Authoritative Live Payable Balance (P-606)**:
+    Payable balance is strictly derived from the backend's `GetSupplierPayableQuery` via `SuppliersClient.getPayable(id)` and is never computed client-side from transaction history alone.
+  - Transaction History Section: Lists recorded bills, payments, and opening balances via `SuppliersClient.getTransactions(id, ...)`.
+  - Record Transaction Action: Submits `RecordSupplierTransactionBody` (Bill/Payment/OpeningBalance, amount, paymentMode, referenceNo, txnDate, notes) to `POST /api/suppliers/{id}/transactions` and live-refreshes payable balance from the server upon completion.
+  - Create Return Action: Navigation shortcut linking to `/suppliers/:id/returns/new`.
+- Create Return Component (`frontend/src/app/features/suppliers/returns/create-return.component.ts`, `.html`, `.scss`):
+  - `CreateReturnComponent`: Standalone Angular component (`selector: 'app-create-return'`).
+  - Route: `/suppliers/:id/returns/new` (registered in `frontend/src/app/app.routes.ts`).
+  - Form fields: Return Date, Settlement Type (`CreditNote`, `Cash`, `Replacement`, `Adjustment`), reason, notes.
+  - Repeatable line items grid: Item Name, Quantity, Purchase Price, Return Rate, and dynamic individual IMEI serial chips per line.
+  - Submits `CreateSupplierReturnCommand` with typed `ReturnLineInput` items (including IMEI arrays) via `SupplierReturnsClient.create(command)`.
+- Unit Tests:
+  - `frontend/src/app/features/suppliers/suppliers-list.component.spec.ts`: Validates searching suppliers and submitting supplier creation form.
+  - `frontend/src/app/features/suppliers/detail/supplier-detail.component.spec.ts`: Validates that recording a transaction invokes the endpoint and live-updates the displayed payable balance directly from the server query.
+  - `frontend/src/app/features/suppliers/returns/create-return.component.spec.ts`: Validates submitting the return form with correctly structured line items, rates, and nested IMEI string arrays.

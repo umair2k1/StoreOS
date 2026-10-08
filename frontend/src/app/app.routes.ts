@@ -67,6 +67,14 @@ export const routes: Routes = [
           { path: ':id', loadComponent: () => import('./features/customers/detail/customer-detail.component').then(m => m.CustomerDetailComponent) }
         ]
       },
+      {
+        path: 'suppliers',
+        children: [
+          { path: '', loadComponent: () => import('./features/suppliers/suppliers-list.component').then(m => m.SuppliersListComponent) },
+          { path: ':id/returns/new', loadComponent: () => import('./features/suppliers/returns/create-return.component').then(m => m.CreateReturnComponent) },
+          { path: ':id', loadComponent: () => import('./features/suppliers/detail/supplier-detail.component').then(m => m.SupplierDetailComponent) }
+        ]
+      },
       { path: 'reports', children: [] },
     ]
   }

@@ -1,0 +1,162 @@
+<div class="supplier-detail-container">
+  <div class="nav-back">
+    <a [routerLink]="['/suppliers']" class="back-link">&larr; Back to Suppliers</a>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <div *ngIf="isLoading()" class="loading-state">
+    <span>Loading supplier details...</span>
+  </div>
+
+  <div *ngIf="!isLoading() && supplier()" class="detail-content">
+    <!-- Header Banner -->
+    <div class="detail-header">
+      <div class="header-titles">
+        <h1 class="supplier-name">{{ supplier()?.name }}</h1>
+        <p class="supplier-meta">
+          <span>Phone: {{ supplier()?.phone || 'Not provided' }}</span>
+          <span *ngIf="supplier()?.brandOrCategory">&bull; Category: {{ supplier()?.brandOrCategory }}</span>
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <a [routerLink]="['/suppliers', supplierId(), 'returns', 'new']" class="btn btn-secondary btn-create-return">
+          Create Return
+        </a>
+        <button type="button" class="btn btn-primary btn-record-txn" (click)="openRecordModal()">
+          Record Transaction
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Payable Balance Section -->
+    <section class="card payable-card">
+      <h2 class="card-title">Live Outstanding Payable</h2>
+      <div class="payable-stat-box">
+        <span class="stat-label">Total Payable to Supplier (Server Ledger)</span>
+        <span class="stat-value text-danger payable-value">
+          {{ payableBalance() | pzMoney }}
+        </span>
+        <span class="stat-hint">
+          Live-computed server ledger balance (P-606 authoritative state).
+        </span>
+      </div>
+    </section>
+
+    <!-- Transaction History Section -->
+    <section class="card transactions-card">
+      <h2 class="card-title">Transaction History</h2>
+
+      <div *ngIf="transactions().length === 0" class="empty-list-note">
+        No recorded bills or payments found for this supplier.
+      </div>
+
+      <div *ngIf="transactions().length > 0" class="table-responsive">
+        <table class="table txns-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Payment Mode</th>
+              <th>Reference No</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of transactions()" class="txn-row">
+              <td>
+                {{ t.txnDate | pzDate }}
+              </td>
+              <td>
+                <span class="badge-type badge-{{ t.type.toLowerCase() }}">{{ t.type }}</span>
+              </td>
+              <td>
+                <strong>{{ t.amount | pzMoney }}</strong>
+              </td>
+              <td>
+                {{ t.paymentMode || '—' }}
+              </td>
+              <td>
+                {{ t.referenceNo || '—' }}
+              </td>
+              <td>
+                {{ t.notes || '—' }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Record Transaction Modal -->
+  <div *ngIf="isRecordModalOpen()" class="modal-backdrop">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Record Supplier Transaction</h2>
+        <button type="button" class="btn-close" (click)="closeRecordModal()">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="txnTypeSelect">Transaction Type <span class="required">*</span></label>
+          <select id="txnTypeSelect" class="form-control select-txn-type" [ngModel]="txnType()"
+            (ngModelChange)="txnType.set($event)">
+            <option value="Bill">Bill (Increase Payable)</option>
+            <option value="Payment">Payment (Decrease Payable)</option>
+            <option value="OpeningBalance">Opening Balance</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="txnAmountInput">Amount (₹) <span class="required">*</span></label>
+          <input id="txnAmountInput" type="number" min="1" step="0.01" class="form-control input-txn-amount"
+            [ngModel]="txnAmount()" (ngModelChange)="txnAmount.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="txnModeSelect">Payment Mode</label>
+          <select id="txnModeSelect" class="form-control select-txn-mode" [ngModel]="txnPaymentMode()"
+            (ngModelChange)="txnPaymentMode.set($event)">
+            <option value="Cash">Cash</option>
+            <option value="BankTransfer">Bank Transfer / NEFT</option>
+            <option value="Cheque">Cheque</option>
+            <option value="UPI">UPI</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="txnRefInput">Reference / Bill / UTR No</label>
+          <input id="txnRefInput" type="text" class="form-control input-txn-ref" placeholder="e.g. UTR-98212345"
+            [ngModel]="txnReferenceNo()" (ngModelChange)="txnReferenceNo.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="txnDateInput">Transaction Date <span class="required">*</span></label>
+          <input id="txnDateInput" type="date" class="form-control input-txn-date" [ngModel]="txnDate()"
+            (ngModelChange)="txnDate.set($event)" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="txnNotesInput">Notes</label>
+          <input id="txnNotesInput" type="text" class="form-control input-txn-notes" placeholder="Remarks..."
+            [ngModel]="txnNotes()" (ngModelChange)="txnNotes.set($event)" />
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" (click)="closeRecordModal()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary btn-submit-record-txn"
+          [disabled]="txnAmount() <= 0 || isSubmittingTxn()" (click)="submitRecordTransaction()">
+          {{ isSubmittingTxn() ? 'Recording...' : 'Record Transaction' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

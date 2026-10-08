@@ -1,0 +1,119 @@
+<div class="create-return-container">
+  <div class="nav-back">
+    <a [routerLink]="['/suppliers', supplierId()]" class="back-link">&larr; Back to Supplier</a>
+  </div>
+
+  <div class="page-header">
+    <h1 class="page-title">Create Supplier Return</h1>
+    <p class="page-subtitle">Return defective or overstocked inventory back to wholesale vendor</p>
+  </div>
+
+  <div *ngIf="errorMessage()" class="alert alert-danger" role="alert">
+    {{ errorMessage() }}
+  </div>
+
+  <form (ngSubmit)="submitReturn()">
+    <!-- Return Metadata Card -->
+    <section class="card meta-card">
+      <h2 class="card-title">Return Details</h2>
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label" for="returnDateInput">Return Date <span class="required">*</span></label>
+          <input id="returnDateInput" type="date" class="form-control input-return-date" [ngModel]="returnDate()"
+            (ngModelChange)="returnDate.set($event)" name="returnDate" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="settlementSelect">Settlement Type <span class="required">*</span></label>
+          <select id="settlementSelect" class="form-control select-settlement" [ngModel]="settlementType()"
+            (ngModelChange)="settlementType.set($event)" name="settlementType">
+            <option value="CreditNote">Credit Note (Reduces Payable)</option>
+            <option value="Cash">Cash Refund</option>
+            <option value="Replacement">Replacement Item</option>
+            <option value="Adjustment">Ledger Adjustment</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="reasonInput">Reason</label>
+          <input id="reasonInput" type="text" class="form-control input-reason"
+            placeholder="e.g. Defective hardware, Wrong shipment" [ngModel]="reason()"
+            (ngModelChange)="reason.set($event)" name="reason" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Line Items Grid Card -->
+    <section class="card lines-card">
+      <div class="card-header-flex">
+        <h2 class="card-title">Return Line Items</h2>
+        <button type="button" class="btn btn-secondary btn-sm btn-add-line" (click)="addRow()">
+          + Add Item
+        </button>
+      </div>
+
+      <div class="lines-list">
+        <div *ngFor="let row of rows(); let rIdx = index" class="return-item-box">
+          <div class="item-main-grid">
+            <div class="form-group col-item-name">
+              <label class="form-label">Item / Product Name <span class="required">*</span></label>
+              <input type="text" class="form-control input-item-name" placeholder="Product name"
+                [(ngModel)]="row.itemName" [name]="'item_name_' + rIdx" />
+            </div>
+
+            <div class="form-group col-qty">
+              <label class="form-label">Qty <span class="required">*</span></label>
+              <input type="number" min="1" class="form-control input-qty" [(ngModel)]="row.qty"
+                [name]="'qty_' + rIdx" />
+            </div>
+
+            <div class="form-group col-rate">
+              <label class="form-label">Purchase Price (₹)</label>
+              <input type="number" min="0" step="0.01" class="form-control input-purchase-price"
+                [(ngModel)]="row.purchasePrice" [name]="'price_' + rIdx" />
+            </div>
+
+            <div class="form-group col-rate">
+              <label class="form-label">Return Rate (₹) <span class="required">*</span></label>
+              <input type="number" min="0" step="0.01" class="form-control input-return-rate"
+                [(ngModel)]="row.returnRate" [name]="'rate_' + rIdx" />
+            </div>
+
+            <div class="col-actions">
+              <button type="button" class="btn btn-danger btn-sm btn-remove-line" [disabled]="rows().length <= 1"
+                (click)="removeRow(rIdx)">
+                Remove
+              </button>
+            </div>
+          </div>
+
+          <!-- IMEIs for this item -->
+          <div class="item-imeis-section">
+            <div class="imeis-header">
+              <span class="imeis-title">Serial / IMEI Numbers</span>
+              <button type="button" class="btn btn-secondary btn-sm btn-add-imei" (click)="addImeiToRow(rIdx)">
+                + Add IMEI
+              </button>
+            </div>
+
+            <div *ngIf="row.imeiInputs.length > 0" class="imeis-inputs-grid">
+              <div *ngFor="let imei of row.imeiInputs; let iIdx = index" class="imei-input-chip">
+                <input type="text" class="form-control input-line-imei" placeholder="15-digit IMEI" [ngModel]="imei"
+                  (ngModelChange)="updateImeiValue(rIdx, iIdx, $event)" [name]="'imei_' + rIdx + '_' + iIdx" />
+                <button type="button" class="btn-remove-imei" (click)="removeImeiFromRow(rIdx, iIdx)">
+                  &times;
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary btn-submit-return" [disabled]="!isValid() || isSubmitting()">
+          {{ isSubmitting() ? 'Submitting Return...' : 'Submit Supplier Return' }}
+        </button>
+      </div>
+    </section>
+  </form>
+</div>
