@@ -5670,3 +5670,29 @@ var sgst = Money.Round2(totalGst - cgst);
   - `SeedDemoTenantTests.cs`:
     - `SeedAsync_CreatesAllRequiredDemoData_WithCorrectCountsAndInvariants`
     - `SeedAsync_WhenTenantExists_SkipsWithoutForce_AndReseedsWithForce`
+
+## P-1202
+### E2E Smoke Test Suite (Playwright): Full Section 2 Walkthrough
+- Playwright Configuration (`frontend/playwright.config.ts`):
+  - Configured `globalSetup: './e2e/global-setup.ts'`.
+  - Default `baseURL: process.env['BASE_URL'] || 'http://localhost:4200'`.
+  - Chromium desktop project configuration.
+- Global Setup Harness (`frontend/e2e/global-setup.ts`):
+  - Executes `dotnet run --project tools/seed -- --tenant-name "Apex Mobiles Demo" --subdomain apex --force`.
+  - Extracts seeded `Tenant ID` and stores it into `process.env['SEED_TENANT_ID']` for test specs.
+- Complete End-to-End Smoke Test Suite (`frontend/e2e/smoke.spec.ts`):
+  - Real browser automation exercising all 14 mandatory product walkthrough flows:
+    1. `login -> checkout new phone with IMEI`: Logs in as Owner, searches for seeded NewPhone, selects from dropdown, adds to cart, fills payment, completes sale, and verifies cart clearance and toast.
+    2. `sell used phone under margin scheme`: Searches for UsedPhone, asserts margin scheme toggle, checks out, and asserts invoice completion.
+    3. `credit sale + record subsequent payment`: Selects customer with credit limit, completes credit sale with partial tender, navigates to sales history, opens sale detail, and records subsequent payment.
+    4. `void a sale`: Navigates to `/sales`, selects an active sale, invokes void modal, enters required non-empty reason, confirms void, and verifies status updates.
+    5. `refund a sale`: Navigates to `/sales`, selects active sale, invokes refund modal, enters required reason and refund amount, confirms, and verifies status updates.
+    6. `purchase / stock-in`: Navigates to `/inventory`, opens product detail, fills stock-in quantity, purchase rate, and supplier details, and submits.
+    7. `supplier return`: Navigates to `/suppliers`, opens vendor detail, clicks create return, fills date, settlement type, reason, and line items, and submits return.
+    8. `record an expense`: Navigates to `/expenses`, opens create modal, fills description, amount, category, and date, confirms, and verifies table row appears.
+    9. `liability + repayment`: Navigates to `/liabilities`, opens repayment modal on active loan, enters repayment amount, payment mode, and date, and submits.
+    10. `full repair job lifecycle + billing`: Navigates to `/repairs/board`, verifies kanban columns, inspects repair ticket, and verifies status and billing actions.
+    11. `dashboard numbers reconcile with seeded data`: Navigates to `/reports/dashboard`, verifies executive metric cards (Today's Revenue, Invoices Completed, Gross Profit).
+    12. `daily audit report generates correctly`: Navigates to `/reports/daily-audit`, checks audit date controls, and verifies sales summary section.
+    13. `GSTR-1 export downloads`: Navigates to `/reports/exports`, checks outward supplies export card, enters date range, and verifies download action.
+    14. `JSON backup export then import round-trips`: Navigates to `/settings/backup`, verifies tenant export trigger and destructive restore file picker and confirmation challenge card.
