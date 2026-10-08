@@ -1430,6 +1430,39 @@
         }
       }
     },
+    "/api/tenant/public-profile": {
+      "get": {
+        "tags": [
+          "Manifest"
+        ],
+        "operationId": "Manifest_GetPublicProfile",
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "guid",
+              "nullable": true
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tenant/export": {
       "post": {
         "tags": [
