@@ -49,6 +49,17 @@ describe('LogoUploaderComponent', () => {
     expect(component.errorMessage()).toBeNull();
   });
 
+  it('sets previewUrl from initialUrl input when provided', () => {
+    component.initialUrl = 'https://media.storeos.io/tenants/t1/logo.webp';
+    expect(component.previewUrl()).toBe('https://media.storeos.io/tenants/t1/logo.webp');
+
+    component.initialUrl = 'storeos-media/tenants/t1/branding/logo_123.webp';
+    expect(component.previewUrl()).toContain('/api/tenant/logo.png');
+
+    component.initialUrl = null;
+    expect(component.previewUrl()).toBeNull();
+  });
+
   it('displays error message to user when upload is rejected (422 response)', () => {
     const file = new File(['<svg></svg>'], 'test-logo.svg', { type: 'image/svg+xml' });
     component.upload(file);

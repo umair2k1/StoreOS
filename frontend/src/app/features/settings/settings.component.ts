@@ -81,6 +81,7 @@ export class SettingsComponent implements OnInit {
 
   ngOnInit(): void {
     this.initThemeFromDom();
+    this.loadSettings();
     this.loadFinanceProviders();
     this.loadRepairsEnabled();
   }
@@ -119,6 +120,72 @@ export class SettingsComponent implements OnInit {
         this.repairsEnabled.set(parsed);
       } else if (parsed && typeof parsed === 'object' && 'enabled' in parsed) {
         this.repairsEnabled.set(parsed.enabled ?? false);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  async loadSettings(): Promise<void> {
+    await Promise.all([
+      this.loadShopInfo(),
+      this.loadTaxSettings(),
+      this.loadBankDetails()
+    ]);
+  }
+
+  async loadShopInfo(): Promise<void> {
+    try {
+      const resp = await firstValueFrom(this.settingsClient.getSetting('shop_info'));
+      const data = await this.parseFileResponse<{
+        name?: string;
+        address?: string;
+        email?: string;
+        phone?: string;
+        gstin?: string;
+        logoUrl?: string;
+      }>(resp);
+      if (data) {
+        if (data.name !== undefined) this.shopName.set(data.name);
+        if (data.address !== undefined) this.shopAddress.set(data.address);
+        if (data.email !== undefined) this.shopEmail.set(data.email);
+        if (data.phone !== undefined) this.shopPhone.set(data.phone);
+        if (data.gstin !== undefined) this.shopGstin.set(data.gstin);
+        if (data.logoUrl !== undefined) this.shopLogoUrl.set(data.logoUrl);
+      }
+    } catch {
+      // Non-critical, keep default values
+    }
+  }
+
+  async loadTaxSettings(): Promise<void> {
+    try {
+      const resp = await firstValueFrom(this.settingsClient.getSetting('tax_settings'));
+      const data = await this.parseFileResponse<{ defaultGstRate?: number }>(resp);
+      if (data && data.defaultGstRate !== undefined) {
+        this.defaultGstRate.set(data.defaultGstRate);
+      }
+    } catch {
+      // Non-critical
+    }
+  }
+
+  async loadBankDetails(): Promise<void> {
+    try {
+      const resp = await firstValueFrom(this.settingsClient.getSetting('bank_details'));
+      const data = await this.parseFileResponse<{
+        bankName?: string;
+        accountName?: string;
+        accountNumber?: string;
+        ifsc?: string;
+        branch?: string;
+      }>(resp);
+      if (data) {
+        if (data.bankName !== undefined) this.bankName.set(data.bankName);
+        if (data.accountName !== undefined) this.accountName.set(data.accountName);
+        if (data.accountNumber !== undefined) this.accountNumber.set(data.accountNumber);
+        if (data.ifsc !== undefined) this.ifsc.set(data.ifsc);
+        if (data.branch !== undefined) this.branch.set(data.branch);
       }
     } catch {
       // Non-critical

@@ -224,4 +224,32 @@ public class PatchSettingTests : IAsyncLifetime
         var res = await _client.SendAsync(req);
         res.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task GetSetting_WhenSettingExists_ReturnsJsonContent()
+    {
+        const string key = "shop_info";
+        var payload = new { name = "Phone Zone", phone = "9876543210" };
+
+        var patchReq = CreateRequest(HttpMethod.Patch, $"/api/settings/{key}", payload, _adminToken);
+        var patchRes = await _client.SendAsync(patchReq);
+        patchRes.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getReq = CreateRequest(HttpMethod.Get, $"/api/settings/{key}", null, _adminToken);
+        var getRes = await _client.SendAsync(getReq);
+        getRes.StatusCode.Should().Be(HttpStatusCode.OK);
+        getRes.Content.Headers.ContentType!.MediaType.Should().Be("application/json");
+
+        var content = await getRes.Content.ReadAsStringAsync();
+        content.Should().Contain("Phone Zone");
+        content.Should().Contain("9876543210");
+    }
+
+    [Fact]
+    public async Task GetSetting_WhenSettingAbsent_ReturnsNotFound()
+    {
+        var getReq = CreateRequest(HttpMethod.Get, "/api/settings/non_existent_key", null, _adminToken);
+        var getRes = await _client.SendAsync(getReq);
+        getRes.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
 }

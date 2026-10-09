@@ -72,6 +72,31 @@ describe('SettingsComponent', () => {
     vi.spyOn(settingsClient, 'patchSetting').mockReturnValue(
       of(createFileResponse({}))
     );
+    vi.spyOn(settingsClient, 'getSetting').mockImplementation((key: string) => {
+      if (key === 'shop_info') {
+        return of(createFileResponse({
+          name: 'Saved Shop',
+          address: '123 Market St',
+          phone: '9998887776',
+          email: 'saved@shop.com',
+          gstin: '29ABCDE1234F1Z5',
+          logoUrl: 'https://cdn.example.com/saved-logo.png'
+        }));
+      }
+      if (key === 'tax_settings') {
+        return of(createFileResponse({ defaultGstRate: 18 }));
+      }
+      if (key === 'bank_details') {
+        return of(createFileResponse({
+          bankName: 'HDFC Bank',
+          accountName: 'Saved Account',
+          accountNumber: '1122334455',
+          ifsc: 'HDFC0001234',
+          branch: 'Main'
+        }));
+      }
+      return of(createFileResponse(null));
+    });
     vi.spyOn(authClient, 'changePassword').mockReturnValue(
       of(createFileResponse({}))
     );
@@ -82,6 +107,25 @@ describe('SettingsComponent', () => {
 
   afterEach(() => {
     document.documentElement.removeAttribute('data-theme');
+  });
+
+  it('loads and populates existing settings on ngOnInit', async () => {
+    fixture.detectChanges();
+    await component.loadSettings();
+    fixture.detectChanges();
+
+    expect(settingsClient.getSetting).toHaveBeenCalledWith('shop_info');
+    expect(settingsClient.getSetting).toHaveBeenCalledWith('tax_settings');
+    expect(settingsClient.getSetting).toHaveBeenCalledWith('bank_details');
+
+    expect(component.shopName()).toBe('Saved Shop');
+    expect(component.shopAddress()).toBe('123 Market St');
+    expect(component.shopPhone()).toBe('9998887776');
+    expect(component.shopEmail()).toBe('saved@shop.com');
+    expect(component.shopGstin()).toBe('29ABCDE1234F1Z5');
+    expect(component.shopLogoUrl()).toBe('https://cdn.example.com/saved-logo.png');
+    expect(component.defaultGstRate()).toBe(18);
+    expect(component.bankName()).toBe('HDFC Bank');
   });
 
   it('each tab save action calls correct PATCH /api/settings/{key} with correct shape', async () => {

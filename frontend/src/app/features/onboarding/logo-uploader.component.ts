@@ -1,6 +1,7 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, Output, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 
 export interface LogoUploadResponse {
   logoUrl: string;
@@ -43,10 +44,26 @@ export interface LogoUploadResponse {
 })
 export class LogoUploaderComponent {
   private readonly http = inject(HttpClient);
+  private readonly authStore = inject(AuthSignalStore);
 
   readonly previewUrl = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
   readonly isUploading = signal<boolean>(false);
+
+  @Input() set initialUrl(val: string | null | undefined) {
+    if (!val) {
+      this.previewUrl.set(null);
+      return;
+    }
+    if (val.startsWith('http://') || val.startsWith('https://') || val.startsWith('blob:') || val.startsWith('data:')) {
+      this.previewUrl.set(val);
+      return;
+    }
+    const tenantId = this.authStore.tenantId();
+    this.previewUrl.set(tenantId
+      ? `/api/tenant/logo.png?size=512&tenantId=${encodeURIComponent(tenantId)}`
+      : '/api/tenant/logo.png?size=512');
+  }
 
   @Output() readonly logoUploaded = new EventEmitter<string>();
 
@@ -74,7 +91,7 @@ export class LogoUploaderComponent {
       next: (res) => {
         this.isUploading.set(false);
         if (res?.logoUrl) {
-          this.previewUrl.set(res.logoUrl);
+          this.initialUrl = res.logoUrl;
           this.logoUploaded.emit(res.logoUrl);
         }
       },

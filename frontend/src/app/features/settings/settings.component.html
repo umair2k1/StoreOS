@@ -43,7 +43,7 @@
         <form (ngSubmit)="saveShopInfo()" class="card-body">
           <div class="form-group logo-group">
             <label>Store Logo</label>
-            <app-logo-uploader (logoUploaded)="onLogoUploaded($event)" />
+            <app-logo-uploader [initialUrl]="shopLogoUrl()" (logoUploaded)="onLogoUploaded($event)" />
           </div>
 
           <div class="form-group">

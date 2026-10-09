@@ -30,10 +30,13 @@ public class GetTenantLogoHandler : IRequestHandler<GetTenantLogoQuery, LogoImag
         }
 
         // 1. Look for branding.logo_key setting for this tenant
-        var settingJson = await _db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
-            .Where(s => s.TenantId == request.TenantId && s.BranchId == null && s.Key == "branding.logo_key")
-            .Select(s => s.ValueJson)
-            .FirstOrDefaultAsync(ct);
+        var query = from s in _db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
+                    join b in _db.Set<Branch>().IgnoreQueryFilters().AsNoTracking() on s.BranchId equals b.Id into branchGroup
+                    from b in branchGroup.DefaultIfEmpty()
+                    where s.TenantId == request.TenantId && b == null && s.Key == "branding.logo_key"
+                    select s.ValueJson;
+
+        var settingJson = await query.FirstOrDefaultAsync(ct);
 
         string? logoKey = null;
         if (!string.IsNullOrWhiteSpace(settingJson))
