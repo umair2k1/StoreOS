@@ -20,6 +20,10 @@ dist/
 *.log
 .env
 
+
+# Python
+__pycache__/
+*.pyc
 # Agent skills and IDE metadata
 .agents/
 .claude/
