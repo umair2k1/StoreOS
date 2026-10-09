@@ -4,10 +4,11 @@ import {
   Output,
   EventEmitter,
   signal,
+  computed,
   inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { debounceTime, distinctUntilChanged, switchMap, of, catchError, tap } from 'rxjs';
 import { CustomersClient } from '../../../core/api/generated-client';
@@ -30,6 +31,7 @@ export const WALK_IN_CUSTOMER: CustomerListItemDto = {
   imports: [
     CommonModule,
     ReactiveFormsModule,
+    FormsModule,
     PzMoneyAliasPipe
   ],
   templateUrl: './customer-select.component.html',
@@ -56,8 +58,37 @@ export class CustomerSelectComponent {
   readonly isDropdownOpen = signal(false);
   readonly selectedCustomer = signal<CustomerListItemDto>(WALK_IN_CUSTOMER);
   readonly creditBalance = signal<CreditBalanceDto | null>(null);
+  readonly customPhoneInput = signal<string>('');
 
   readonly walkInCustomer = WALK_IN_CUSTOMER;
+
+  readonly isDefaultWalkIn = computed(() => {
+    const cust = this.selectedCustomer();
+    return !cust.id && (!cust.name || cust.name === 'Walk-in Customer');
+  });
+
+  readonly isCustomWalkIn = computed(() => {
+    const cust = this.selectedCustomer();
+    return !cust.id && !!cust.name && cust.name !== 'Walk-in Customer';
+  });
+
+  readonly isWalkIn = computed(() => !this.selectedCustomer().id);
+
+  readonly currentSearchTerm = toSignal(
+    this.searchControl.valueChanges,
+    { initialValue: '' }
+  );
+
+  readonly customNameOption = computed(() => {
+    const term = (this.currentSearchTerm() || '').trim();
+    if (!term || term.toLowerCase() === 'walk-in' || term.toLowerCase() === 'walk-in customer') {
+      return null;
+    }
+    const exactMatch = (this.searchResults() || []).some(
+      c => c.name?.trim().toLowerCase() === term.toLowerCase()
+    );
+    return exactMatch ? null : term;
+  });
 
   readonly searchResults = toSignal(
     this.searchControl.valueChanges.pipe(
@@ -87,14 +118,55 @@ export class CustomerSelectComponent {
     this.isDropdownOpen.set(true);
   }
 
-  selectCustomer(customer: CustomerListItemDto): void {
-    this.selectedCustomer.set(customer);
+  onSearchKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      const customName = this.customNameOption();
+      if (customName) {
+        event.preventDefault();
+        this.selectCustomName(customName);
+      }
+    } else if (event.key === 'Escape') {
+      this.isDropdownOpen.set(false);
+    }
+  }
+
+  selectCustomName(name: string): void {
+    const phone = this.customPhoneInput().trim();
+    const customCustomer: CustomerListItemDto = {
+      id: '',
+      name: name.trim(),
+      phone: phone.length > 0 ? phone : undefined,
+      totalPurchases: 0,
+      currentCreditBalance: 0
+    };
+    this.selectedCustomer.set(customCustomer);
+    this.creditBalance.set(null);
     this.isDropdownOpen.set(false);
     this.searchControl.setValue('', { emitEvent: false });
+    this.customerSelected.emit(customCustomer);
+  }
 
+  onCustomPhoneChange(phone: string): void {
+    this.customPhoneInput.set(phone);
+    const current = this.selectedCustomer();
+    if (!current.id && current.name && current.name !== 'Walk-in Customer') {
+      const updated: CustomerListItemDto = {
+        ...current,
+        phone: phone.trim().length > 0 ? phone.trim() : undefined
+      };
+      this.selectedCustomer.set(updated);
+      this.customerSelected.emit(updated);
+    }
+  }
+
+  selectCustomer(customer: CustomerListItemDto): void {
+    this.selectedCustomer.set(customer);
+    this.customPhoneInput.set(customer.phone || '');
+    this.isDropdownOpen.set(false);
+    this.searchControl.setValue('', { emitEvent: false });
     if (!customer.id) {
       this.creditBalance.set(null);
-      this.customerSelected.emit(null);
+      this.customerSelected.emit(customer);
       return;
     }
 
@@ -135,6 +207,7 @@ export class CustomerSelectComponent {
   }
 
   clearCustomer(): void {
+    this.customPhoneInput.set('');
     this.selectCustomer(WALK_IN_CUSTOMER);
   }
 }

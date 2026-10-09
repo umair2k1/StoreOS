@@ -23,6 +23,7 @@ import { ToastContainerComponent } from '../components/toast-container/toast-con
         <a routerLink="/pos">POS</a>
         <a routerLink="/sales">Sales</a>
         <a routerLink="/inventory">Inventory</a>
+        <a routerLink="/purchases/import">Purchases</a>
         <a routerLink="/customers">Customers</a>
         <a routerLink="/suppliers">Suppliers</a>
         <a routerLink="/expenses">Expenses</a>

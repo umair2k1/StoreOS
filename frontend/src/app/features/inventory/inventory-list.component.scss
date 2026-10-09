@@ -5,6 +5,9 @@
 }
 
 .inventory-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1.25rem;
 
   .page-title {
@@ -18,6 +21,11 @@
     margin: 0;
     font-size: 0.95rem;
     color: var(--muted, #64748b);
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
   }
 }
 

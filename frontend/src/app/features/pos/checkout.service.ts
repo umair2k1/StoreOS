@@ -1,6 +1,6 @@
 import { Injectable, signal, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { PosClient, SalesClient } from '../../core/api/generated-client';
+import { PosClient, SalesClient, CustomersClient } from '../../core/api/generated-client';
 import type {
   CheckoutCommand,
   CheckoutCartLine,
@@ -56,9 +56,9 @@ interface SaleCreatedResponse {
 export class CheckoutService {
   private readonly posClient = inject(PosClient);
   private readonly salesClient = inject(SalesClient);
+  private readonly customersClient = inject(CustomersClient);
   private readonly cartState = inject(CartStateService);
   private readonly toastService = inject(ToastService);
-
   readonly isSubmitting = signal(false);
   readonly lastSaleId = signal<string | null>(null);
   readonly lastInvoiceNumber = signal<string | null>(null);
@@ -114,9 +114,23 @@ export class CheckoutService {
       // INVARIANT: Checkout succeeded server-side -> clear cart immediately
       this.cartState.clear();
 
+      // Save new customer created on the go into customer directory
+      if (!options.customer?.id && options.customer?.name && options.customer.name.trim() !== 'Walk-in Customer') {
+        try {
+          const newName = options.customer.name.trim();
+          const newPhone = options.customer.phone?.trim() || undefined;
+          await firstValueFrom(this.customersClient.createCustomer({
+            name: newName,
+            phone: newPhone
+          }));
+          this.toastService.success(`Customer "${newName}" added to customer directory.`);
+        } catch {
+          // Non-blocking: Sale is already completed; do not fail checkout if customer directory insert errors
+        }
+      }
+
       // Trigger post-checkout PDF print flow
       const printSuccess = await this.executePrintFlow(saleId, invoiceNumber);
-
       return {
         success: true,
         saleId,

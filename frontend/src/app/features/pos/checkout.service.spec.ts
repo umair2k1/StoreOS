@@ -6,7 +6,7 @@ import { CheckoutService } from './checkout.service';
 import type { CheckoutOptions } from './checkout.service';
 import { CartStateService } from './cart/cart-state.service';
 import { ToastService } from '../../shared/services/toast.service';
-import { PosClient, SalesClient } from '../../core/api/generated-client';
+import { PosClient, SalesClient, CustomersClient } from '../../core/api/generated-client';
 import type { FileResponse } from '../../core/api/generated-client';
 
 describe('CheckoutService', () => {
@@ -15,7 +15,7 @@ describe('CheckoutService', () => {
   let salesClient: SalesClient;
   let cartState: CartStateService;
   let toastService: ToastService;
-
+  let customersClient: CustomersClient;
   const mockSuccessCheckoutResponse: FileResponse = {
     data: new Blob([
       JSON.stringify({
@@ -51,7 +51,8 @@ describe('CheckoutService', () => {
         CartStateService,
         ToastService,
         PosClient,
-        SalesClient
+        SalesClient,
+        CustomersClient
       ]
     });
 
@@ -60,6 +61,7 @@ describe('CheckoutService', () => {
     salesClient = TestBed.inject(SalesClient);
     cartState = TestBed.inject(CartStateService);
     toastService = TestBed.inject(ToastService);
+    customersClient = TestBed.inject(CustomersClient);
 
     cartState.clear();
   });
@@ -91,6 +93,32 @@ describe('CheckoutService', () => {
     expect(toastSuccessSpy).toHaveBeenCalledWith(
       expect.stringContaining('Sale completed (INV-2026-001)')
     );
+  });
+  it('(a1) automatically saves new on-the-go customer to customer directory when sale completes', async () => {
+    cartState.addItem({
+      productId: 'prod-1',
+      name: 'Wireless Charger',
+      sellPrice: 1500,
+      stockQty: 5
+    });
+
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
+    const createCustomerSpy = vi.spyOn(customersClient, 'createCustomer').mockReturnValue(of('new-cust-uuid'));
+    const toastSuccessSpy = vi.spyOn(toastService, 'success');
+
+    const result = await service.checkout({
+      customer: { id: '', name: 'Virender Sehwag', phone: '9876543210' },
+      payments: [{ paymentMode: 'cash', amount: 1500 }],
+      invoiceDiscount: 0
+    });
+
+    expect(result.success).toBe(true);
+    expect(createCustomerSpy).toHaveBeenCalledWith({
+      name: 'Virender Sehwag',
+      phone: '9876543210'
+    });
+    expect(toastSuccessSpy).toHaveBeenCalledWith(expect.stringContaining('added to customer directory'));
   });
 
   it('(b) a successful checkout response FOLLOWED BY a failed PDF fetch still shows the sale-succeeded toast with printing-failed notice', async () => {

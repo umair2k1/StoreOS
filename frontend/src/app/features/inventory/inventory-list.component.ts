@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router, Params } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, Params } from '@angular/router';
 import { Subscription, firstValueFrom } from 'rxjs';
 import { InventoryClient } from '../../core/api/generated-client';
 import type { FileResponse } from '../../core/api/generated-client';
@@ -41,6 +41,7 @@ export interface InventoryListResponse {
   imports: [
     CommonModule,
     FormsModule,
+    RouterLink,
     PzTableComponent,
     ErrorStateComponent
   ],

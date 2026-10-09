@@ -35,15 +35,85 @@
   flex: 1;
 }
 
+.customer-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .customer-name {
   font-weight: 600;
   color: var(--fg, #0f172a);
   font-size: 0.95rem;
 }
 
+.badge-walk-in-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--muted-bg, #f1f5f9);
+  color: var(--muted, #64748b);
+  border: 1px solid var(--border, #cbd5e1);
+}
+
 .customer-phone {
   font-size: 0.8rem;
   color: var(--muted, #64748b);
+}
+
+.custom-phone-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border, #e2e8f0);
+}
+
+.custom-phone-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.custom-phone-input-group {
+  display: flex;
+  align-items: center;
+  position: relative;
+  background: var(--surface, #ffffff);
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: var(--radius-sm, 4px);
+  padding: 0 0.5rem;
+
+  &:focus-within {
+    border-color: var(--accent, #2563eb);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  }
+}
+
+.phone-icon {
+  font-size: 0.85rem;
+  margin-right: 0.35rem;
+}
+
+.custom-phone-input {
+  border: none;
+  outline: none;
+  padding: 0.4rem 0;
+  font-size: 0.85rem;
+  width: 100%;
+  background: transparent;
+  color: var(--fg, #0f172a);
+}
+
+.custom-phone-hint {
+  font-size: 0.72rem;
+  color: var(--muted, #64748b);
+  font-style: italic;
 }
 
 .btn-change-customer {
@@ -171,6 +241,21 @@
   &.walk-in-option {
     background: var(--muted-bg, #f8fafc);
     border-bottom: 2px solid var(--border, #e2e8f0);
+  }
+
+  &.add-custom-option {
+    background: rgba(37, 99, 235, 0.05);
+    border-bottom: 2px solid var(--border, #e2e8f0);
+
+    .option-icon {
+      color: var(--accent, #2563eb);
+      font-size: 1rem;
+    }
+
+    .option-name {
+      color: var(--accent, #2563eb);
+      font-weight: 600;
+    }
   }
 }
 

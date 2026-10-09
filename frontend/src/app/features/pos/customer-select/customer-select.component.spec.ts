@@ -148,6 +148,94 @@ describe('CustomerSelectComponent', () => {
       }
     });
   });
+  it('(c1) shows option to use new customer name on the go when typing non-matching query', fakeAsync(() => {
+    vi.spyOn(customersClient, 'getCustomers').mockReturnValue(
+      of({ items: [], totalCount: 0, page: 1, pageSize: 10 })
+    );
+    const customerSelectedSpy = vi.spyOn(component.customerSelected, 'emit');
+
+    component.onSearchFocus();
+    component.searchControl.setValue('Harish Patel');
+    tick(300);
+    fixture.detectChanges();
+
+    const dropdown = fixture.nativeElement.querySelector('.customer-dropdown');
+    expect(dropdown).toBeTruthy();
+
+    const customOption = dropdown.querySelector('.add-custom-option');
+    expect(customOption).toBeTruthy();
+    expect(customOption.textContent).toContain('Use "Harish Patel"');
+
+    // Click custom customer option
+    customOption.dispatchEvent(new MouseEvent('click'));
+    fixture.detectChanges();
+
+    expect(customerSelectedSpy).toHaveBeenCalledWith(expect.objectContaining({
+      id: '',
+      name: 'Harish Patel'
+    }));
+    expect(component.selectedCustomer().name).toBe('Harish Patel');
+    expect(component.isCustomWalkIn()).toBe(true);
+
+    const nameEl = fixture.nativeElement.querySelector('.customer-name');
+    expect(nameEl.textContent).toContain('Harish Patel');
+    const walkInBadge = fixture.nativeElement.querySelector('.badge-walk-in-tag');
+    expect(walkInBadge).toBeTruthy();
+  }));
+
+  it('(c2) pressing Enter on search input with new customer name selects it immediately', fakeAsync(() => {
+    vi.spyOn(customersClient, 'getCustomers').mockReturnValue(
+      of({ items: [], totalCount: 0, page: 1, pageSize: 10 })
+    );
+    const customerSelectedSpy = vi.spyOn(component.customerSelected, 'emit');
+
+    component.onSearchFocus();
+    component.searchControl.setValue('Sneha Rao');
+    tick(300);
+    fixture.detectChanges();
+
+    const inputEl = fixture.nativeElement.querySelector('.customer-search-input') as HTMLInputElement;
+    inputEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+
+    expect(customerSelectedSpy).toHaveBeenCalledWith(expect.objectContaining({
+      id: '',
+      name: 'Sneha Rao'
+    }));
+    expect(component.selectedCustomer().name).toBe('Sneha Rao');
+    expect(component.isCustomWalkIn()).toBe(true);
+  }));
+  it('(c3) allows entering phone number for custom customer and propagates it', fakeAsync(() => {
+    vi.spyOn(customersClient, 'getCustomers').mockReturnValue(
+      of({ items: [], totalCount: 0, page: 1, pageSize: 10 })
+    );
+    const customerSelectedSpy = vi.spyOn(component.customerSelected, 'emit');
+
+    component.onSearchFocus();
+    component.searchControl.setValue('Kapil Dev');
+    tick(300);
+    fixture.detectChanges();
+
+    const customOption = fixture.nativeElement.querySelector('.add-custom-option');
+    customOption.dispatchEvent(new MouseEvent('click'));
+    fixture.detectChanges();
+
+    // Phone input should now be visible in card
+    const phoneInput = fixture.nativeElement.querySelector('.custom-phone-input') as HTMLInputElement;
+    expect(phoneInput).toBeTruthy();
+
+    // Type phone number
+    phoneInput.value = '9876543210';
+    phoneInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(component.selectedCustomer().phone).toBe('9876543210');
+    expect(customerSelectedSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      id: '',
+      name: 'Kapil Dev',
+      phone: '9876543210'
+    }));
+  }));
 
   describe('CreditLimitWarningDialogComponent Override Permission', () => {
     let dialogFixture: ComponentFixture<CreditLimitWarningDialogComponent>;

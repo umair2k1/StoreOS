@@ -1,59 +1,79 @@
 <div class="customer-select-container">
-  <div class="selected-customer-card" [class.is-walk-in]="!selectedCustomer().id">
+  <div class="selected-customer-card" [class.is-walk-in]="isWalkIn()">
     <div class="customer-info-header">
       <div class="customer-avatar" aria-hidden="true">
         @if (selectedCustomer().id) {
         <span>👤</span>
+        } @else if (isCustomWalkIn()) {
+        <span>🏷️</span>
         } @else {
         <span>🚶</span>
         }
       </div>
       <div class="customer-details">
-        <span class="customer-name">{{ selectedCustomer().name }}</span>
-        @if (selectedCustomer().phone) {
+        <div class="customer-name-row">
+          <span class="customer-name">{{ selectedCustomer().name }}</span>
+          @if (isCustomWalkIn()) {
+          <span class="badge-walk-in-tag">Walk-in</span>
+          }
+        </div>
+        @if (selectedCustomer().phone && !isCustomWalkIn()) {
         <span class="customer-phone">{{ selectedCustomer().phone }}</span>
         }
       </div>
-      @if (selectedCustomer().id) {
+      @if (!isDefaultWalkIn()) {
       <button type="button" class="btn-change-customer" (click)="clearCustomer()">Change</button>
       }
     </div>
 
-    @if (selectedCustomer().id && creditBalance(); as balance) {
-    <div class="credit-balance-info">
-      <div class="balance-item">
-        <span class="balance-label">Outstanding Balance:</span>
-        <span class="balance-value balance-amount" [class.text-danger]="(balance.consolidatedBalance ?? 0) > 0">
-          {{ (balance.consolidatedBalance ?? 0) | pzMoney }}
-        </span>
+    @if (isCustomWalkIn()) {
+    <div class="custom-phone-wrapper">
+      <label class="custom-phone-label" for="customCustomerPhone">Customer Phone</label>
+      <div class="custom-phone-input-group">
+        <span class="phone-icon" aria-hidden="true">📞</span>
+        <input id="customCustomerPhone" type="tel" class="custom-phone-input"
+          placeholder="Enter 10-digit phone number (optional)" [ngModel]="customPhoneInput()"
+          (ngModelChange)="onCustomPhoneChange($event)" />
       </div>
-      @if (balance.creditLimit !== undefined && balance.creditLimit !== null && balance.creditLimit > 0) {
-      <div class="balance-item">
-        <span class="balance-label">Credit Limit:</span>
-        <span class="balance-value">{{ balance.creditLimit | pzMoney }}</span>
-      </div>
-      <div class="balance-item">
-        <span class="balance-label">Available Credit:</span>
-        <span class="balance-value" [class.text-danger]="(balance.availableCredit ?? 0) <= 0">
-          {{ (balance.availableCredit ?? 0) | pzMoney }}
-        </span>
-      </div>
-      }
-      @if (balance.isOverLimit) {
-      <span class="badge-overlimit">Over Credit Limit</span>
-      }
-    </div>
-    } @else if (isFetchingBalance()) {
-    <div class="balance-loading">
-      Loading credit balance...
+      <span class="custom-phone-hint">Customer will be registered in directory on completed sale.</span>
     </div>
     }
   </div>
 
-  @if (!selectedCustomer().id || isDropdownOpen()) {
+  @if (selectedCustomer().id && creditBalance(); as balance) {
+  <div class="credit-balance-info">
+    <div class="balance-item">
+      <span class="balance-label">Outstanding Balance:</span>
+      <span class="balance-value balance-amount" [class.text-danger]="(balance.consolidatedBalance ?? 0) > 0">
+        {{ (balance.consolidatedBalance ?? 0) | pzMoney }}
+      </span>
+    </div>
+    @if (balance.creditLimit !== undefined && balance.creditLimit !== null && balance.creditLimit > 0) {
+    <div class="balance-item">
+      <span class="balance-label">Credit Limit:</span>
+      <span class="balance-value">{{ balance.creditLimit | pzMoney }}</span>
+    </div>
+    <div class="balance-item">
+      <span class="balance-label">Available Credit:</span>
+      <span class="balance-value" [class.text-danger]="(balance.availableCredit ?? 0) <= 0">
+        {{ (balance.availableCredit ?? 0) | pzMoney }}
+      </span>
+    </div>
+    }
+    @if (balance.isOverLimit) {
+    <span class="badge-overlimit">Over Credit Limit</span>
+    }
+  </div>
+  } @else if (isFetchingBalance()) {
+  <div class="balance-loading">
+    Loading credit balance...
+  </div>
+  }
+
+  @if (isDefaultWalkIn() || isDropdownOpen()) {
   <div class="customer-search-wrapper">
     <input type="text" class="customer-search-input" [formControl]="searchControl" (focus)="onSearchFocus()"
-      placeholder="Search customer by name or phone..." autocomplete="off" />
+      placeholder="Search or enter customer name..." autocomplete="off" (keydown)="onSearchKeydown($event)" />
     @if (isSearching()) {
     <span class="search-spinner" aria-hidden="true">⏳</span>
     }
@@ -69,6 +89,15 @@
         </div>
       </div>
 
+      @if (customNameOption(); as custom) {
+      <div class="dropdown-item add-custom-option" role="option" (click)="selectCustomName(custom)">
+        <span class="option-icon" aria-hidden="true">➕</span>
+        <div class="option-details">
+          <span class="option-name">Use "{{ custom }}"</span>
+          <span class="option-subtext">Add custom customer name for this sale</span>
+        </div>
+      </div>
+      }
       @for (customer of searchResults(); track customer.id) {
       <div class="dropdown-item" role="option" [attr.data-customer-id]="customer.id" (click)="selectCustomer(customer)">
         <span class="option-icon" aria-hidden="true">👤</span>
