@@ -37,11 +37,16 @@ public class ReportsController : ControllerBase
         [FromQuery] DateOnly? date,
         [FromQuery] Guid[]? branchIds,
         [FromServices] StoreOS.Infrastructure.Printing.ReportPdfRenderer renderer,
+        [FromServices] StoreOS.Application.Abstractions.IAppDbContext db,
+        [FromServices] StoreOS.Application.Abstractions.IObjectStorageService storage,
+        [FromServices] StoreOS.Application.Abstractions.IAccessScope scope,
         CancellationToken ct)
     {
         var targetDate = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
         var result = await _mediator.Send(new GetDailySalesReportQuery(targetDate, branchIds), ct);
-        var bytes = renderer.RenderDailySales(result);
+        var targetBranchId = branchIds != null && branchIds.Length > 0 ? branchIds[0] : (Guid?)null;
+        var branding = await ShopBrandingHelper.ResolveAsync(targetBranchId, db, ct, storage, scope.TenantId);
+        var bytes = renderer.RenderDailySales(result, branding);
         return File(bytes, "application/pdf", $"daily-sales-{targetDate:yyyyMMdd}.pdf");
     }
 

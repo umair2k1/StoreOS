@@ -18,5 +18,8 @@ public record SupplierReturnPdfDto(
     IReadOnlyList<SupplierReturnLineDto> Lines,
     decimal TotalAmount,
     string SettlementType,
-    string? Reason
+    string? Reason,
+    byte[]? LogoBytes = null,
+    string? ShopAddress = null,
+    string? ShopPhone = null
 );

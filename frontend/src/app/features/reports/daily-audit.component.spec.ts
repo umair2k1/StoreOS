@@ -147,4 +147,33 @@ describe('DailyAuditComponent', () => {
     const printBtn = compiled.querySelector('.btn-print');
     expect(printBtn).toBeTruthy();
   });
+
+  it('renders shop branding and profit pill dynamically', async () => {
+    fixture.detectChanges();
+    await component.loadReport();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.shop-name')?.textContent).toContain('StoreOS');
+    const profitPill = compiled.querySelector('.profit-pill');
+    expect(profitPill).toBeTruthy();
+    expect(profitPill?.textContent).toContain('10,000'); // 55,000 - 45,000 = +10,000
+    expect(profitPill?.classList).toContain('profit-positive');
+  });
+
+  it('filters itemized log based on search query', async () => {
+    fixture.detectChanges();
+    await component.loadReport();
+    fixture.detectChanges();
+
+    component.searchQuery.set('NonExistentItem');
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('.empty-log-state')).toBeTruthy();
+
+    component.searchQuery.set('iPhone');
+    fixture.detectChanges();
+    expect(compiled.querySelector('.item-title')?.textContent).toContain('iPhone 13 128GB');
+  });
 });

@@ -38,6 +38,10 @@
             (click)="downloadInventoryExport()">
             {{ isExportingInventory() ? 'Exporting...' : 'Download Inventory CSV' }}
           </button>
+          <button type="button" class="btn btn-outline btn-export-inventory-pdf" [disabled]="isExportingInventoryPdf()"
+            (click)="downloadInventoryPdf()">
+            {{ isExportingInventoryPdf() ? 'Generating PDF...' : '&#128424; Print-Ready Catalog (PDF)' }}
+          </button>
         </div>
       </div>
     </section>

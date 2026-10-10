@@ -91,4 +91,16 @@ describe('ExportsComponent', () => {
       'csv'
     );
   });
+
+  it('triggers inventory export endpoint with selected categories and pdf format', async () => {
+    fixture.detectChanges();
+
+    await component.downloadInventoryPdf();
+
+    expect(exportsClient.exportInventory).toHaveBeenCalledWith(
+      ['MobilePhone', 'Accessory'],
+      null,
+      'pdf'
+    );
+  });
 });

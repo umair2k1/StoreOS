@@ -39,6 +39,18 @@ public class ExportsController : ControllerBase
             return Ok(result);
         }
 
+        if (string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            var db = HttpContext.RequestServices.GetService(typeof(IAppDbContext)) as IAppDbContext;
+            var storage = HttpContext.RequestServices.GetService(typeof(IObjectStorageService)) as IObjectStorageService;
+            var renderer = HttpContext.RequestServices.GetService(typeof(StoreOS.Infrastructure.Printing.ReportPdfRenderer)) as StoreOS.Infrastructure.Printing.ReportPdfRenderer;
+
+            var targetBranchId = branchIds != null && branchIds.Length > 0 ? branchIds[0] : (Guid?)null;
+            var branding = db != null ? await ShopBrandingHelper.ResolveAsync(targetBranchId, db, ct, storage, _scope.TenantId) : null;
+            var pdfBytes = (renderer ?? new StoreOS.Infrastructure.Printing.ReportPdfRenderer()).RenderInventoryExport(result, branding);
+            return File(pdfBytes, "application/pdf", $"inventory-{DateTime.UtcNow:yyyyMMdd}.pdf");
+        }
+
         bool canViewCost = _scope.HasPermission(PermissionCatalog.InventoryCostView);
         var csv = InventoryCsvWriter.ToCsv(result, canViewCost);
         var encoding = new UTF8Encoding(encoderShouldEmitUTF8Identifier: true);

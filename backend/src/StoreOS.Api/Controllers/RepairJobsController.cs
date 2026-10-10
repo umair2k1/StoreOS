@@ -45,11 +45,12 @@ public class RepairJobsController : ControllerBase
         Guid id,
         [FromServices] RepairPdfRenderer renderer,
         [FromServices] IAppDbContext db,
+        [FromServices] IObjectStorageService storage,
         CancellationToken ct)
     {
         var job = await _mediator.Send(new GetRepairJobByIdQuery(id), ct);
         var parts = await _mediator.Send(new GetRepairJobPartsQuery(id), ct);
-        var dto = await MapToRepairPdfDto(job, parts, db, ct);
+        var dto = await MapToRepairPdfDto(job, parts, db, storage, ct);
         var bytes = renderer.Render(dto);
         return File(bytes, "application/pdf", $"repair-{job.JobNumber}.pdf");
     }
@@ -58,9 +59,10 @@ public class RepairJobsController : ControllerBase
         RepairJobDto job,
         IReadOnlyList<RepairJobPartDto> parts,
         IAppDbContext db,
+        IObjectStorageService storage,
         CancellationToken ct)
     {
-        var branding = await ShopBrandingHelper.ResolveAsync(job.BranchId, db, ct);
+        var branding = await ShopBrandingHelper.ResolveAsync(job.BranchId, db, ct, storage);
 
         var partLines = parts.Select(p => new RepairPartLineDto(
             PartName: p.PartName,
@@ -88,7 +90,8 @@ public class RepairJobsController : ControllerBase
             BalanceDue: job.BalanceDue,
             WarrantyUntil: job.WarrantyUntil,
             Parts: partLines,
-            InvoiceNumber: job.InvoiceNumber
+            InvoiceNumber: job.InvoiceNumber,
+            LogoBytes: branding.LogoBytes
         );
     }
 

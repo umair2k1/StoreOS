@@ -1,4 +1,4 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -8,6 +8,7 @@ import { ReportsClient } from '../../core/api/generated-client';
 import type { FileResponse } from '../../core/api/generated-client';
 import { ToastService } from '../../shared/services/toast.service';
 import { PzMoneyAliasPipe } from '../../shared';
+import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
 
 export interface SalesSummary {
   revenue: number;
@@ -75,12 +76,38 @@ export class DailyAuditComponent implements OnInit {
   private readonly reportsClient = inject(ReportsClient);
   private readonly http = inject(HttpClient);
   private readonly toastService = inject(ToastService);
+  private readonly brandingStore = inject(BrandingSignalStore);
+
+  readonly shopName = this.brandingStore.tenantName;
+  readonly branchName = this.brandingStore.activeBranchName;
+  readonly logoUrl = this.brandingStore.logoUrl;
 
   readonly selectedDate = signal<string>(this.computeToday());
   readonly report = signal<DailySalesReportData | null>(null);
   readonly isLoading = signal<boolean>(false);
   readonly isPrinting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly searchQuery = signal<string>('');
+
+  readonly filteredLog = computed(() => {
+    const r = this.report();
+    if (!r) return [];
+    const query = this.searchQuery().trim().toLowerCase();
+    if (!query) return r.itemizedLog;
+
+    return r.itemizedLog.filter(item => {
+      const matchInv = item.invoiceNumber.toLowerCase().includes(query);
+      const matchCust = item.customerName.toLowerCase().includes(query);
+      const matchItem = item.itemName.toLowerCase().includes(query);
+      const matchImei = item.imei?.toLowerCase().includes(query);
+      return matchInv || matchCust || matchItem || matchImei;
+    });
+  });
+
+  getProfitMarginPct(r: DailySalesReportData): number {
+    if (!r.sales.revenue || r.sales.revenue <= 0) return 0;
+    return Math.round((r.sales.profit / r.sales.revenue) * 1000) / 10;
+  }
 
   ngOnInit(): void {
     this.loadReport();

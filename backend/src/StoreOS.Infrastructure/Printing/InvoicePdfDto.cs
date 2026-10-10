@@ -9,7 +9,9 @@ public record InvoicePdfLineDto(
     decimal Cgst,
     decimal Sgst,
     string? Imei,
-    bool IsGift
+    bool IsGift,
+    bool IsMarginScheme = false,
+    string? Category = null
 );
 
 public record InvoicePdfDto(
@@ -36,5 +38,9 @@ public record InvoicePdfDto(
     string? FinancerName,
     string? Description,
     string? IrnDisplay,
-    string? IrnQrDataUrl // both null until Phase 8 (roadmap) e-invoicing activates; slots reserved now
+    string? IrnQrDataUrl, // both null until Phase 8 (roadmap) e-invoicing activates; slots reserved now
+    byte[]? LogoBytes = null,
+    string? CustomerPhone = null,
+    decimal? DownPayment = null,
+    string? EmiDetails = null
 );

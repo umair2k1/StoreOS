@@ -1,11 +1,25 @@
 <div class="daily-audit-container">
+  <!-- Top Navigation & Branding Header -->
   <div class="page-header">
     <div class="header-titles">
       <div class="reports-breadcrumb">
         <a routerLink="/reports/dashboard" class="back-link">&larr; Reports Dashboard</a>
       </div>
-      <h1 class="page-title">Daily Sales Audit</h1>
-      <p class="page-subtitle">End-of-day sales reconciliation, cash breakdown, inventory audit, and itemized log</p>
+      <div class="brand-title-bar">
+        @if (logoUrl()) {
+        <img [src]="logoUrl()" alt="Shop Logo" class="shop-logo" />
+        }
+        <div>
+          <div class="shop-meta-line">
+            <span class="shop-name">{{ shopName() }}</span>
+            @if (branchName()) {
+            <span class="branch-badge">{{ branchName() }}</span>
+            }
+          </div>
+          <h1 class="page-title">Daily Sales Audit & Reconciliation</h1>
+          <p class="page-subtitle">End-of-day sales reconciliation, cash breakdown, inventory audit, and itemized log</p>
+        </div>
+      </div>
     </div>
     <div class="header-actions">
       <div class="date-filter-group">
@@ -35,186 +49,231 @@
   }
 
   @if (!isLoading() && report(); as r) {
-  <!-- 1. Sales Summary Section -->
-  <section class="card section-sales-summary">
-    <div class="card-header">
-      <h2 class="section-title">Sales Summary ({{ r.date }})</h2>
-    </div>
-    <div class="card-body summary-grid">
-      <div class="metric-box">
-        <span class="metric-label">Total Revenue</span>
-        <span class="metric-value font-semibold text-primary">{{ r.sales.revenue | pzMoney }}</span>
+  <!-- Executive 3-Card Grid Inspired by Phone Zone -->
+  <div class="executive-grid">
+    <!-- 1. Inventory Summary Box -->
+    <section class="card executive-card section-inventory">
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-header-icon">&#128230;</span>
+          <h2 class="section-title">Inventory Summary</h2>
+        </div>
+        <span class="badge badge-light">Physical Stock</span>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Buying Cost</span>
-        <span class="metric-value font-semibold text-muted">{{ r.sales.buyingCost | pzMoney }}</span>
+      <div class="card-body">
+        <div class="metric-row">
+          <span class="metric-label">Total Stock Volume</span>
+          <span class="metric-val font-semibold">{{ r.inventory.totalStockVolume }} units</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Stock Worth (Cost)</span>
+          <span class="metric-val font-semibold">{{ r.inventory.stockWorthAtCost | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Retail Valuation</span>
+          <span class="metric-val font-semibold">{{ r.inventory.retailValuation | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Low Stock Items (&le;3)</span>
+          <span class="metric-val font-semibold" [class.text-warning]="r.inventory.lowStockCount > 0">{{ r.inventory.lowStockCount }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Out of Stock</span>
+          <span class="metric-val font-semibold" [class.text-danger]="r.inventory.outOfStockCount > 0">{{ r.inventory.outOfStockCount }}</span>
+        </div>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Gross Profit</span>
-        <span class="metric-value font-semibold text-success">{{ r.sales.profit | pzMoney }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">GST Collected</span>
-        <span class="metric-value font-semibold text-info">{{ r.sales.gstCollected | pzMoney }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Invoices Count</span>
-        <span class="metric-value font-semibold">{{ r.sales.invoiceCount }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Items Sold</span>
-        <span class="metric-value font-semibold">{{ r.sales.itemsSold }}</span>
-      </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- 2. Financial Collections & Outstanding Section -->
-  <section class="card section-financials">
-    <div class="card-header">
-      <h2 class="section-title">Collections & Receivables</h2>
-    </div>
-    <div class="card-body summary-grid-duo">
-      <div class="metric-box highlight-box success-bg">
-        <span class="metric-label">Total Collected Today</span>
-        <span class="metric-value font-semibold text-success">{{ r.collectedAmount | pzMoney }}</span>
+    <!-- 2. Payment Breakdown Box -->
+    <section class="card executive-card section-payments section-financials">
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-header-icon">&#128179;</span>
+          <h2 class="section-title">Payment Breakdown</h2>
+        </div>
+        <span class="badge badge-light">Reconciled</span>
       </div>
-      <div class="metric-box highlight-box danger-bg">
-        <span class="metric-label">Outstanding Balance Due</span>
-        <span class="metric-value font-semibold text-danger">{{ r.outstandingAmount | pzMoney }}</span>
+      <div class="card-body">
+        <div class="metric-row">
+          <span class="metric-label">Cash Collected</span>
+          <span class="metric-val font-semibold">{{ r.payments.cash | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">UPI / Digital</span>
+          <span class="metric-val font-semibold">{{ r.payments.upi | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Finance / EMI</span>
+          <span class="metric-val font-semibold">{{ r.payments.finance | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Other Modes</span>
+          <span class="metric-val font-semibold">{{ r.payments.other | pzMoney }}</span>
+        </div>
+        <div class="metric-row total-row highlight-success">
+          <span class="metric-label font-bold">Total Collected</span>
+          <span class="metric-val font-bold text-success">{{ r.collectedAmount | pzMoney }}</span>
+        </div>
+        @if (r.outstandingAmount > 0) {
+        <div class="metric-row highlight-danger">
+          <span class="metric-label font-semibold text-danger">Outstanding Balance Due</span>
+          <span class="metric-val font-semibold text-danger">{{ r.outstandingAmount | pzMoney }}</span>
+        </div>
+        }
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- 3. Payment Modes Breakdown Section -->
-  <section class="card section-payments">
-    <div class="card-header">
-      <h2 class="section-title">Payment Breakdown</h2>
-    </div>
-    <div class="card-body summary-grid">
-      <div class="metric-box">
-        <span class="metric-label">Cash Collected</span>
-        <span class="metric-value font-semibold">{{ r.payments.cash | pzMoney }}</span>
+    <!-- 3. Daily Sales Performance Box -->
+    <section class="card executive-card section-sales-summary">
+      <div class="card-header">
+        <div class="card-header-left">
+          <span class="card-header-icon">&#128200;</span>
+          <h2 class="section-title">Daily Sales Summary</h2>
+        </div>
+        <span class="badge badge-light">Performance</span>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">UPI / Digital</span>
-        <span class="metric-value font-semibold">{{ r.payments.upi | pzMoney }}</span>
+      <div class="card-body">
+        <div class="metric-row">
+          <span class="metric-label">Total Revenue</span>
+          <span class="metric-val font-semibold text-primary">{{ r.sales.revenue | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Buying Cost</span>
+          <span class="metric-val font-semibold text-muted">{{ r.sales.buyingCost | pzMoney }}</span>
+        </div>
+        <div class="metric-row total-row highlight-profit">
+          <span class="metric-label font-bold">Daily Gross Profit</span>
+          <div class="profit-val-group">
+            <span class="metric-val font-bold text-success">{{ r.sales.profit | pzMoney }}</span>
+            <span class="profit-margin-pill">({{ getProfitMarginPct(r) }}%)</span>
+          </div>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">GST Collected</span>
+          <span class="metric-val font-semibold text-info">{{ r.sales.gstCollected | pzMoney }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Invoices Count</span>
+          <span class="metric-val font-semibold">{{ r.sales.invoiceCount }}</span>
+        </div>
+        <div class="metric-row">
+          <span class="metric-label">Items Sold</span>
+          <span class="metric-val font-semibold">{{ r.sales.itemsSold }}</span>
+        </div>
       </div>
-      <div class="metric-box">
-        <span class="metric-label">Finance / EMI</span>
-        <span class="metric-value font-semibold">{{ r.payments.finance | pzMoney }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Other Modes</span>
-        <span class="metric-value font-semibold">{{ r.payments.other | pzMoney }}</span>
-      </div>
-      <div class="metric-box full-span">
-        <span class="metric-label">Total Payments Reconciled</span>
-        <span class="metric-value font-semibold text-primary">{{ r.payments.total | pzMoney }}</span>
-      </div>
-    </div>
-  </section>
+    </section>
+  </div>
 
-  <!-- 4. Inventory Valuation Section -->
-  <section class="card section-inventory">
-    <div class="card-header">
-      <h2 class="section-title">Inventory Status</h2>
-    </div>
-    <div class="card-body summary-grid">
-      <div class="metric-box">
-        <span class="metric-label">Total Stock Volume</span>
-        <span class="metric-value font-semibold">{{ r.inventory.totalStockVolume }} units</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Stock Worth (Cost)</span>
-        <span class="metric-value font-semibold">{{ r.inventory.stockWorthAtCost | pzMoney }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Retail Valuation</span>
-        <span class="metric-value font-semibold">{{ r.inventory.retailValuation | pzMoney }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Low Stock Items</span>
-        <span class="metric-value font-semibold text-warning">{{ r.inventory.lowStockCount }}</span>
-      </div>
-      <div class="metric-box">
-        <span class="metric-label">Out of Stock</span>
-        <span class="metric-value font-semibold text-danger">{{ r.inventory.outOfStockCount }}</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- 5. Category Sales Breakdown Section -->
+  <!-- Category Sales Breakdown Section -->
   <section class="card section-category-sales">
     <div class="card-header">
-      <h2 class="section-title">Category Sales Breakdown</h2>
+      <div class="card-header-left">
+        <span class="card-header-icon">&#128202;</span>
+        <h2 class="section-title">Sales by Product Category</h2>
+      </div>
+      <span class="badge badge-light">{{ r.byCategory.length }} Categories</span>
     </div>
     <div class="card-body">
       @if (r.byCategory.length === 0) {
       <p class="text-muted text-sm">No category sales recorded today.</p>
       } @else {
-      <div class="table-responsive">
-        <table class="report-table">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th class="text-center">Items Sold</th>
-              <th class="text-right">Revenue</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (cat of r.byCategory; track cat.category) {
-            <tr>
-              <td class="font-semibold">{{ cat.category }}</td>
-              <td class="text-center">{{ cat.itemsSold }}</td>
-              <td class="text-right font-semibold">{{ cat.revenue | pzMoney }}</td>
-            </tr>
-            }
-          </tbody>
-        </table>
+      <div class="category-grid">
+        @for (cat of r.byCategory; track cat.category) {
+        <div class="category-card">
+          <div class="cat-card-header">
+            <span class="cat-name">{{ cat.category }}</span>
+            <span class="cat-share">
+              {{ r.sales.revenue > 0 ? (cat.revenue / r.sales.revenue * 100 | number:'1.0-1') + '%' : '0%' }}
+            </span>
+          </div>
+          <div class="cat-card-body">
+            <div class="cat-revenue">{{ cat.revenue | pzMoney }}</div>
+            <div class="cat-qty text-muted">{{ cat.itemsSold }} unit{{ cat.itemsSold !== 1 ? 's' : '' }} sold</div>
+          </div>
+        </div>
+        }
       </div>
       }
     </div>
   </section>
 
-  <!-- 6. Itemized Sale Log Section -->
+  <!-- Itemized Sale Log Section ("Everything Sold") -->
   <section class="card section-itemized-log">
-    <div class="card-header">
-      <h2 class="section-title">Itemized Transaction Log</h2>
+    <div class="card-header itemized-header">
+      <div class="card-header-left">
+        <span class="card-header-icon">&#128221;</span>
+        <div>
+          <h2 class="section-title">Itemized Transaction Log</h2>
+          <span class="text-xs text-muted">Complete record of items sold with IMEI, cost and gross margin</span>
+        </div>
+      </div>
+      <div class="table-search-box">
+        <input type="text" class="form-control search-input" placeholder="Search item, IMEI, invoice, customer..."
+          [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" />
+        <span class="badge badge-secondary">{{ filteredLog().length }} of {{ r.itemizedLog.length }}</span>
+      </div>
     </div>
-    <div class="card-body">
-      @if (r.itemizedLog.length === 0) {
-      <p class="text-muted text-sm">No line item sales transactions on this date.</p>
+    <div class="card-body no-padding">
+      @if (filteredLog().length === 0) {
+      <div class="empty-log-state">
+        <p class="text-muted">No line item sales transactions found matching query.</p>
+      </div>
       } @else {
       <div class="table-responsive">
         <table class="report-table">
           <thead>
             <tr>
+              <th class="text-center" style="width: 40px;">#</th>
               <th>Invoice #</th>
               <th>Customer</th>
-              <th>Item Name</th>
-              <th>IMEI / Serial</th>
-              <th class="text-center">Qty</th>
+              <th>Item Name & Details</th>
+              <th class="text-center" style="width: 50px;">Qty</th>
               <th>Payment</th>
               <th class="text-right">Cost</th>
               <th class="text-right">Selling Value</th>
               <th class="text-right">GST</th>
+              <th class="text-right">Profit</th>
             </tr>
           </thead>
           <tbody>
-            @for (log of r.itemizedLog; track log.invoiceNumber + log.itemName) {
+            @for (log of filteredLog(); track log.invoiceNumber + log.itemName; let idx = $index) {
             <tr>
+              <td class="text-center text-muted text-xs">{{ idx + 1 }}</td>
               <td class="font-semibold">{{ log.invoiceNumber }}</td>
-              <td>{{ log.customerName }}</td>
-              <td>{{ log.itemName }}</td>
-              <td class="font-mono text-xs">{{ log.imei || '—' }}</td>
-              <td class="text-center">{{ log.qty }}</td>
+              <td>{{ log.customerName || 'Walk-in Customer' }}</td>
+              <td>
+                <div class="item-name-cell">
+                  <span class="item-title font-semibold">{{ log.itemName }}</span>
+                  @if (log.imei) {
+                  <span class="imei-tag">IMEI: {{ log.imei }}</span>
+                  }
+                </div>
+              </td>
+              <td class="text-center font-semibold">{{ log.qty }}</td>
               <td><span class="badge badge-secondary">{{ log.paymentMode || 'Cash' }}</span></td>
               <td class="text-right text-muted">{{ log.costValue | pzMoney }}</td>
               <td class="text-right font-semibold">{{ log.sellingValue | pzMoney }}</td>
               <td class="text-right text-info">{{ log.gst | pzMoney }}</td>
+              <td class="text-right">
+                @let lineProfit = log.sellingValue - log.costValue;
+                <span class="profit-pill" [class.profit-positive]="lineProfit >= 0" [class.profit-negative]="lineProfit < 0">
+                  {{ lineProfit >= 0 ? '+' : '' }}{{ lineProfit | pzMoney }}
+                </span>
+              </td>
             </tr>
             }
           </tbody>
+          <tfoot>
+            <tr class="table-total-row">
+              <td colspan="4" class="text-right font-bold">Total:</td>
+              <td class="text-center font-bold">{{ r.sales.itemsSold }}</td>
+              <td></td>
+              <td class="text-right font-bold text-muted">{{ r.sales.buyingCost | pzMoney }}</td>
+              <td class="text-right font-bold text-primary">{{ r.sales.revenue | pzMoney }}</td>
+              <td class="text-right font-bold text-info">{{ r.sales.gstCollected | pzMoney }}</td>
+              <td class="text-right font-bold text-success">+{{ r.sales.profit | pzMoney }}</td>
+            </tr>
+          </tfoot>
         </table>
       </div>
       }

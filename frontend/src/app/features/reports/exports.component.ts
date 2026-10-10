@@ -33,6 +33,7 @@ export class ExportsComponent {
   // Inventory Export State
   readonly selectedCategories = signal<string[]>(['MobilePhone', 'Accessory']);
   readonly isExportingInventory = signal<boolean>(false);
+  readonly isExportingInventoryPdf = signal<boolean>(false);
 
   // GSTR-1 Export State
   readonly gstr1From = signal<string>(this.computeFirstOfMonth());
@@ -81,6 +82,23 @@ export class ExportsComponent {
     }
   }
 
+  async downloadInventoryPdf(): Promise<void> {
+    const cats = this.selectedCategories();
+    this.isExportingInventoryPdf.set(true);
+    try {
+      const resp = await firstValueFrom(
+        this.exportsClient.exportInventory(cats.length > 0 ? cats : null, null, 'pdf')
+      );
+      this.triggerBlobDownload(resp, `inventory-catalog-${this.computeToday()}.pdf`);
+      this.toastService.success('Inventory PDF catalog downloaded.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to export inventory PDF.';
+      this.toastService.error(msg);
+    } finally {
+      this.isExportingInventoryPdf.set(false);
+    }
+  }
+
   async downloadGstr1Export(): Promise<void> {
     const fromStr = this.gstr1From();
     const toStr = this.gstr1To();
@@ -109,7 +127,8 @@ export class ExportsComponent {
 
   private triggerBlobDownload(resp: FileResponse, defaultFileName: string): void {
     if (!resp || !resp.data) return;
-    const blob = resp.data instanceof Blob ? resp.data : new Blob([String(resp.data)], { type: 'text/csv' });
+    const isPdf = defaultFileName.endsWith('.pdf') || (resp.fileName && resp.fileName.endsWith('.pdf'));
+    const blob = resp.data instanceof Blob ? resp.data : new Blob([String(resp.data)], { type: isPdf ? 'application/pdf' : 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

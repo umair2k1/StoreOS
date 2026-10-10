@@ -9,6 +9,8 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 
   .reports-breadcrumb {
     margin-bottom: 0.375rem;
@@ -20,6 +22,46 @@
 
       &:hover {
         text-decoration: underline;
+      }
+    }
+  }
+
+  .brand-title-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+
+    .shop-logo {
+      height: 48px;
+      max-width: 120px;
+      object-fit: contain;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      background: #ffffff;
+      padding: 2px;
+    }
+
+    .shop-meta-line {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+
+      .shop-name {
+        font-size: 0.8125rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #4b5563;
+      }
+
+      .branch-badge {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        background: #e0e7ff;
+        color: #3730a3;
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
       }
     }
   }
@@ -41,6 +83,7 @@
     display: flex;
     gap: 1rem;
     align-items: center;
+    flex-wrap: wrap;
   }
 }
 
@@ -92,6 +135,19 @@
     padding: 0.875rem 1.25rem;
     border-bottom: 1px solid #e5e7eb;
     background-color: #f9fafb;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .card-header-icon {
+        font-size: 1.125rem;
+      }
+    }
 
     .section-title {
       font-size: 0.9375rem;
@@ -103,64 +159,215 @@
 
   .card-body {
     padding: 1.25rem;
+
+    &.no-padding {
+      padding: 0;
+    }
   }
 }
 
-.summary-grid {
+/* Executive 3-Card Grid */
+.executive-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1rem;
-}
-
-.summary-grid-duo {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.25rem;
+  margin-bottom: 1.5rem;
 
-  @media (max-width: 600px) {
-    grid-template-columns: 1fr;
+  .executive-card {
+    margin-bottom: 0;
+    display: flex;
+    flex-direction: column;
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.625rem;
+      flex: 1;
+    }
   }
 }
 
-.metric-box {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  padding: 0.875rem 1rem;
+.metric-row {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.375rem 0;
+  border-bottom: 1px dashed #f1f5f9;
+  font-size: 0.875rem;
 
-  &.full-span {
-    grid-column: 1 / -1;
+  &:last-child {
+    border-bottom: none;
   }
 
-  &.highlight-box {
-    padding: 1.25rem;
+  &.total-row {
+    border-top: 1px solid #e2e8f0;
+    border-bottom: none;
+    margin-top: 0.375rem;
+    padding-top: 0.625rem;
   }
 
-  &.success-bg {
+  &.highlight-success {
     background-color: #f0fdf4;
-    border-color: #bbf7d0;
+    border-radius: 6px;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid #bbf7d0;
   }
 
-  &.danger-bg {
+  &.highlight-danger {
     background-color: #fef2f2;
-    border-color: #fecaca;
+    border-radius: 6px;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid #fecaca;
+    margin-top: 0.25rem;
+  }
+
+  &.highlight-profit {
+    background-color: #f8fafc;
+    border-radius: 6px;
+    padding: 0.5rem 0.625rem;
+    border: 1px solid #e2e8f0;
   }
 
   .metric-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: #6b7280;
-    letter-spacing: 0.025em;
-    margin-bottom: 0.25rem;
+    color: #4b5563;
+    font-size: 0.8125rem;
   }
 
-  .metric-value {
-    font-size: 1.25rem;
+  .metric-val {
+    font-size: 0.9375rem;
     color: #111827;
   }
+
+  .profit-val-group {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+
+    .profit-margin-pill {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #059669;
+      background: #dcfce7;
+      padding: 0.125rem 0.375rem;
+      border-radius: 4px;
+    }
+  }
+}
+
+/* Category Grid */
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 1rem;
+
+  .category-card {
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.875rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    .cat-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+
+      .cat-name {
+        font-size: 0.8125rem;
+        font-weight: 600;
+        color: #374151;
+      }
+
+      .cat-share {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #2563eb;
+        background: #eff6ff;
+        padding: 0.125rem 0.375rem;
+        border-radius: 4px;
+      }
+    }
+
+    .cat-revenue {
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .cat-qty {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+/* Itemized Header & Table */
+.itemized-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+
+  .table-search-box {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .search-input {
+      width: 250px;
+      padding: 0.375rem 0.625rem;
+      font-size: 0.8125rem;
+    }
+  }
+}
+
+.item-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+
+  .imei-tag {
+    font-family: monospace;
+    font-size: 0.6875rem;
+    color: #64748b;
+    font-style: italic;
+  }
+}
+
+.profit-pill {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: 9999px;
+
+  &.profit-positive {
+    background-color: #dcfce7;
+    color: #15803d;
+  }
+
+  &.profit-negative {
+    background-color: #fee2e2;
+    color: #b91c1c;
+  }
+}
+
+.table-total-row {
+  background-color: #f8fafc;
+  border-top: 2px solid #e2e8f0;
+  font-size: 0.8125rem;
+
+  td {
+    padding: 0.75rem;
+  }
+}
+
+.empty-log-state {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
 }
 
 .table-responsive {
@@ -212,10 +419,20 @@
     background-color: #e5e7eb;
     color: #374151;
   }
+
+  &.badge-light {
+    background-color: #f3f4f6;
+    color: #6b7280;
+    font-size: 0.6875rem;
+  }
 }
 
 .font-semibold {
   font-weight: 600;
+}
+
+.font-bold {
+  font-weight: 700;
 }
 
 .text-primary {
@@ -286,3 +503,4 @@
   border-radius: 6px;
   background-color: #ffffff;
 }
+

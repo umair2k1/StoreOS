@@ -22,5 +22,6 @@ public record RepairPdfDto(
     decimal? BalanceDue,
     DateOnly? WarrantyUntil,
     IReadOnlyList<RepairPartLineDto> Parts,
-    string? InvoiceNumber
+    string? InvoiceNumber,
+    byte[]? LogoBytes = null
 );

@@ -45,10 +45,11 @@ public class SalesController : ControllerBase
         Guid id,
         [FromServices] InvoicePdfRenderer renderer,
         [FromServices] IAppDbContext db,
+        [FromServices] IObjectStorageService storage,
         CancellationToken ct)
     {
         var detail = await _mediator.Send(new GetSaleByIdQuery(id), ct);
-        var dto = await MapToInvoicePdfDto(detail, db, ct);
+        var dto = await MapToInvoicePdfDto(detail, db, storage, ct);
         var bytes = renderer.Render(dto);
         return File(bytes, "application/pdf", $"{detail.InvoiceNumber}.pdf");
     }
@@ -56,9 +57,10 @@ public class SalesController : ControllerBase
     private static async Task<InvoicePdfDto> MapToInvoicePdfDto(
         SaleDetailDto detail,
         IAppDbContext db,
+        IObjectStorageService storage,
         CancellationToken ct)
     {
-        var branding = await ShopBrandingHelper.ResolveAsync(detail.BranchId, db, ct);
+        var branding = await ShopBrandingHelper.ResolveAsync(detail.BranchId, db, ct, storage);
 
         var lines = detail.Items.Select(item => new InvoicePdfLineDto(
             ItemName: item.ItemName,
@@ -69,7 +71,8 @@ public class SalesController : ControllerBase
             Cgst: item.Cgst,
             Sgst: item.Sgst,
             Imei: item.Imei,
-            IsGift: item.IsGift
+            IsGift: item.IsGift,
+            IsMarginScheme: item.IsMarginScheme
         )).ToList();
 
         return new InvoicePdfDto(
@@ -96,7 +99,11 @@ public class SalesController : ControllerBase
             FinancerName: detail.FinancerName,
             Description: detail.Description,
             IrnDisplay: null,
-            IrnQrDataUrl: null
+            IrnQrDataUrl: null,
+            LogoBytes: branding.LogoBytes,
+            CustomerPhone: null,
+            DownPayment: detail.DownPayment,
+            EmiDetails: detail.EmiDetailsJson
         );
     }
 

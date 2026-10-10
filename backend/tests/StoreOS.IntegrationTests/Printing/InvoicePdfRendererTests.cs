@@ -1,6 +1,7 @@
 using System.Text;
 using FluentAssertions;
 using QuestPDF.Infrastructure;
+using SixLabors.ImageSharp;
 using StoreOS.Infrastructure.Printing;
 
 namespace StoreOS.IntegrationTests.Printing;
@@ -178,5 +179,69 @@ public class InvoicePdfRendererTests
 
         // Multi-line invoice with annotations produces a valid PDF
         multiBytes.Length.Should().BeGreaterThan(singleBytes.Length);
+    }
+
+    [Fact]
+    public void Render_WithCustomLogoAndFinancingDetails_SucceedsAndProducesValidPdf()
+    {
+        var renderer = new InvoicePdfRenderer();
+
+        using var img = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32);
+        using var ms = new MemoryStream();
+        img.SaveAsPng(ms);
+        var logoBytes = ms.ToArray();
+
+        var dto = new InvoicePdfDto(
+            ShopName: "Apex Electronics & Gadgets",
+            ShopAddress: "45 Commercial Road, Indiranagar, Bangalore",
+            ShopPhone: "9876501234",
+            ShopEmail: "info@apexelectronics.in",
+            ShopGstin: "29AAAAA0000A1Z5",
+            InvoiceNumber: "INV-APEX-0099",
+            InvoiceType: "Tax Invoice",
+            SaleDate: DateTimeOffset.UtcNow,
+            CustomerName: "Karthik Subramanian",
+            CustomerGstin: "29BBBBB1111B1Z2",
+            Lines: new List<InvoicePdfLineDto>
+            {
+                new("OnePlus 12 5G", "8517", 1, 64999m, 55083.90m, 4957.55m, 4957.55m, "359911223344556", false, false, "MobilePhone"),
+                new("Wireless Earbuds 2 Pro", "8518", 1, 4999m, 4236.44m, 381.28m, 381.28m, null, false, false, "Accessory")
+            },
+            TotalTaxable: 59320.34m,
+            TotalCgst: 5338.83m,
+            TotalSgst: 5338.83m,
+            Discount: 1000m,
+            GrandTotal: 68998m,
+            AmountPaid: 20000m,
+            Balance: 48998m,
+            PaymentMode: "Credit",
+            FinanceProvider: "HDFC Consumer Finance",
+            FinancerName: "HDFC",
+            Description: "6-month no-cost EMI arrangement",
+            IrnDisplay: null,
+            IrnQrDataUrl: null,
+            LogoBytes: logoBytes,
+            CustomerPhone: "9887766554",
+            DownPayment: 20000m,
+            EmiDetails: "6 x ₹8,166/month"
+        );
+
+        var bytes = renderer.Render(dto);
+
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(500);
+        Encoding.ASCII.GetString(bytes[..4]).Should().Be("%PDF");
+    }
+
+    [Theory]
+    [InlineData(0, "Rupees Zero Only")]
+    [InlineData(100, "Rupees One Hundred Only")]
+    [InlineData(120000, "Rupees One Lakh Twenty Thousand Only")]
+    [InlineData(50000.50, "Rupees Fifty Thousand and Fifty Paise Only")]
+    [InlineData(10000000, "Rupees One Crore Only")]
+    public void IndianCurrencyWords_ConvertsAmountsAccurately(decimal amount, string expected)
+    {
+        var result = IndianCurrencyWords.Convert(amount);
+        result.Should().Be(expected);
     }
 }

@@ -1,6 +1,7 @@
 using System.Text;
 using FluentAssertions;
 using QuestPDF.Infrastructure;
+using SixLabors.ImageSharp;
 using StoreOS.Application.Reporting.DailySales;
 using StoreOS.Application.Reporting.InventoryExport;
 using StoreOS.Infrastructure.Printing;
@@ -124,5 +125,49 @@ public class ReportPdfRendererTests
         inventoryBytes.Should().NotBeNull();
         inventoryBytes.Length.Should().BeGreaterThan(100);
         Encoding.ASCII.GetString(inventoryBytes[..4]).Should().Be("%PDF");
+    }
+
+    [Fact]
+    public void RenderDailySales_WithShopBrandingAndLogoBytes_ProducesValidPdf()
+    {
+        var renderer = new ReportPdfRenderer();
+
+        using var img = new SixLabors.ImageSharp.Image<SixLabors.ImageSharp.PixelFormats.Rgba32>(32, 32);
+        using var ms = new MemoryStream();
+        img.SaveAsPng(ms);
+        var logoBytes = ms.ToArray();
+
+        var branding = new ShopBranding(
+            ShopName: "Apex Retail Chain - Branch 01",
+            Address: "100 MG Road, Bangalore",
+            Phone: "9876543210",
+            Email: "b01@apexretail.in",
+            Gstin: "29ABCDE1234F1Z5",
+            LogoBytes: logoBytes
+        );
+
+        var dto = new DailySalesReportDto(
+            Date: DateOnly.FromDateTime(DateTime.UtcNow),
+            Sales: new SalesSummaryDto(150000m, 120000m, 30000m, 22881.36m, 5, 7),
+            Inventory: new InventorySummaryDto(120, 850000m, 1100000m, 4, 1),
+            Payments: new PaymentBreakdownDto(50000m, 60000m, 40000m, 0m, 150000m),
+            ByCategory: new List<CategorySalesDto>
+            {
+                new("NewPhone", 100000m, 2),
+                new("Accessory", 30000m, 4)
+            },
+            ItemizedLog: new List<ItemizedSaleLineDto>
+            {
+                new("INV-001", DateOnly.FromDateTime(DateTime.UtcNow), "John Doe", "Galaxy S24", 1, 80000m, 65000m, 12203.39m, "354455667788990", "Cash")
+            },
+            CollectedAmount: 150000m,
+            OutstandingAmount: 0m
+        );
+
+        var bytes = renderer.RenderDailySales(dto, branding);
+
+        bytes.Should().NotBeNull();
+        bytes.Length.Should().BeGreaterThan(500);
+        Encoding.ASCII.GetString(bytes[..4]).Should().Be("%PDF");
     }
 }
