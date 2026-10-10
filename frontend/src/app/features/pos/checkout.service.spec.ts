@@ -7,7 +7,7 @@ import type { CheckoutOptions } from './checkout.service';
 import { CartStateService } from './cart/cart-state.service';
 import { ToastService } from '../../shared/services/toast.service';
 import { PosClient, SalesClient, CustomersClient } from '../../core/api/generated-client';
-import type { FileResponse } from '../../core/api/generated-client';
+import type { FileResponse, CheckoutResult } from '../../core/api/generated-client';
 
 describe('CheckoutService', () => {
   let service: CheckoutService;
@@ -16,18 +16,13 @@ describe('CheckoutService', () => {
   let cartState: CartStateService;
   let toastService: ToastService;
   let customersClient: CustomersClient;
-  const mockSuccessCheckoutResponse: FileResponse = {
-    data: new Blob([
-      JSON.stringify({
-        saleId: 'sale-uuid-101',
-        invoiceNumber: 'INV-2026-001',
-        grandTotal: 1500,
-        amountPaid: 1500,
-        balance: 0
-      })
-    ]),
-    status: 201,
-    headers: {}
+  const mockSuccessCheckoutResponse: CheckoutResult = {
+    saleId: 'sale-uuid-101',
+    invoiceNumber: 'INV-2026-001',
+    grandTotal: 1500,
+    amountPaid: 1500,
+    balance: 0,
+    saleDate: new Date()
   };
 
   const mockPdfResponse: FileResponse = {
@@ -77,7 +72,7 @@ describe('CheckoutService', () => {
     });
     expect(cartState.items().length).toBe(1);
 
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
     vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
     const toastSuccessSpy = vi.spyOn(toastService, 'success');
 
@@ -103,7 +98,7 @@ describe('CheckoutService', () => {
       stockQty: 5
     });
 
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
     vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
     const createCustomerSpy = vi.spyOn(customersClient, 'createCustomer').mockReturnValue(of('new-cust-uuid'));
     const toastSuccessSpy = vi.spyOn(toastService, 'success');
@@ -133,7 +128,7 @@ describe('CheckoutService', () => {
     expect(cartState.items().length).toBe(1);
 
     // Checkout succeeds
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
     // BUT PDF fetch/print fails
     vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(
       throwError(() => new Error('Printer connection timed out'))
@@ -203,7 +198,7 @@ describe('CheckoutService', () => {
       stockQty: 10
     });
 
-    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse));
     const pdfSpy = vi.spyOn(salesClient, 'getInvoicePdf');
     const toastSuccessSpy = vi.spyOn(toastService, 'success');
 

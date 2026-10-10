@@ -245,13 +245,14 @@ export class CheckoutService {
   }
 
   private async executePrintFlow(saleId: string, invoiceNumber: string): Promise<boolean> {
-    if (!saleId) {
+    const targetId = saleId || this.lastSaleId();
+    if (!targetId) {
       this.toastService.success(`Sale completed (${invoiceNumber})`);
       return true;
     }
 
     try {
-      const pdfResponse = await firstValueFrom(this.salesClient.getInvoicePdf(saleId));
+      const pdfResponse = await firstValueFrom(this.salesClient.getInvoicePdf(targetId));
       this.openPdfBlob(pdfResponse.data);
       this.toastService.success(`Sale completed (${invoiceNumber})`);
       return true;
@@ -269,15 +270,42 @@ export class CheckoutService {
   private openPdfBlob(blob: Blob): void {
     try {
       const url = window.URL.createObjectURL(blob);
-      const printWindow = window.open(url, '_blank');
-      if (printWindow) {
-        setTimeout(() => {
+      let windowOpened = false;
+      try {
+        const printWindow = window.open(url, '_blank');
+        if (printWindow) {
+          windowOpened = true;
+          setTimeout(() => {
+            try {
+              printWindow.print();
+            } catch {
+              // Browser blocked automated print dialog; window opened as fallback
+            }
+          }, 500);
+        }
+      } catch {
+        windowOpened = false;
+      }
+
+      // If window.open was blocked by browser popup blocker, use a hidden iframe to print
+      if (!windowOpened && typeof document !== 'undefined') {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'fixed';
+        iframe.style.right = '0';
+        iframe.style.bottom = '0';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = '0';
+        iframe.src = url;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
           try {
-            printWindow.print();
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
           } catch {
-            // Browser blocked automated print dialog; window opened as fallback
+            // Fallback
           }
-        }, 500);
+        };
       }
     } catch {
       // Fallback if window creation fails in headless / test environment
@@ -286,11 +314,26 @@ export class CheckoutService {
 
   private async parseSaleResponse(response: unknown): Promise<SaleCreatedResponse> {
     try {
-      const resp = response as { data?: { text?: () => Promise<string> } };
-      if (resp && resp.data && typeof resp.data.text === 'function') {
-        const text = await resp.data.text();
-        if (text && text.trim().length > 0) {
-          return JSON.parse(text) as SaleCreatedResponse;
+      if (!response) {
+        return {};
+      }
+      if (typeof response === 'object') {
+        const anyResp = response as Record<string, unknown>;
+        if (anyResp['saleId'] || anyResp['invoiceNumber']) {
+          return {
+            saleId: anyResp['saleId'] ? String(anyResp['saleId']) : undefined,
+            invoiceNumber: anyResp['invoiceNumber'] ? String(anyResp['invoiceNumber']) : undefined,
+            grandTotal: typeof anyResp['grandTotal'] === 'number' ? anyResp['grandTotal'] : undefined,
+            amountPaid: typeof anyResp['amountPaid'] === 'number' ? anyResp['amountPaid'] : undefined,
+            balance: typeof anyResp['balance'] === 'number' ? anyResp['balance'] : undefined
+          };
+        }
+        const resp = response as { data?: { text?: () => Promise<string> } };
+        if (resp && resp.data && typeof resp.data.text === 'function') {
+          const text = await resp.data.text();
+          if (text && text.trim().length > 0) {
+            return JSON.parse(text) as SaleCreatedResponse;
+          }
         }
       }
     } catch {

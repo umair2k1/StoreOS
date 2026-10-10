@@ -1546,6 +1546,7 @@ export class ImportsClient implements IImportsClient {
 
 export interface IInventoryClient {
     list(category?: string | null | undefined, stockStatus?: string | null | undefined, isMarginScheme?: boolean | null | undefined, search?: string | null | undefined, branchIds?: string[] | null | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<FileResponse>;
+    categories(): Observable<string[]>;
     lowStock(branchIds?: string[] | null | undefined): Observable<FileResponse>;
     valuation(branchIds?: string[] | null | undefined): Observable<FileResponse>;
     adjustStock(command: AdjustStockCommand): Observable<FileResponse>;
@@ -1626,6 +1627,53 @@ export class InventoryClient implements IInventoryClient {
                 fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
             }
             return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        } else if (status !== 200 && status !== 204) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            }));
+        }
+        return _observableOf(null as any);
+    }
+
+    categories(): Observable<string[]> {
+        let url_ = this.baseUrl + "/api/inventory/categories";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_ : any = {
+            observe: "response",
+            responseType: "blob",
+            headers: new HttpHeaders({
+                "Accept": "application/json"
+            })
+        };
+
+        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
+            return this.processCategories(response_);
+        })).pipe(_observableCatch((response_: any) => {
+            if (response_ instanceof HttpResponseBase) {
+                try {
+                    return this.processCategories(response_ as any);
+                } catch (e) {
+                    return _observableThrow(e) as any as Observable<string[]>;
+                }
+            } else
+                return _observableThrow(response_) as any as Observable<string[]>;
+        }));
+    }
+
+    protected processCategories(response: HttpResponseBase): Observable<string[]> {
+        const status = response.status;
+        const responseBlob =
+            response instanceof HttpResponse ? response.body :
+            (response as any).error instanceof Blob ? (response as any).error : undefined;
+
+        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as string[];
+            return _observableOf(result200);
+            }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -2596,8 +2644,8 @@ export class PlatformClient implements IPlatformClient {
 export interface IPosClient {
     search(q?: string | null | undefined): Observable<PosSearchResultDto[]>;
     getProduct(id: string): Observable<PosProductDetailDto>;
-    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<void>;
-    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<void>;
+    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<CheckoutResult>;
+    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<CheckoutResult>;
     convertEstimate(id: string, body?: ConvertEstimateBody | undefined, idempotencyKey?: string | null | undefined): Observable<FileResponse>;
 }
 
@@ -2713,7 +2761,7 @@ export class PosClient implements IPosClient {
         return _observableOf(null as any);
     }
 
-    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<void> {
+    checkout(command: CheckoutCommand, idempotencyKey?: string | null | undefined): Observable<CheckoutResult> {
         let url_ = this.baseUrl + "/api/pos/checkout";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2726,6 +2774,7 @@ export class PosClient implements IPosClient {
             headers: new HttpHeaders({
                 "Idempotency-Key": idempotencyKey !== undefined && idempotencyKey !== null ? "" + idempotencyKey : "",
                 "Content-Type": "application/json",
+                "Accept": "application/json"
             })
         };
 
@@ -2736,14 +2785,14 @@ export class PosClient implements IPosClient {
                 try {
                     return this.processCheckout(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    return _observableThrow(e) as any as Observable<CheckoutResult>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                return _observableThrow(response_) as any as Observable<CheckoutResult>;
         }));
     }
 
-    protected processCheckout(response: HttpResponseBase): Observable<void> {
+    protected processCheckout(response: HttpResponseBase): Observable<CheckoutResult> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -2752,11 +2801,15 @@ export class PosClient implements IPosClient {
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            return _observableOf(null as any);
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CheckoutResult;
+            return _observableOf(result200);
             }));
         } else if (status === 201) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            return _observableOf(null as any);
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CheckoutResult;
+            return _observableOf(result201);
             }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
@@ -2766,7 +2819,7 @@ export class PosClient implements IPosClient {
         return _observableOf(null as any);
     }
 
-    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<void> {
+    createEstimate(body: CreateEstimateBody, idempotencyKey?: string | null | undefined): Observable<CheckoutResult> {
         let url_ = this.baseUrl + "/api/pos/estimate";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2779,6 +2832,7 @@ export class PosClient implements IPosClient {
             headers: new HttpHeaders({
                 "Idempotency-Key": idempotencyKey !== undefined && idempotencyKey !== null ? "" + idempotencyKey : "",
                 "Content-Type": "application/json",
+                "Accept": "application/json"
             })
         };
 
@@ -2789,14 +2843,14 @@ export class PosClient implements IPosClient {
                 try {
                     return this.processCreateEstimate(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    return _observableThrow(e) as any as Observable<CheckoutResult>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                return _observableThrow(response_) as any as Observable<CheckoutResult>;
         }));
     }
 
-    protected processCreateEstimate(response: HttpResponseBase): Observable<void> {
+    protected processCreateEstimate(response: HttpResponseBase): Observable<CheckoutResult> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -2805,11 +2859,15 @@ export class PosClient implements IPosClient {
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
         if (status === 200) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            return _observableOf(null as any);
+            let result200: any = null;
+            result200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CheckoutResult;
+            return _observableOf(result200);
             }));
         } else if (status === 201) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            return _observableOf(null as any);
+            let result201: any = null;
+            result201 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver) as CheckoutResult;
+            return _observableOf(result201);
             }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
@@ -2882,7 +2940,7 @@ export class PosClient implements IPosClient {
 
 export interface IProductsClient {
     list(category?: string | null | undefined, isActive?: boolean | null | undefined, isMarginScheme?: boolean | null | undefined, search?: string | null | undefined, page?: number | undefined, pageSize?: number | undefined): Observable<FileResponse>;
-    create(command: CreateProductCommand): Observable<FileResponse>;
+    create(command: CreateProductCommand): Observable<void>;
     getById(id: string): Observable<FileResponse>;
     update(id: string, body: UpdateProductBody): Observable<FileResponse>;
 }
@@ -2968,7 +3026,7 @@ export class ProductsClient implements IProductsClient {
         return _observableOf(null as any);
     }
 
-    create(command: CreateProductCommand): Observable<FileResponse> {
+    create(command: CreateProductCommand): Observable<void> {
         let url_ = this.baseUrl + "/api/products";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -2980,7 +3038,6 @@ export class ProductsClient implements IProductsClient {
             responseType: "blob",
             headers: new HttpHeaders({
                 "Content-Type": "application/json",
-                "Accept": "application/octet-stream"
             })
         };
 
@@ -2991,31 +3048,28 @@ export class ProductsClient implements IProductsClient {
                 try {
                     return this.processCreate(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<FileResponse>;
+                    return _observableThrow(e) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<FileResponse>;
+                return _observableThrow(response_) as any as Observable<void>;
         }));
     }
 
-    protected processCreate(response: HttpResponseBase): Observable<FileResponse> {
+    protected processCreate(response: HttpResponseBase): Observable<void> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
             (response as any).error instanceof Blob ? (response as any).error : undefined;
 
         let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
-        if (status === 200 || status === 201 || status === 206) {
-            const contentDisposition = response.headers ? response.headers.get("content-disposition") : undefined;
-            let fileNameMatch = contentDisposition ? /filename\*=(?:(\\?['"])(.*?)\1|(?:[^\s]+'.*?')?([^;\n]*))/g.exec(contentDisposition) : undefined;
-            let fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[3] || fileNameMatch[2] : undefined;
-            if (fileName) {
-                fileName = decodeURIComponent(fileName);
-            } else {
-                fileNameMatch = contentDisposition ? /filename="?([^"]*?)"?(;|$)/g.exec(contentDisposition) : undefined;
-                fileName = fileNameMatch && fileNameMatch.length > 1 ? fileNameMatch[1] : undefined;
-            }
-            return _observableOf({ fileName: fileName, data: responseBlob as any, status: status, headers: _headers });
+        if (status === 200) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
+        } else if (status === 201) {
+            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
+            return _observableOf(null as any);
+            }));
         } else if (status !== 200 && status !== 204) {
             return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
@@ -7131,6 +7185,15 @@ export interface PosProductDetailDto {
     stockQty?: number;
     stockStatus?: string;
     availableImeis?: string[];
+}
+
+export interface CheckoutResult {
+    saleId?: string;
+    invoiceNumber?: string;
+    grandTotal?: number;
+    amountPaid?: number;
+    balance?: number;
+    saleDate?: Date;
 }
 
 export interface CheckoutCommand {

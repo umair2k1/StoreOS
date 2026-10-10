@@ -30,9 +30,9 @@ public class PosController : ControllerBase
     }
 
     [HttpPost("checkout")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> Checkout(
+    [ProducesResponseType(typeof(StoreOS.Application.Sales.Checkout.CheckoutResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(StoreOS.Application.Sales.Checkout.CheckoutResult), StatusCodes.Status201Created)]
+    public async Task<ActionResult<StoreOS.Application.Sales.Checkout.CheckoutResult>> Checkout(
         [FromBody] StoreOS.Application.Sales.Checkout.CheckoutCommand command,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         [FromServices] StoreOS.Application.Behaviors.IdempotencyReplayFlag replayFlag,
@@ -55,15 +55,7 @@ public class PosController : ControllerBase
             Response.Headers["Idempotent-Replayed"] = "true";
         }
 
-        return Created($"/api/sales/{result.SaleId}", new
-        {
-            saleId = result.SaleId,
-            invoiceNumber = result.InvoiceNumber,
-            grandTotal = result.GrandTotal,
-            amountPaid = result.AmountPaid,
-            balance = result.Balance,
-            saleDate = result.SaleDate
-        });
+        return Created($"/api/sales/{result.SaleId}", result);
     }
 
     public record CreateEstimateBody(
@@ -75,9 +67,9 @@ public class PosController : ControllerBase
         string? Description);
 
     [HttpPost("estimate")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status201Created)]
-    public async Task<IActionResult> CreateEstimate(
+    [ProducesResponseType(typeof(StoreOS.Application.Sales.Checkout.CheckoutResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(StoreOS.Application.Sales.Checkout.CheckoutResult), StatusCodes.Status201Created)]
+    public async Task<ActionResult<StoreOS.Application.Sales.Checkout.CheckoutResult>> CreateEstimate(
         [FromBody] CreateEstimateBody body,
         [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
         [FromServices] StoreOS.Application.Behaviors.IdempotencyReplayFlag replayFlag,
@@ -104,12 +96,7 @@ public class PosController : ControllerBase
             Response.Headers["Idempotent-Replayed"] = "true";
         }
 
-        return Created($"/api/sales/{result.SaleId}", new
-        {
-            saleId = result.SaleId,
-            invoiceNumber = result.InvoiceNumber,
-            grandTotal = result.GrandTotal
-        });
+        return Created($"/api/sales/{result.SaleId}", result);
     }
 
     public record ConvertEstimateBody(IReadOnlyList<StoreOS.Application.Sales.Checkout.CheckoutPayment>? Payments);

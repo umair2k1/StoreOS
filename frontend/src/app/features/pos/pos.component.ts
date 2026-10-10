@@ -187,8 +187,10 @@ export class PosComponent implements AfterViewInit {
       autoPrint: shouldAutoPrint
     });
 
-    if (result.success && !shouldAutoPrint && result.saleId) {
-      this.promptForPrintout(result.saleId, result.invoiceNumber ?? 'Invoice');
+    if (result.success && !shouldAutoPrint) {
+      const saleId = result.saleId || this.checkoutService.lastSaleId() || '';
+      const invoiceNum = result.invoiceNumber || this.checkoutService.lastInvoiceNumber() || 'Invoice';
+      this.promptForPrintout(saleId, invoiceNum);
     }
     this.autoPrintInvoice.set(false);
   }
