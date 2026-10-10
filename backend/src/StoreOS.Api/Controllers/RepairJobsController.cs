@@ -46,11 +46,12 @@ public class RepairJobsController : ControllerBase
         [FromServices] RepairPdfRenderer renderer,
         [FromServices] IAppDbContext db,
         [FromServices] IObjectStorageService storage,
+        [FromServices] IAccessScope scope,
         CancellationToken ct)
     {
         var job = await _mediator.Send(new GetRepairJobByIdQuery(id), ct);
         var parts = await _mediator.Send(new GetRepairJobPartsQuery(id), ct);
-        var dto = await MapToRepairPdfDto(job, parts, db, storage, ct);
+        var dto = await MapToRepairPdfDto(job, parts, db, storage, scope.TenantId, ct);
         var bytes = renderer.Render(dto);
         return File(bytes, "application/pdf", $"repair-{job.JobNumber}.pdf");
     }
@@ -60,9 +61,10 @@ public class RepairJobsController : ControllerBase
         IReadOnlyList<RepairJobPartDto> parts,
         IAppDbContext db,
         IObjectStorageService storage,
+        Guid tenantId,
         CancellationToken ct)
     {
-        var branding = await ShopBrandingHelper.ResolveAsync(job.BranchId, db, ct, storage);
+        var branding = await ShopBrandingHelper.ResolveAsync(job.BranchId, db, ct, storage, tenantId);
 
         var partLines = parts.Select(p => new RepairPartLineDto(
             PartName: p.PartName,

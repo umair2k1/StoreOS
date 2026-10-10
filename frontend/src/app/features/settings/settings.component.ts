@@ -136,9 +136,15 @@ export class SettingsComponent implements OnInit {
 
   async loadShopInfo(): Promise<void> {
     try {
-      const resp = await firstValueFrom(this.settingsClient.getSetting('shop_info'));
+      let resp: FileResponse;
+      try {
+        resp = await firstValueFrom(this.settingsClient.getSetting('shop_profile'));
+      } catch {
+        resp = await firstValueFrom(this.settingsClient.getSetting('shop_info'));
+      }
       const data = await this.parseFileResponse<{
         name?: string;
+        shopName?: string;
         address?: string;
         email?: string;
         phone?: string;
@@ -147,6 +153,7 @@ export class SettingsComponent implements OnInit {
       }>(resp);
       if (data) {
         if (data.name !== undefined) this.shopName.set(data.name);
+        else if (data.shopName !== undefined) this.shopName.set(data.shopName);
         if (data.address !== undefined) this.shopAddress.set(data.address);
         if (data.email !== undefined) this.shopEmail.set(data.email);
         if (data.phone !== undefined) this.shopPhone.set(data.phone);
@@ -202,13 +209,14 @@ export class SettingsComponent implements OnInit {
     try {
       const payload = {
         name: this.shopName().trim(),
+        shopName: this.shopName().trim(),
         address: this.shopAddress().trim(),
         email: this.shopEmail().trim(),
         phone: this.shopPhone().trim(),
         gstin: this.shopGstin().trim(),
         logoUrl: this.shopLogoUrl()
       };
-      await firstValueFrom(this.settingsClient.patchSetting('shop_info', payload));
+      await firstValueFrom(this.settingsClient.patchSetting('shop_profile', payload));
       this.toastService.success('Shop information saved.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save shop info.';

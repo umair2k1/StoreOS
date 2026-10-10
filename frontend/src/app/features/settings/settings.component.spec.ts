@@ -73,7 +73,7 @@ describe('SettingsComponent', () => {
       of(createFileResponse({}))
     );
     vi.spyOn(settingsClient, 'getSetting').mockImplementation((key: string) => {
-      if (key === 'shop_info') {
+      if (key === 'shop_profile' || key === 'shop_info') {
         return of(createFileResponse({
           name: 'Saved Shop',
           address: '123 Market St',
@@ -114,7 +114,7 @@ describe('SettingsComponent', () => {
     await component.loadSettings();
     fixture.detectChanges();
 
-    expect(settingsClient.getSetting).toHaveBeenCalledWith('shop_info');
+    expect(settingsClient.getSetting).toHaveBeenCalledWith('shop_profile');
     expect(settingsClient.getSetting).toHaveBeenCalledWith('tax_settings');
     expect(settingsClient.getSetting).toHaveBeenCalledWith('bank_details');
 
@@ -142,7 +142,7 @@ describe('SettingsComponent', () => {
 
     await component.saveShopInfo();
     expect(settingsClient.patchSetting).toHaveBeenCalledWith(
-      'shop_info',
+      'shop_profile',
       expect.objectContaining({
         name: 'PhoneZone Prime',
         address: '42 Commercial St',

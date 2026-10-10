@@ -29,10 +29,11 @@ public class SupplierReturnsController : ControllerBase
         [FromServices] SupplierReturnPdfRenderer renderer,
         [FromServices] IAppDbContext db,
         [FromServices] IObjectStorageService storage,
+        [FromServices] IAccessScope scope,
         CancellationToken ct)
     {
         var ret = await _mediator.Send(new GetSupplierReturnByIdQuery(id), ct);
-        var dto = await MapToSupplierReturnPdfDto(ret, db, storage, ct);
+        var dto = await MapToSupplierReturnPdfDto(ret, db, storage, scope.TenantId, ct);
         var bytes = renderer.Render(dto);
         return File(bytes, "application/pdf", $"return-{ret.ReturnNumber}.pdf");
     }
@@ -41,9 +42,10 @@ public class SupplierReturnsController : ControllerBase
         SupplierReturnDto ret,
         IAppDbContext db,
         IObjectStorageService storage,
+        Guid tenantId,
         CancellationToken ct)
     {
-        var branding = await ShopBrandingHelper.ResolveAsync(ret.BranchId, db, ct, storage);
+        var branding = await ShopBrandingHelper.ResolveAsync(ret.BranchId, db, ct, storage, tenantId);
 
         var lines = ret.Items.Select(i => new SupplierReturnLineDto(
             ItemName: i.ItemName,

@@ -23,12 +23,37 @@ async function loginAsOwner(page: Page): Promise<void> {
   await page.waitForURL('**/pos', { timeout: 15000 });
 }
 
+async function dismissPrintInvoicePrompt(page: Page): Promise<void> {
+  const cancelBtn = page.locator('app-print-invoice-dialog button.btn-cancel, button:has-text("No, thanks")').first();
+  try {
+    await cancelBtn.waitFor({ state: 'visible', timeout: 4000 });
+    await cancelBtn.click();
+    await page.locator('.cdk-overlay-backdrop').waitFor({ state: 'hidden', timeout: 4000 }).catch(() => {});
+  } catch {
+    // Dialog may not have opened or already closed
+  }
+}
+
 test.describe.serial('StoreOS full smoke walkthrough', () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
     page = await browser.newPage();
     await loginAsOwner(page);
+  });
+
+  test.beforeEach(async () => {
+    if (page) {
+      const cancelBtn = page.locator('app-print-invoice-dialog button.btn-cancel, button:has-text("No, thanks")').first();
+      try {
+        if (await cancelBtn.isVisible()) {
+          await cancelBtn.click();
+          await page.locator('.cdk-overlay-backdrop').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+        }
+      } catch {
+        // Ignore if not present
+      }
+    }
   });
 
   test.afterAll(async () => {
@@ -66,6 +91,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
 
     // Verify checkout succeeds (cart clears or toast notification appears)
     await expect(page.locator('.cart-empty-wrapper, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 10000 });
+    await dismissPrintInvoicePrompt(page);
   });
 
   test('sell used phone under margin scheme', async () => {
@@ -101,6 +127,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
     await checkoutBtn.click();
 
     await expect(page.locator('.cart-empty-wrapper, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 10000 });
+    await dismissPrintInvoicePrompt(page);
   });
 
   test('credit sale + record subsequent payment', async () => {
@@ -140,6 +167,7 @@ test.describe.serial('StoreOS full smoke walkthrough', () => {
     await checkoutBtn.click();
 
     await expect(page.locator('.cart-empty-wrapper, .pz-toast-item, .pz-toast').first()).toBeVisible({ timeout: 10000 });
+    await dismissPrintInvoicePrompt(page);
 
     // Navigate to sales history to record subsequent payment
     await page.goto('/sales');

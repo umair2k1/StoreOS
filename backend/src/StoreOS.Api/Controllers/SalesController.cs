@@ -46,10 +46,11 @@ public class SalesController : ControllerBase
         [FromServices] InvoicePdfRenderer renderer,
         [FromServices] IAppDbContext db,
         [FromServices] IObjectStorageService storage,
+        [FromServices] IAccessScope scope,
         CancellationToken ct)
     {
         var detail = await _mediator.Send(new GetSaleByIdQuery(id), ct);
-        var dto = await MapToInvoicePdfDto(detail, db, storage, ct);
+        var dto = await MapToInvoicePdfDto(detail, db, storage, scope.TenantId, ct);
         var bytes = renderer.Render(dto);
         return File(bytes, "application/pdf", $"{detail.InvoiceNumber}.pdf");
     }
@@ -58,9 +59,10 @@ public class SalesController : ControllerBase
         SaleDetailDto detail,
         IAppDbContext db,
         IObjectStorageService storage,
+        Guid tenantId,
         CancellationToken ct)
     {
-        var branding = await ShopBrandingHelper.ResolveAsync(detail.BranchId, db, ct, storage);
+        var branding = await ShopBrandingHelper.ResolveAsync(detail.BranchId, db, ct, storage, tenantId);
 
         var lines = detail.Items.Select(item => new InvoicePdfLineDto(
             ItemName: item.ItemName,
