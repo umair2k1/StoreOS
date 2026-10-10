@@ -39,7 +39,8 @@ describe('CheckoutService', () => {
   const sampleCheckoutOptions: CheckoutOptions = {
     customer: { id: 'cust-1', name: 'Rohan Sharma' },
     payments: [{ paymentMode: 'cash', amount: 1500 }],
-    invoiceDiscount: 0
+    invoiceDiscount: 0,
+    autoPrint: true
   };
 
   beforeEach(() => {
@@ -110,7 +111,8 @@ describe('CheckoutService', () => {
     const result = await service.checkout({
       customer: { id: '', name: 'Virender Sehwag', phone: '9876543210' },
       payments: [{ paymentMode: 'cash', amount: 1500 }],
-      invoiceDiscount: 0
+      invoiceDiscount: 0,
+      autoPrint: true
     });
 
     expect(result.success).toBe(true);
@@ -191,5 +193,60 @@ describe('CheckoutService', () => {
       expect.stringContaining('Checkout failed: Insufficient stock')
     );
     expect(toastSuccessSpy).not.toHaveBeenCalled();
+  });
+
+  it('(d) when autoPrint is false (or omitted), checkout succeeds without triggering immediate PDF fetch', async () => {
+    cartState.addItem({
+      productId: 'prod-4',
+      name: 'Screen Guard',
+      sellPrice: 200,
+      stockQty: 10
+    });
+
+    vi.spyOn(posClient, 'checkout').mockReturnValue(of(mockSuccessCheckoutResponse as unknown as void));
+    const pdfSpy = vi.spyOn(salesClient, 'getInvoicePdf');
+    const toastSuccessSpy = vi.spyOn(toastService, 'success');
+
+    const result = await service.checkout({
+      customer: { id: 'cust-1', name: 'Rohan Sharma' },
+      payments: [{ paymentMode: 'cash', amount: 200 }],
+      autoPrint: false
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.saleId).toBe('sale-uuid-101');
+    expect(result.invoiceNumber).toBe('INV-2026-001');
+    expect(result.printSucceeded).toBeUndefined();
+    expect(pdfSpy).not.toHaveBeenCalled();
+    expect(cartState.items().length).toBe(0);
+    expect(toastSuccessSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Sale completed (INV-2026-001)')
+    );
+  });
+
+  it('(e) printInvoice fetches PDF and shows success toast', async () => {
+    const pdfSpy = vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
+    const toastSuccessSpy = vi.spyOn(toastService, 'success');
+
+    const success = await service.printInvoice('sale-uuid-101');
+
+    expect(success).toBe(true);
+    expect(pdfSpy).toHaveBeenCalledWith('sale-uuid-101');
+    expect(toastSuccessSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Invoice sent to printer.')
+    );
+  });
+
+  it('(f) reprintInvoice fetches PDF and shows reprint toast', async () => {
+    const pdfSpy = vi.spyOn(salesClient, 'getInvoicePdf').mockReturnValue(of(mockPdfResponse));
+    const toastSuccessSpy = vi.spyOn(toastService, 'success');
+
+    const success = await service.reprintInvoice('sale-uuid-101');
+
+    expect(success).toBe(true);
+    expect(pdfSpy).toHaveBeenCalledWith('sale-uuid-101');
+    expect(toastSuccessSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Invoice reprint sent.')
+    );
   });
 });

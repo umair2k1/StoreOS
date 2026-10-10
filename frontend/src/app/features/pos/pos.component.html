@@ -61,17 +61,23 @@
       (financeChange)="onFinanceChange($event)"></app-payment-panel>
 
     <div class="checkout-actions-wrapper">
+      <label class="auto-print-label" for="autoPrintCheckbox">
+        <input
+          type="checkbox"
+          id="autoPrintCheckbox"
+          class="auto-print-checkbox"
+          [checked]="autoPrintInvoice()"
+          (change)="toggleAutoPrint($event)"
+        />
+        <span>Auto-print invoice</span>
+      </label>
+
       <button type="button" class="btn-complete-checkout"
         [disabled]="cartState.items().length === 0 || checkoutService.isSubmitting()" (click)="submitCheckout()">
         <span class="btn-text">
           {{ checkoutService.isSubmitting() ? 'Processing...' : 'Complete Sale' }}
         </span>
         <kbd class="hotkey-badge">F4</kbd>
-      </button>
-
-      <button type="button" class="btn-save-estimate"
-        [disabled]="cartState.items().length === 0 || checkoutService.isSubmitting()" (click)="saveAsEstimate()">
-        <span>Save as Estimate</span>
       </button>
     </div>
   </div>

@@ -25,11 +25,14 @@ import { PzDialogService } from '../../shared/components/pz-dialog/pz-dialog.ser
 import { ToastService } from '../../shared/services/toast.service';
 import { CartStateService } from './cart/cart-state.service';
 import { CheckoutService } from './checkout.service';
+import { PrintInvoiceDialogComponent } from './print-invoice-dialog.component';
 import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 describe('PosComponent', () => {
   let fixture: ComponentFixture<PosComponent>;
   let component: PosComponent;
   let posClient: PosClient;
+  let checkoutService: CheckoutService;
+  let dialogService: PzDialogService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -49,6 +52,8 @@ describe('PosComponent', () => {
     }).compileComponents();
 
     posClient = TestBed.inject(PosClient);
+    checkoutService = TestBed.inject(CheckoutService);
+    dialogService = TestBed.inject(PzDialogService);
     fixture = TestBed.createComponent(PosComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -161,4 +166,105 @@ describe('PosComponent', () => {
     const emptyEl = fixture.nativeElement.querySelector('pz-empty-state, app-empty-state');
     expect(emptyEl).toBeTruthy();
   }));
+
+  it('(e) Save as Estimate button is removed from POS template', () => {
+    const estimateBtn = fixture.nativeElement.querySelector('.btn-save-estimate');
+    expect(estimateBtn).toBeNull();
+  });
+
+  it('(f) auto-print invoice checkbox is rendered and disabled/unchecked by default', () => {
+    const checkbox = fixture.nativeElement.querySelector('#autoPrintCheckbox') as HTMLInputElement;
+    expect(checkbox).toBeTruthy();
+    expect(checkbox.checked).toBe(false);
+    expect(component.autoPrintInvoice()).toBe(false);
+  });
+
+  it('(g) checking the auto-print checkbox updates autoPrintInvoice signal', () => {
+    const checkbox = fixture.nativeElement.querySelector('#autoPrintCheckbox') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(component.autoPrintInvoice()).toBe(true);
+  });
+
+  it('(h) when auto-print is enabled, checkout triggers auto-print and does not show prompt dialog', async () => {
+    component.autoPrintInvoice.set(true);
+    const checkoutSpy = vi.spyOn(checkoutService, 'checkout').mockResolvedValue({
+      success: true,
+      saleId: 'sale-123',
+      invoiceNumber: 'INV-123',
+      printSucceeded: true
+    });
+    const dialogSpy = vi.spyOn(dialogService, 'open');
+
+    await component.submitCheckout();
+
+    expect(checkoutSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ autoPrint: true })
+    );
+    expect(dialogSpy).not.toHaveBeenCalled();
+    expect(component.autoPrintInvoice()).toBe(false);
+  });
+
+  it('(i) when auto-print is disabled (default), successful checkout asks user if they want a printout and prints on confirmation', async () => {
+    component.autoPrintInvoice.set(false);
+    vi.spyOn(checkoutService, 'checkout').mockResolvedValue({
+      success: true,
+      saleId: 'sale-123',
+      invoiceNumber: 'INV-123'
+    });
+    const printSpy = vi.spyOn(checkoutService, 'printInvoice').mockResolvedValue(true);
+    const mockDialogRef = {
+      close: vi.fn(),
+      afterClosed: () => of(true)
+    };
+    const dialogSpy = vi.spyOn(dialogService, 'open').mockReturnValue(mockDialogRef as any);
+
+    await component.submitCheckout();
+
+    expect(dialogSpy).toHaveBeenCalledWith(
+      PrintInvoiceDialogComponent,
+      {
+        data: {
+          saleId: 'sale-123',
+          invoiceNumber: 'INV-123'
+        }
+      }
+    );
+    expect(printSpy).toHaveBeenCalledWith('sale-123');
+    expect(component.autoPrintInvoice()).toBe(false);
+  });
+
+  it('(j) when user declines print prompt dialog, printInvoice is not called', async () => {
+    component.autoPrintInvoice.set(false);
+    vi.spyOn(checkoutService, 'checkout').mockResolvedValue({
+      success: true,
+      saleId: 'sale-123',
+      invoiceNumber: 'INV-123'
+    });
+    const printSpy = vi.spyOn(checkoutService, 'printInvoice');
+    const mockDialogRef = {
+      close: vi.fn(),
+      afterClosed: () => of(false)
+    };
+    vi.spyOn(dialogService, 'open').mockReturnValue(mockDialogRef as any);
+
+    await component.submitCheckout();
+
+    expect(printSpy).not.toHaveBeenCalled();
+  });
+
+  it('(k) when checkout fails, no print prompt dialog is shown', async () => {
+    component.autoPrintInvoice.set(false);
+    vi.spyOn(checkoutService, 'checkout').mockResolvedValue({
+      success: false,
+      error: 'Payment failed'
+    });
+    const dialogSpy = vi.spyOn(dialogService, 'open');
+
+    await component.submitCheckout();
+
+    expect(dialogSpy).not.toHaveBeenCalled();
+  });
 });

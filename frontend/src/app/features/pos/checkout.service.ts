@@ -19,6 +19,7 @@ export interface CheckoutOptions {
   finance?: CheckoutFinanceDetails | null;
   invoiceDiscount?: number;
   description?: string;
+  autoPrint?: boolean;
 }
 export interface EstimateOptions {
   customer?: CustomerListItemDto | null;
@@ -129,13 +130,22 @@ export class CheckoutService {
         }
       }
 
-      // Trigger post-checkout PDF print flow
-      const printSuccess = await this.executePrintFlow(saleId, invoiceNumber);
+      // Trigger post-checkout PDF print flow if autoPrint is enabled
+      if (options.autoPrint) {
+        const printSuccess = await this.executePrintFlow(saleId, invoiceNumber);
+        return {
+          success: true,
+          saleId,
+          invoiceNumber,
+          printSucceeded: printSuccess
+        };
+      }
+
+      this.toastService.success(`Sale completed (${invoiceNumber})`);
       return {
         success: true,
         saleId,
-        invoiceNumber,
-        printSucceeded: printSuccess
+        invoiceNumber
       };
     } catch (err: unknown) {
       this.isSubmitting.set(false);
@@ -209,22 +219,29 @@ export class CheckoutService {
       this.isSubmitting.set(false);
     }
   }
-  async reprintInvoice(saleId?: string): Promise<boolean> {
+  async printInvoice(saleId?: string, isReprint = false): Promise<boolean> {
     const targetId = saleId || this.lastSaleId();
     if (!targetId) {
-      this.toastService.warning('No recent sale found to reprint.');
+      this.toastService.warning(isReprint ? 'No recent sale found to reprint.' : 'No recent sale found to print.');
       return false;
     }
 
     try {
       const response = await firstValueFrom(this.salesClient.getInvoicePdf(targetId));
       this.openPdfBlob(response.data);
-      this.toastService.success('Invoice reprint sent.');
+      this.toastService.success(isReprint ? 'Invoice reprint sent.' : 'Invoice sent to printer.');
       return true;
     } catch {
-      this.toastService.warning('Reprint failed. Please check printer connection and try again.');
+      const failMsg = isReprint
+        ? 'Reprint failed. Please check printer connection and try again.'
+        : 'Printing failed. Please check printer connection and try again.';
+      this.toastService.warning(failMsg);
       return false;
     }
+  }
+
+  async reprintInvoice(saleId?: string): Promise<boolean> {
+    return this.printInvoice(saleId, true);
   }
 
   private async executePrintFlow(saleId: string, invoiceNumber: string): Promise<boolean> {

@@ -27,8 +27,11 @@ import {
   LoadingStateComponent,
   EmptyStateComponent,
   ErrorStateComponent,
-  PzMoneyAliasPipe
+  PzMoneyAliasPipe,
+  PzDialogService
 } from '../../shared';
+import { PrintInvoiceDialogComponent } from './print-invoice-dialog.component';
+import type { PrintInvoiceDialogData } from './print-invoice-dialog.component';
 
 @Component({
   selector: 'app-pos',
@@ -51,8 +54,10 @@ export class PosComponent implements AfterViewInit {
   @ViewChild('searchInput') searchInputRef!: ElementRef<HTMLInputElement>;
 
   private readonly posApi = inject(PosClient);
+  private readonly dialogService = inject(PzDialogService);
   readonly cartState = inject(CartStateService);
   readonly checkoutService = inject(CheckoutService);
+  readonly autoPrintInvoice = signal<boolean>(false);
   readonly payments = signal<CheckoutPayment[]>([]);
   readonly financeDetails = signal<CheckoutFinanceDetails | null>(null);
 
@@ -163,24 +168,46 @@ export class PosComponent implements AfterViewInit {
     this.financeDetails.set(finance);
   }
 
+  toggleAutoPrint(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.autoPrintInvoice.set(input.checked);
+  }
+
   async submitCheckout(): Promise<void> {
     const activePayments = this.payments().filter(p => (p.amount ?? 0) > 0);
     const paymentsToSend = activePayments.length > 0
       ? activePayments
       : [{ paymentMode: 'Cash', amount: this.financeDetails() ? (this.financeDetails()?.downPayment ?? 0) : this.cartState.subtotal() }];
-    await this.checkoutService.checkout({
+    const shouldAutoPrint = this.autoPrintInvoice();
+    const result = await this.checkoutService.checkout({
       customer: this.selectedCustomer(),
       payments: paymentsToSend,
       finance: this.financeDetails(),
-      invoiceDiscount: 0
+      invoiceDiscount: 0,
+      autoPrint: shouldAutoPrint
     });
+
+    if (result.success && !shouldAutoPrint && result.saleId) {
+      this.promptForPrintout(result.saleId, result.invoiceNumber ?? 'Invoice');
+    }
+    this.autoPrintInvoice.set(false);
   }
 
-  async saveAsEstimate(): Promise<void> {
-    await this.checkoutService.saveEstimate({
-      customer: this.selectedCustomer(),
-      payments: this.payments(),
-      invoiceDiscount: 0
+  private promptForPrintout(saleId: string, invoiceNumber: string): void {
+    const dialogRef = this.dialogService.open<PrintInvoiceDialogComponent, PrintInvoiceDialogData, boolean>(
+      PrintInvoiceDialogComponent,
+      {
+        data: {
+          saleId,
+          invoiceNumber
+        }
+      }
+    );
+
+    dialogRef.afterClosed().subscribe((confirmed) => {
+      if (confirmed) {
+        this.checkoutService.printInvoice(saleId);
+      }
     });
   }
 }
