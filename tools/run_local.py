@@ -436,6 +436,7 @@ def print_banner(api_port: int, web_port: int, tenant_info: Optional[dict] = Non
     print(f" {Colors.GREEN}●{Colors.RESET} {Colors.BOLD}Swagger UI:{Colors.RESET}         http://localhost:{api_port}/swagger")
     print(f" {Colors.GREEN}●{Colors.RESET} {Colors.BOLD}Health Live/Ready:{Colors.RESET}  http://localhost:{api_port}/health/ready")
     print(f" {Colors.GREEN}●{Colors.RESET} {Colors.BOLD}MinIO S3 Console:{Colors.RESET}   http://localhost:9001  {Colors.DIM}(user: storeos_minio / pass: storeos_minio_password){Colors.RESET}")
+    print(f" {Colors.GREEN}●{Colors.RESET} {Colors.BOLD}MCP Server:{Colors.RESET}         python tools/storeos_mcp.py --config claude")
     print(f"------------------------------------------------------------------------")
     print(f" {Colors.BOLD}Demo Tenant:{Colors.RESET}        Apex Mobiles Demo  {Colors.DIM}(subdomain: apex){Colors.RESET}")
     print(f" {Colors.BOLD}Tenant ID:{Colors.RESET}          {Colors.YELLOW}{t_id}{Colors.RESET}")
