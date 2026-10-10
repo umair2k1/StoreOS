@@ -99,13 +99,14 @@ public class ManifestController : ControllerBase
 
         var branding = await ShopBrandingHelper.ResolveAsync(null, db, ct, storage, tenant.TenantId);
         var effectiveName = !string.IsNullOrWhiteSpace(branding.ShopName) ? branding.ShopName : tenant.Name;
+        var hasLogo = branding.LogoBytes != null && branding.LogoBytes.Length > 0;
 
         return Ok(new
         {
             tenantId = tenant.TenantId,
             name = effectiveName,
             subdomain = tenant.Subdomain,
-            logoUrl = $"/api/tenant/logo.png?size=512&tenantId={tenant.TenantId}"
+            logoUrl = hasLogo ? $"/api/tenant/logo.png?size=512&tenantId={tenant.TenantId}" : null
         });
     }
 }

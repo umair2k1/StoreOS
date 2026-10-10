@@ -1,4 +1,4 @@
-import { Component, effect, inject } from '@angular/core';
+import { Component, effect, inject, signal } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { Title } from '@angular/platform-browser';
 import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
@@ -14,7 +14,11 @@ import { ToastContainerComponent } from '../components/toast-container/toast-con
   imports: [RouterOutlet, RouterLink, BranchSwitcherComponent, LockScreenComponent, ToastContainerComponent],
   template: `
     <header class="shell-header">
-      <span class="brand-name">{{ branding.tenantName() }}</span>
+      @if (branding.logoUrl() && !logoFailed()) {
+        <img [src]="branding.logoUrl()" [alt]="branding.tenantName()" class="brand-logo" (error)="logoFailed.set(true)" />
+      } @else {
+        <span class="brand-name">{{ branding.tenantName() }}</span>
+      }
       @if (branding.activeBranchName(); as branchName) {
         <span class="branch-badge">{{ branchName }}</span>
       }
@@ -47,12 +51,18 @@ export class ShellComponent {
   private titleService = inject(Title);
   private auth = inject(AuthSignalStore);
   readonly lockOverlay = inject(LockScreenOverlayService);
+  readonly logoFailed = signal<boolean>(false);
 
   constructor() {
     effect(() => {
       const branchPart = this.branding.activeBranchName();
       const tenantPart = this.branding.tenantName();
       this.titleService.setTitle(branchPart ? `${branchPart} | ${tenantPart}` : tenantPart);
+    });
+
+    effect(() => {
+      this.branding.logoUrl();
+      this.logoFailed.set(false);
     });
   }
 }

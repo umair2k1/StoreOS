@@ -16,6 +16,14 @@ const DEFAULT_STATE: BrandingState = {
 
 const STORAGE_KEY = 'storeos_branding_state';
 
+function normalizeLogoUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('storeos-media/')) {
+    return '/api/tenant/logo.png?size=512';
+  }
+  return url;
+}
+
 function loadStoredState(): BrandingState {
   if (typeof window === 'undefined' || !window.localStorage) {
     return DEFAULT_STATE;
@@ -25,7 +33,11 @@ function loadStoredState(): BrandingState {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && parsed.tenantName) {
-        return { ...DEFAULT_STATE, ...parsed };
+        return {
+          ...DEFAULT_STATE,
+          ...parsed,
+          logoUrl: normalizeLogoUrl(parsed.logoUrl)
+        };
       }
     }
   } catch {}
@@ -42,6 +54,9 @@ export class BrandingSignalStore {
   readonly themeColor = computed(() => this.state().themeColor);
 
   setBranding(data: Partial<BrandingState>): void {
+    if (data.logoUrl !== undefined) {
+      data.logoUrl = normalizeLogoUrl(data.logoUrl);
+    }
     this.state.update(s => {
       const next = { ...s, ...data };
       try {

@@ -11,6 +11,7 @@ describe('ShellComponent', () => {
   let titleService: Title;
 
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [ShellComponent],
       providers: [
@@ -22,6 +23,7 @@ describe('ShellComponent', () => {
     });
 
     brandingStore = TestBed.inject(BrandingSignalStore);
+    brandingStore.reset();
     titleService = TestBed.inject(Title);
     fixture = TestBed.createComponent(ShellComponent);
   });
@@ -45,5 +47,21 @@ describe('ShellComponent', () => {
     brandingStore.setBranding({ activeBranchName: null });
     fixture.detectChanges();
     expect(titleService.getTitle()).toBe('Apex Electronics');
+  });
+
+  it('renders shop logo instead of shop name when logoUrl is present', () => {
+    // When no logo is present, render brand-name text
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('.brand-name')).toBeTruthy();
+    expect(el.querySelector('.brand-logo')).toBeFalsy();
+
+    // When logoUrl is provided, render brand-logo img instead of brand-name
+    brandingStore.setBranding({ logoUrl: 'https://cdn.example.com/shop-logo.png' });
+    fixture.detectChanges();
+    expect(el.querySelector('.brand-logo')).toBeTruthy();
+    expect(el.querySelector('.brand-name')).toBeFalsy();
+    const img = el.querySelector('.brand-logo') as HTMLImageElement;
+    expect(img.src).toBe('https://cdn.example.com/shop-logo.png');
   });
 });

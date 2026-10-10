@@ -51,6 +51,38 @@ public class GetTenantLogoHandler : IRequestHandler<GetTenantLogoQuery, LogoImag
             }
         }
 
+        if (string.IsNullOrWhiteSpace(logoKey))
+        {
+            var profileQuery = from s in _db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
+                               join b in _db.Set<Branch>().IgnoreQueryFilters().AsNoTracking() on s.BranchId equals b.Id into branchGroup
+                               from b in branchGroup.DefaultIfEmpty()
+                               where s.TenantId == request.TenantId && b == null && (s.Key == "shop_profile" || s.Key == "shop_info")
+                               select s.ValueJson;
+
+            var profileJson = await profileQuery.FirstOrDefaultAsync(ct);
+            if (!string.IsNullOrWhiteSpace(profileJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(profileJson);
+                    if (doc.RootElement.TryGetProperty("logoUrl", out var lu))
+                    {
+                        var luStr = lu.GetString();
+                        if (!string.IsNullOrWhiteSpace(luStr))
+                        {
+                            logoKey = luStr.StartsWith("storeos-media/", StringComparison.OrdinalIgnoreCase)
+                                ? luStr["storeos-media/".Length..]
+                                : luStr;
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore parse error on malformed JSON
+                }
+            }
+        }
+
         StoredObject? stored = null;
         if (!string.IsNullOrWhiteSpace(logoKey))
         {

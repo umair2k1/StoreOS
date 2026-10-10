@@ -43,6 +43,7 @@ public static class ShopBrandingHelper
             if (branchId.HasValue && branchId.Value != Guid.Empty)
             {
                 branch = await db.Set<Branch>()
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(b => b.Id == branchId.Value, ct);
 
@@ -56,33 +57,30 @@ public static class ShopBrandingHelper
                 }
             }
 
-            Setting? setting = null;
-            if (branchId.HasValue && branchId.Value != Guid.Empty)
+            string? settingValueJson = null;
+            if (branchId.HasValue && branchId.Value != Guid.Empty && tenantId.HasValue)
             {
-                setting = await db.Set<Setting>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.BranchId == branchId.Value && s.Key == "shop_profile", ct);
-
-                setting ??= await db.Set<Setting>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.BranchId == branchId.Value && s.Key == "shop_info", ct);
+                var branchProfileQuery = from s in db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
+                                         where s.TenantId == tenantId.Value && s.BranchId == branchId.Value && (s.Key == "shop_profile" || s.Key == "shop_info")
+                                         select s.ValueJson;
+                settingValueJson = await branchProfileQuery.FirstOrDefaultAsync(ct);
             }
 
-            if (setting == null && tenantId.HasValue)
+            if (string.IsNullOrWhiteSpace(settingValueJson) && tenantId.HasValue)
             {
-                setting = await db.Set<Setting>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.TenantId == tenantId.Value && s.BranchId == null && s.Key == "shop_profile", ct);
-
-                setting ??= await db.Set<Setting>()
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.TenantId == tenantId.Value && s.BranchId == null && s.Key == "shop_info", ct);
+                var tenantProfileQuery = from s in db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
+                                         join b in db.Set<Branch>().IgnoreQueryFilters().AsNoTracking() on s.BranchId equals b.Id into branchGroup
+                                         from b in branchGroup.DefaultIfEmpty()
+                                         where s.TenantId == tenantId.Value && b == null && (s.Key == "shop_profile" || s.Key == "shop_info")
+                                         select s.ValueJson;
+                settingValueJson = await tenantProfileQuery.FirstOrDefaultAsync(ct);
             }
 
             Tenant? tenant = null;
             if (tenantId.HasValue)
             {
                 tenant = await db.Set<Tenant>()
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(t => t.Id == tenantId.Value, ct);
             }
@@ -94,11 +92,11 @@ public static class ShopBrandingHelper
             string? gstin = null;
             byte[]? logoBytes = null;
 
-            if (setting != null && !string.IsNullOrWhiteSpace(setting.ValueJson))
+            if (!string.IsNullOrWhiteSpace(settingValueJson))
             {
                 try
                 {
-                    using var doc = JsonDocument.Parse(setting.ValueJson);
+                    using var doc = JsonDocument.Parse(settingValueJson);
                     var root = doc.RootElement;
                     if (root.TryGetProperty("shopName", out var sn) || root.TryGetProperty("name", out sn))
                     {
@@ -156,28 +154,31 @@ public static class ShopBrandingHelper
             {
                 try
                 {
-                    var logoSetting = await db.Set<Setting>()
-                        .AsNoTracking()
-                        .FirstOrDefaultAsync(s => s.TenantId == tenantId.Value && s.BranchId == null && s.Key == "branding.logo_key", ct);
+                    var logoKeyQuery = from s in db.Set<Setting>().IgnoreQueryFilters().AsNoTracking()
+                                       join b in db.Set<Branch>().IgnoreQueryFilters().AsNoTracking() on s.BranchId equals b.Id into branchGroup
+                                       from b in branchGroup.DefaultIfEmpty()
+                                       where s.TenantId == tenantId.Value && b == null && s.Key == "branding.logo_key"
+                                       select s.ValueJson;
+                    var logoSettingJson = await logoKeyQuery.FirstOrDefaultAsync(ct);
 
                     string? logoKey = null;
-                    if (logoSetting != null && !string.IsNullOrWhiteSpace(logoSetting.ValueJson))
+                    if (!string.IsNullOrWhiteSpace(logoSettingJson))
                     {
                         try
                         {
-                            logoKey = JsonSerializer.Deserialize<string>(logoSetting.ValueJson);
+                            logoKey = JsonSerializer.Deserialize<string>(logoSettingJson);
                         }
                         catch
                         {
-                            logoKey = logoSetting.ValueJson.Trim('"');
+                            logoKey = logoSettingJson.Trim('"');
                         }
                     }
 
-                    if (string.IsNullOrWhiteSpace(logoKey) && setting != null && !string.IsNullOrWhiteSpace(setting.ValueJson))
+                    if (string.IsNullOrWhiteSpace(logoKey) && !string.IsNullOrWhiteSpace(settingValueJson))
                     {
                         try
                         {
-                            using var doc = JsonDocument.Parse(setting.ValueJson);
+                            using var doc = JsonDocument.Parse(settingValueJson);
                             if (doc.RootElement.TryGetProperty("logoUrl", out var lu))
                             {
                                 var luStr = lu.GetString();
