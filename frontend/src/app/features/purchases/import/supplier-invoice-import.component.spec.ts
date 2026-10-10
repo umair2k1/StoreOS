@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { HttpClient, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -226,4 +226,83 @@ describe('SupplierInvoiceImportComponent', () => {
     const resolvedBadge = nativeEl.querySelector('.badge-resolved');
     expect(resolvedBadge).toBeTruthy();
   });
+
+  it('(d) clicking "Create new product" opens modal, submitting issues POST /api/products, and stocks in the line', async () => {
+    const importPayload = {
+      importBatchId: 'b-004',
+      status: 'Pending',
+      productsMatched: 0,
+      productsAmbiguous: 1,
+      ambiguousLines: [
+        {
+          productNameRaw: 'Motorola Signature 27',
+          candidateProductIds: []
+        }
+      ],
+      purchasesCreated: 0
+    };
+
+    vi.spyOn(importsClient, 'importSupplierInvoice').mockReturnValue(of(createFileResponse(importPayload)));
+    const stockInSpy = vi.spyOn(purchasesClient, 'stockIn').mockReturnValue(of(createFileResponse({ success: true })));
+
+    const http = TestBed.inject(HttpClient);
+    const postSpy = vi.spyOn(http, 'post').mockReturnValue(of({ id: 'new-moto-id-123' }));
+
+    component.supplierId.set('sup-101');
+    component.supplierInvoiceNo.set('INV-2026-004');
+    component.rows.set([
+      {
+        id: 'row-1',
+        productNameRaw: 'Motorola Signature 27',
+        hsnCode: '8517',
+        qty: 10,
+        rate: 65000,
+        imei: ''
+      }
+    ]);
+    fixture.detectChanges();
+
+    await component.submitImport();
+    fixture.detectChanges();
+
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const createBtn = nativeEl.querySelector('.btn-create-product') as HTMLButtonElement | null;
+    expect(createBtn).toBeTruthy();
+
+    createBtn?.click();
+    fixture.detectChanges();
+
+    expect(component.isCreateProductModalOpen()).toBe(true);
+    expect(component.newProductName()).toBe('Motorola Signature 27');
+    expect(component.newProductPurchasePrice()).toBe(65000);
+
+    const modalBackdrop = nativeEl.querySelector('.modal-backdrop');
+    expect(modalBackdrop).toBeTruthy();
+
+    const submitBtn = nativeEl.querySelector('.btn-submit-create-product') as HTMLButtonElement | null;
+    expect(submitBtn).toBeTruthy();
+    expect(submitBtn?.disabled).toBe(false);
+
+    await component.submitCreateProduct();
+    fixture.detectChanges();
+
+    expect(postSpy).toHaveBeenCalledWith('/api/products', expect.objectContaining({
+      name: 'Motorola Signature 27',
+      category: 'NewPhone',
+      purchasePrice: 65000,
+      sellPrice: 65000,
+      gstRate: 18,
+      isMarginScheme: false
+    }));
+
+    expect(stockInSpy).toHaveBeenCalledTimes(1);
+    const calledStockCmd = stockInSpy.mock.calls[0][0] as StockInCommand;
+    expect(calledStockCmd.productId).toBe('new-moto-id-123');
+    expect(calledStockCmd.qty).toBe(10);
+    expect(calledStockCmd.purchaseRate).toBe(65000);
+
+    expect(component.isCreateProductModalOpen()).toBe(false);
+    expect(component.ambiguousLines()[0].isResolved).toBe(true);
+  });
 });
+

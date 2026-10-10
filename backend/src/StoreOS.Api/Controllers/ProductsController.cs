@@ -24,6 +24,8 @@ public class ProductsController : ControllerBase
         Ok(await _mediator.Send(new GetProductByIdQuery(id), ct));
 
     [HttpPost]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] CreateProductCommand command, CancellationToken ct)
     {
         var id = await _mediator.Send(command, ct);

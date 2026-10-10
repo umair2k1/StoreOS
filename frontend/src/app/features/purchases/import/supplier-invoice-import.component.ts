@@ -1,7 +1,7 @@
 import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ImportsClient, PurchasesClient, SuppliersClient } from '../../../core/api/generated-client';
 import type {
@@ -53,7 +53,7 @@ export interface SupplierOption {
 @Component({
   selector: 'app-supplier-invoice-import',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule],
   templateUrl: './supplier-invoice-import.component.html',
   styleUrl: './supplier-invoice-import.component.scss'
 })
@@ -62,6 +62,29 @@ export class SupplierInvoiceImportComponent implements OnInit {
   private readonly purchasesClient = inject(PurchasesClient);
   private readonly suppliersClient = inject(SuppliersClient);
   private readonly toastService = inject(ToastService);
+  private readonly http = inject(HttpClient);
+
+  // Create Product Modal State
+  readonly isCreateProductModalOpen = signal<boolean>(false);
+  readonly resolvingLine = signal<AmbiguousLineResolutionItem | null>(null);
+  readonly newProductName = signal<string>('');
+  readonly newProductCategory = signal<string>('NewPhone');
+  readonly newProductPurchasePrice = signal<number>(0);
+  readonly newProductSellPrice = signal<number>(0);
+  readonly newProductGstRate = signal<number>(18);
+  readonly newProductHsnCode = signal<string>('');
+  readonly isCreatingProduct = signal<boolean>(false);
+  readonly createProductError = signal<string | null>(null);
+
+  readonly isCreateProductValid = computed(() => {
+    return (
+      this.newProductName().trim().length > 0 &&
+      this.newProductCategory().trim().length > 0 &&
+      this.newProductPurchasePrice() >= 0 &&
+      this.newProductSellPrice() >= 0 &&
+      this.newProductGstRate() >= 0
+    );
+  });
 
   // Form Header Signals
   readonly supplierId = signal<string>('');
@@ -300,6 +323,68 @@ export class SupplierInvoiceImportComponent implements OnInit {
       this.toastService.error(`Failed to stock in line "${item.productNameRaw}".`);
     } finally {
       item.isRetrying = false;
+    }
+  }
+
+  openCreateProductModal(item: AmbiguousLineResolutionItem): void {
+    this.resolvingLine.set(item);
+    this.newProductName.set(item.productNameRaw);
+    this.newProductCategory.set('NewPhone');
+    const rate = item.originalRow?.rate ?? 0;
+    this.newProductPurchasePrice.set(rate);
+    this.newProductSellPrice.set(rate);
+    this.newProductGstRate.set(18);
+    this.newProductHsnCode.set(item.originalRow?.hsnCode ?? '');
+    this.createProductError.set(null);
+    this.isCreateProductModalOpen.set(true);
+  }
+
+  closeCreateProductModal(): void {
+    this.isCreateProductModalOpen.set(false);
+    this.resolvingLine.set(null);
+    this.createProductError.set(null);
+  }
+
+  async submitCreateProduct(): Promise<void> {
+    const item = this.resolvingLine();
+    if (!item || !this.isCreateProductValid() || this.isCreatingProduct()) {
+      return;
+    }
+
+    this.isCreatingProduct.set(true);
+    this.createProductError.set(null);
+
+    const command = {
+      name: this.newProductName().trim(),
+      category: this.newProductCategory().trim(),
+      purchasePrice: this.newProductPurchasePrice(),
+      sellPrice: this.newProductSellPrice(),
+      gstRate: this.newProductGstRate(),
+      hsnCode: this.newProductHsnCode().trim() || undefined,
+      isMarginScheme: false
+    };
+
+    try {
+      const resp = await firstValueFrom(
+        this.http.post<{ id: string }>('/api/products', command)
+      );
+      const newProductId = resp?.id;
+      if (!newProductId) {
+        throw new Error('Product created but no ID was returned.');
+      }
+
+      this.toastService.success(`Product "${command.name}" created successfully.`);
+
+      // Automatically assign the newly created product ID and stock in this line
+      item.selectedProductId = newProductId;
+      await this.retryLine(item);
+      this.closeCreateProductModal();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create product.';
+      this.createProductError.set(msg);
+      this.toastService.error(`Failed to create product: ${msg}`);
+    } finally {
+      this.isCreatingProduct.set(false);
     }
   }
 

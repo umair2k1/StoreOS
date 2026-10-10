@@ -138,7 +138,7 @@ export class InventoryListComponent implements OnInit, OnDestroy {
   }
 
   syncStateFromParams(params: Params): void {
-    this.search.set(params['search'] || '');
+    this.search.set(params['search'] || params['name'] || '');
     this.category.set(params['category'] || '');
     this.stockStatus.set(params['stockStatus'] || '');
     this.isMarginScheme.set(params['isMarginScheme'] || 'all');

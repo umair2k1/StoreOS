@@ -149,10 +149,10 @@
             <p class="no-match-text">
               No catalog product exists matching "{{ item.productNameRaw }}". Create a new product to resolve.
             </p>
-            <a class="btn btn-secondary btn-create-product" [routerLink]="['/inventory']"
-              [queryParams]="{ name: item.productNameRaw }">
+            <button type="button" class="btn btn-secondary btn-create-product"
+              (click)="openCreateProductModal(item)">
               Create new product
-            </a>
+            </button>
           </div>
 
           <!-- Case B: Multiple matches found -->
@@ -183,4 +183,90 @@
       </div>
     </div>
   </section>
+
+  <!-- Create Product Modal -->
+  <div class="modal-backdrop" *ngIf="isCreateProductModalOpen()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Create Product &amp; Resolve Line</h2>
+        <button type="button" class="btn-close" (click)="closeCreateProductModal()">&times;</button>
+      </div>
+
+      <form (ngSubmit)="submitCreateProduct()">
+        <div class="modal-body">
+          <p class="modal-description" *ngIf="resolvingLine()">
+            Add <strong>{{ resolvingLine()?.productNameRaw }}</strong> to your product catalog to stock in this line item.
+          </p>
+
+          <div *ngIf="createProductError()" class="alert alert-danger">
+            {{ createProductError() }}
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newProductName">Product Name <span class="required">*</span></label>
+            <input id="newProductName" name="newProductName" type="text" class="form-control"
+              [ngModel]="newProductName()" (ngModelChange)="newProductName.set($event)" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="newProductCategory">Category <span class="required">*</span></label>
+            <select id="newProductCategory" name="newProductCategory" class="form-control"
+              [ngModel]="newProductCategory()" (ngModelChange)="newProductCategory.set($event)" required>
+              <option value="NewPhone">New Phone</option>
+              <option value="UsedPhone">Used Phone</option>
+              <option value="Accessory">Accessory</option>
+              <option value="RepairService">Repair Service</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label class="form-label" for="newProductPurchasePrice">Purchase Price (₹) <span class="required">*</span></label>
+              <input id="newProductPurchasePrice" name="newProductPurchasePrice" type="number" min="0" step="any"
+                class="form-control" [ngModel]="newProductPurchasePrice()"
+                (ngModelChange)="newProductPurchasePrice.set(+$event)" required />
+            </div>
+
+            <div class="form-group col-half">
+              <label class="form-label" for="newProductSellPrice">Selling Price (₹) <span class="required">*</span></label>
+              <input id="newProductSellPrice" name="newProductSellPrice" type="number" min="0" step="any"
+                class="form-control" [ngModel]="newProductSellPrice()"
+                (ngModelChange)="newProductSellPrice.set(+$event)" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label class="form-label" for="newProductGstRate">GST Rate (%) <span class="required">*</span></label>
+              <select id="newProductGstRate" name="newProductGstRate" class="form-control"
+                [ngModel]="newProductGstRate()" (ngModelChange)="newProductGstRate.set(+$event)" required>
+                <option [ngValue]="0">0%</option>
+                <option [ngValue]="5">5%</option>
+                <option [ngValue]="12">12%</option>
+                <option [ngValue]="18">18%</option>
+                <option [ngValue]="28">28%</option>
+              </select>
+            </div>
+
+            <div class="form-group col-half">
+              <label class="form-label" for="newProductHsnCode">HSN Code</label>
+              <input id="newProductHsnCode" name="newProductHsnCode" type="text" class="form-control"
+                [ngModel]="newProductHsnCode()" (ngModelChange)="newProductHsnCode.set($event)"
+                placeholder="e.g. 8517" />
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" (click)="closeCreateProductModal()">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary btn-submit-create-product"
+            [disabled]="!isCreateProductValid() || isCreatingProduct()">
+            {{ isCreatingProduct() ? 'Creating & Stocking In...' : 'Create & Stock In' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
