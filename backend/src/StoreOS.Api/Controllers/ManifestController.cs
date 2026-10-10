@@ -17,8 +17,18 @@ public class ManifestController : ControllerBase
     [HttpGet("/api/tenant/manifest.webmanifest")]
     [AllowAnonymous]
     [ResponseCache(Duration = 300, VaryByHeader = "Host")]
-    public async Task<IActionResult> GetManifest([FromQuery] Guid? tenantId, CancellationToken ct)
+    public async Task<IActionResult> GetManifest(
+        [FromQuery] Guid? tenantId,
+        [FromServices] IAppDbContext db,
+        [FromServices] IObjectStorageService storage,
+        [FromServices] IAccessScope scope,
+        CancellationToken ct)
     {
+        if ((!tenantId.HasValue || tenantId.Value == Guid.Empty) && scope.IsAuthenticated && scope.TenantId != Guid.Empty)
+        {
+            tenantId = scope.TenantId;
+        }
+
         TenantPublicProfile? tenant = null;
 
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)
@@ -35,11 +45,13 @@ public class ManifestController : ControllerBase
             return NotFound();
         }
 
-        var shortName = tenant.Name.Length > 12 ? tenant.Name[..12] : tenant.Name;
+        var branding = await ShopBrandingHelper.ResolveAsync(null, db, ct, storage, tenant.TenantId);
+        var effectiveName = !string.IsNullOrWhiteSpace(branding.ShopName) ? branding.ShopName : tenant.Name;
+        var shortName = effectiveName.Length > 12 ? effectiveName[..12] : effectiveName;
         var manifest = new
         {
             id = "/",
-            name = tenant.Name,
+            name = effectiveName,
             short_name = shortName,
             start_url = "/",
             scope = "/",
@@ -48,8 +60,8 @@ public class ManifestController : ControllerBase
             background_color = "#0f172a",
             icons = new[]
             {
-                new { src = "/api/tenant/logo.png?size=192", sizes = "192x192", type = "image/png", purpose = "any" },
-                new { src = "/api/tenant/logo.png?size=512", sizes = "512x512", type = "image/png", purpose = "any" }
+                new { src = $"/api/tenant/logo.png?size=192&tenantId={tenant.TenantId}", sizes = "192x192", type = "image/png", purpose = "any" },
+                new { src = $"/api/tenant/logo.png?size=512&tenantId={tenant.TenantId}", sizes = "512x512", type = "image/png", purpose = "any" }
             }
         };
 
@@ -58,8 +70,18 @@ public class ManifestController : ControllerBase
 
     [HttpGet("/api/tenant/public-profile")]
     [AllowAnonymous]
-    public async Task<IActionResult> GetPublicProfile([FromQuery] Guid? tenantId, CancellationToken ct)
+    public async Task<IActionResult> GetPublicProfile(
+        [FromQuery] Guid? tenantId,
+        [FromServices] IAppDbContext db,
+        [FromServices] IObjectStorageService storage,
+        [FromServices] IAccessScope scope,
+        CancellationToken ct)
     {
+        if ((!tenantId.HasValue || tenantId.Value == Guid.Empty) && scope.IsAuthenticated && scope.TenantId != Guid.Empty)
+        {
+            tenantId = scope.TenantId;
+        }
+
         TenantPublicProfile? tenant = null;
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)
         {
@@ -75,12 +97,15 @@ public class ManifestController : ControllerBase
             return NotFound();
         }
 
+        var branding = await ShopBrandingHelper.ResolveAsync(null, db, ct, storage, tenant.TenantId);
+        var effectiveName = !string.IsNullOrWhiteSpace(branding.ShopName) ? branding.ShopName : tenant.Name;
+
         return Ok(new
         {
             tenantId = tenant.TenantId,
-            name = tenant.Name,
+            name = effectiveName,
             subdomain = tenant.Subdomain,
-            logoUrl = "/api/tenant/logo.png?size=512"
+            logoUrl = $"/api/tenant/logo.png?size=512&tenantId={tenant.TenantId}"
         });
     }
 }

@@ -15,6 +15,7 @@ import { AuthSignalStore } from '../../core/auth/auth-signal-store';
 import { ToastService } from '../../shared/services/toast.service';
 import { LogoUploaderComponent } from '../onboarding/logo-uploader.component';
 import { PermissionDirective } from '../../core/directives/permission.directive';
+import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
 
 export type SettingsTab = 'shop' | 'tax' | 'bank' | 'finance' | 'theme' | 'repairs' | 'account';
 
@@ -40,6 +41,7 @@ export class SettingsComponent implements OnInit {
   private readonly settingsClient = inject(SettingsClient);
   private readonly authClient = inject(AuthClient);
   private readonly authStore = inject(AuthSignalStore);
+  private readonly brandingStore = inject(BrandingSignalStore);
   private readonly router = inject(Router);
   private readonly toastService = inject(ToastService);
 
@@ -159,6 +161,14 @@ export class SettingsComponent implements OnInit {
         if (data.phone !== undefined) this.shopPhone.set(data.phone);
         if (data.gstin !== undefined) this.shopGstin.set(data.gstin);
         if (data.logoUrl !== undefined) this.shopLogoUrl.set(data.logoUrl);
+
+        const loadedName = (data.name || data.shopName)?.trim();
+        if (loadedName) {
+          this.brandingStore.setBranding({
+            tenantName: loadedName,
+            logoUrl: data.logoUrl || null
+          });
+        }
       }
     } catch {
       // Non-critical, keep default values
@@ -207,9 +217,10 @@ export class SettingsComponent implements OnInit {
   async saveShopInfo(): Promise<void> {
     this.isSaving.set(true);
     try {
+      const trimmedName = this.shopName().trim();
       const payload = {
-        name: this.shopName().trim(),
-        shopName: this.shopName().trim(),
+        name: trimmedName,
+        shopName: trimmedName,
         address: this.shopAddress().trim(),
         email: this.shopEmail().trim(),
         phone: this.shopPhone().trim(),
@@ -217,6 +228,12 @@ export class SettingsComponent implements OnInit {
         logoUrl: this.shopLogoUrl()
       };
       await firstValueFrom(this.settingsClient.patchSetting('shop_profile', payload));
+      if (trimmedName) {
+        this.brandingStore.setBranding({
+          tenantName: trimmedName,
+          logoUrl: this.shopLogoUrl() || null
+        });
+      }
       this.toastService.success('Shop information saved.');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save shop info.';

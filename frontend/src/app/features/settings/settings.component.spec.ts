@@ -8,6 +8,7 @@ import { SettingsComponent } from './settings.component';
 import { SettingsClient, AuthClient } from '../../core/api/generated-client';
 import type { FileResponse } from '../../core/api/generated-client';
 import { AuthSignalStore } from '../../core/auth/auth-signal-store';
+import { BrandingSignalStore } from '../../core/branding/branding-signal-store';
 import { ToastService } from '../../shared/services/toast.service';
 
 describe('SettingsComponent', () => {
@@ -16,6 +17,7 @@ describe('SettingsComponent', () => {
   let settingsClient: SettingsClient;
   let authClient: AuthClient;
   let authStore: AuthSignalStore;
+  let brandingStore: BrandingSignalStore;
   let router: Router;
 
   function createFileResponse(payload: unknown): FileResponse {
@@ -37,6 +39,7 @@ describe('SettingsComponent', () => {
         SettingsClient,
         AuthClient,
         AuthSignalStore,
+        BrandingSignalStore,
         {
           provide: Router,
           useValue: {
@@ -58,6 +61,7 @@ describe('SettingsComponent', () => {
     settingsClient = TestBed.inject(SettingsClient);
     authClient = TestBed.inject(AuthClient);
     authStore = TestBed.inject(AuthSignalStore);
+    brandingStore = TestBed.inject(BrandingSignalStore);
     router = TestBed.inject(Router);
 
     vi.spyOn(settingsClient, 'getFinanceProviders').mockReturnValue(
@@ -126,6 +130,7 @@ describe('SettingsComponent', () => {
     expect(component.shopLogoUrl()).toBe('https://cdn.example.com/saved-logo.png');
     expect(component.defaultGstRate()).toBe(18);
     expect(component.bankName()).toBe('HDFC Bank');
+    expect(brandingStore.tenantName()).toBe('Saved Shop');
   });
 
   it('each tab save action calls correct PATCH /api/settings/{key} with correct shape', async () => {
@@ -152,6 +157,7 @@ describe('SettingsComponent', () => {
         logoUrl: 'https://cdn.example.com/logo.png'
       })
     );
+    expect(brandingStore.tenantName()).toBe('PhoneZone Prime');
 
     // 2. Tax Settings Tab
     component.setTab('tax');
