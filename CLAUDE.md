@@ -1,8 +1,9 @@
-# StoreOS — Agent Instruction Rules & Strict Vibe-Coding Protocol
+# StoreOS — Agent Instruction Rules & Architecture Guide
 
-> **CRITICAL RULE FOR ALL ASSISTANTS & EXECUTORS (omp on Windows, Android Termux/Debian, or remote):**
-> This repository is built strictly using a verified 157-step sequential prompt pack (`docs/prompts/INDEX.md`).
-> Out-of-order execution, skipped prompts, freelanced architectures, or stubs are strictly forbidden.
+> **STATUS: 157/157 PROMPTS COMPLETED (100% COMPLETE - BUILD GREEN)**
+> The initial sequential prompt-pack bootstrap (`docs/prompts/INDEX.md`) is fully implemented and verified.
+> The repository is currently in **Feature Development & Production Maintenance Mode**.
+> Sequential prompt-pack gating is retired for routine tasks, while core architecture invariants and anti-stub standards remain strictly enforced.
 
 ---
 
@@ -13,29 +14,11 @@ You may be running on a Windows PC or on an Android phone (Termux in Debian).
   - Line endings are normalized to `LF` in `.gitattributes`.
   - Always verify git synchronization before starting: `python3 tools/vibe.py sync`.
   - Before switching devices, always run `git push`. When arriving on the other device, run `git pull`.
+  - Repository status check: `python3 tools/vibe.py status`.
 
 ---
 
-## 2. Strict Vibe-Coding Workflow
-
-### Step 1: Gate Check
-Before touching any code or reading an arbitrary prompt, run:
-```bash
-python3 tools/vibe.py status
-python3 tools/vibe.py gate [PROMPT_ID]
-```
-If the gatekeeper exits with code 1 (due to out-of-order prompt, dirty working tree, or active block), **STOP IMMEDIATELY**. Do not proceed.
-
-### Step 2: Retrieve Next Prompt
-To retrieve the next authorized prompt:
-```bash
-python3 tools/vibe.py next
-# To view the complete prompt text:
-python3 tools/vibe.py next --print
-```
-
-### Step 3: Architecture & Invariant Rules
-- Always consult `docs/prompts/_shared/CONTRACTS.md` and `docs/prompts/_shared/DECISIONS.md`. If a prompt code sample conflicts with `CONTRACTS.md`, **CONTRACTS.md wins**.
+## 2. Architecture & Invariant Rules
 - **Layering**:
   `StoreOS.Domain` $\leftarrow$ `StoreOS.Application` $\leftarrow$ `StoreOS.Infrastructure` $\leftarrow$ `StoreOS.Api`.
   `StoreOS.Application` **NEVER** references `StoreOS.Infrastructure`.
@@ -44,33 +27,43 @@ python3 tools/vibe.py next --print
   - Mandatory RLS expression: `NULLIF(current_setting('app.tenant_id', true), '')::uuid`.
 - **Anti-Stub Policy**:
   - No `TODO`, `FIXME`, `NotImplementedException`, `// rest omitted`, `for brevity`, or `of(mockData)`.
-- **Coding Standards**: See [CODING_STANDARDS.md](CODING_STANDARDS.md) for MediatR open-behavior constraints, session cache invalidation, and EF Core composite key conventions.
+- **Design & Invariants**:
+  - Always consult `docs/prompts/_shared/CONTRACTS.md` and `docs/prompts/_shared/DECISIONS.md`.
+  - Coding Standards: See [CODING_STANDARDS.md](CODING_STANDARDS.md) for MediatR open-behavior constraints, session cache invalidation, and EF Core composite key conventions.
 
-### Step 4: Verification
-After implementing the prompt:
-1. Append to `docs/BUILD_LOG.md`:
-   `<PROMPT_ID> | DONE | <list of modified/created files>`
-2. Append to `docs/ARTIFACTS.md` under `## <PROMPT_ID>`:
-   Exact signatures of all created entities, interfaces, tables, endpoints, or components.
-3. Run verification:
-   ```bash
-   python3 tools/vibe.py verify <PROMPT_ID>
-   ```
-   All checks (forbidden pattern scan, prompt pack consistency, log entries, build) must PASS.
+---
 
-### Step 5: Commit & Hand-off
-Once verification passes:
+## 3. Development, Verification & Delivery Workflow
+
+### Step 1: Sync & Verify Working Tree
 ```bash
-python3 tools/vibe.py commit <PROMPT_ID>
+python3 tools/vibe.py sync
+python3 tools/vibe.py status
 ```
-If you are finishing your turn or switching devices, push your commit:
+
+### Step 2: Implementation & Verification
+1. Implement the requested fix or feature with no placeholder stubs.
+2. Verify Backend:
+   ```bash
+   dotnet build backend/src/StoreOS.Api/StoreOS.Api.csproj
+   dotnet test backend/tests/StoreOS.Tests/StoreOS.Tests.csproj
+   ```
+3. Verify Frontend:
+   ```bash
+   cd frontend && npm test -- --watch=false
+   ```
+4. Verify Quality & Formatting:
+   - Ensure no forbidden patterns (`TODO`, `FIXME`, `NotImplementedException`) exist in modified files.
+
+### Step 3: Commit & Hand-off
 ```bash
+git add <files>
+git commit -m "feat/fix(<scope>): <description>"
 git push
 ```
 
-### Step 6: Failure Protocol
-If a prompt cannot be implemented after 3 attempts:
-```bash
-python3 tools/vibe.py block <PROMPT_ID> "<error message>"
-```
-Do not commit broken code or stubs. End your turn.
+---
+
+## 4. Role of `tools/vibe.py` & Historical Artifacts
+- `tools/vibe.py`: Preserved for multi-device sync (`vibe.py sync`), baseline status verification (`vibe.py status`), and code quality checking.
+- `docs/prompts/`, `docs/BUILD_LOG.md`, and `docs/ARTIFACTS.md`: Preserved as the permanent audit trail and design provenance for the 157-step foundational build.
