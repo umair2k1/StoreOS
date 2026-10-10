@@ -96,6 +96,7 @@ describe('InventoryListComponent', () => {
     router = TestBed.inject(Router);
 
     vi.spyOn(inventoryClient, 'list').mockReturnValue(of(mockFileResponse));
+    vi.spyOn(inventoryClient, 'categories').mockReturnValue(of(['Smartphones', 'Tablets']));
     vi.spyOn(router, 'navigate').mockImplementation(async (_commands, extras) => {
       if (extras?.queryParams) {
         queryParams$.next(extras.queryParams);
@@ -153,6 +154,26 @@ describe('InventoryListComponent', () => {
     component.updateParam('isMarginScheme', 'true');
     expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({
       queryParams: expect.objectContaining({ isMarginScheme: 'true' })
+    }));
+  });
+
+  it('renders category dropdown with existing categories and updates parameter on selection', async () => {
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const selectEl = fixture.nativeElement.querySelector('#invCategory') as HTMLSelectElement;
+    expect(selectEl).not.toBeNull();
+    const options = Array.from(selectEl.options).map(o => o.text.trim());
+    expect(options).toContain('All Categories');
+    expect(options).toContain('Smartphones');
+    expect(options).toContain('Tablets');
+
+    selectEl.value = 'Smartphones';
+    selectEl.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({
+      queryParams: expect.objectContaining({ category: 'Smartphones' })
     }));
   });
 

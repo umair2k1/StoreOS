@@ -304,5 +304,62 @@ describe('SupplierInvoiceImportComponent', () => {
     expect(component.isCreateProductModalOpen()).toBe(false);
     expect(component.ambiguousLines()[0].isResolved).toBe(true);
   });
+
+  it('(e) typing in product name input triggers search and shows suggestive dropdown, selecting fills line fields', async () => {
+    const http = TestBed.inject(HttpClient);
+    const mockProducts = [
+      {
+        id: 'prod-s24',
+        name: 'Samsung Galaxy S24 Ultra',
+        category: 'NewPhone',
+        purchasePrice: 90000,
+        sellPrice: 110000,
+        hsnCode: '8517'
+      }
+    ];
+
+    vi.spyOn(http, 'get').mockReturnValue(of({ items: mockProducts }));
+
+    component.rows.set([
+      {
+        id: 'row-1',
+        productNameRaw: '',
+        hsnCode: '',
+        qty: 1,
+        rate: 0,
+        imei: ''
+      }
+    ]);
+    fixture.detectChanges();
+
+    // Trigger input on product name
+    component.onProductNameInput(0, 'Samsung');
+    // Wait for debounce
+    await new Promise(resolve => setTimeout(resolve, 300));
+    fixture.detectChanges();
+
+    expect(component.productSuggestions().length).toBe(1);
+    expect(component.isDropdownOpen()).toBe(true);
+
+    const nativeEl = fixture.nativeElement as HTMLElement;
+    const dropdownEl = nativeEl.querySelector('.product-suggestions-dropdown');
+    expect(dropdownEl).toBeTruthy();
+    expect(dropdownEl?.textContent).toContain('Samsung Galaxy S24 Ultra');
+    expect(dropdownEl?.textContent).toContain('NewPhone');
+    expect(dropdownEl?.textContent).toContain('Cost: ₹90000');
+
+    // Select suggestion
+    const itemEl = dropdownEl?.querySelector('.suggestion-item') as HTMLElement;
+    expect(itemEl).toBeTruthy();
+    itemEl.dispatchEvent(new MouseEvent('mousedown'));
+    fixture.detectChanges();
+
+    // Verify row is updated
+    const updatedRow = component.rows()[0];
+    expect(updatedRow.productNameRaw).toBe('Samsung Galaxy S24 Ultra');
+    expect(updatedRow.hsnCode).toBe('8517');
+    expect(updatedRow.rate).toBe(90000);
+    expect(component.isDropdownOpen()).toBe(false);
+  });
 });
 

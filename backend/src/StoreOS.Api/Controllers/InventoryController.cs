@@ -17,6 +17,11 @@ public class InventoryController : ControllerBase
     public async Task<IActionResult> List([FromQuery] GetInventoryQuery query, CancellationToken ct) =>
         Ok(await _mediator.Send(query, ct));
 
+    [HttpGet("categories")]
+    [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Categories(CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetInventoryCategoriesQuery(), ct));
+
     [HttpGet("low-stock")]
     public async Task<IActionResult> LowStock([FromQuery] GetLowStockQuery query, CancellationToken ct) =>
         Ok(await _mediator.Send(query, ct));

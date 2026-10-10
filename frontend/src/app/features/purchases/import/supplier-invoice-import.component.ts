@@ -1,8 +1,9 @@
-import { Component, inject, signal, computed, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject, Subscription, of } from 'rxjs';
+import { debounceTime, distinctUntilChanged, switchMap, catchError, tap } from 'rxjs';
 import { ImportsClient, PurchasesClient, SuppliersClient } from '../../../core/api/generated-client';
 import type {
   ImportSupplierInvoiceCommand,
@@ -11,6 +12,16 @@ import type {
   FileResponse
 } from '../../../core/api/generated-client';
 import { ToastService } from '../../../shared/services/toast.service';
+
+export interface ProductSuggestionDto {
+  id: string;
+  name: string;
+  category: string;
+  sellPrice?: number;
+  purchasePrice?: number;
+  hsnCode?: string;
+  gstRate?: number;
+}
 
 export interface ImportGridRow {
   id: string;
@@ -57,12 +68,21 @@ export interface SupplierOption {
   templateUrl: './supplier-invoice-import.component.html',
   styleUrl: './supplier-invoice-import.component.scss'
 })
-export class SupplierInvoiceImportComponent implements OnInit {
+export class SupplierInvoiceImportComponent implements OnInit, OnDestroy {
   private readonly importsClient = inject(ImportsClient);
   private readonly purchasesClient = inject(PurchasesClient);
   private readonly suppliersClient = inject(SuppliersClient);
   private readonly toastService = inject(ToastService);
   private readonly http = inject(HttpClient);
+
+  // Suggestive Product Search Signals
+  readonly activeRowIndex = signal<number | null>(null);
+  readonly isDropdownOpen = signal<boolean>(false);
+  readonly isSearchingProducts = signal<boolean>(false);
+  readonly productSuggestions = signal<ProductSuggestionDto[]>([]);
+
+  private readonly searchSubject = new Subject<{ index: number; query: string }>();
+  private searchSub?: Subscription;
 
   // Create Product Modal State
   readonly isCreateProductModalOpen = signal<boolean>(false);
@@ -136,7 +156,78 @@ export class SupplierInvoiceImportComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.initProductSearch();
     this.loadSuppliers();
+  }
+
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
+
+  private initProductSearch(): void {
+    this.searchSub = this.searchSubject.pipe(
+      debounceTime(250),
+      distinctUntilChanged((prev, curr) => prev.index === curr.index && prev.query === curr.query),
+      switchMap(({ query }) => {
+        const term = (query || '').trim();
+        if (term.length === 0) {
+          this.productSuggestions.set([]);
+          this.isDropdownOpen.set(false);
+          this.isSearchingProducts.set(false);
+          return of([]);
+        }
+        this.isSearchingProducts.set(true);
+        return this.http.get<{ items?: ProductSuggestionDto[] } | ProductSuggestionDto[]>(
+          '/api/products',
+          { params: { search: term, pageSize: 8 } }
+        ).pipe(
+          catchError(() => of([])),
+          tap(() => this.isSearchingProducts.set(false))
+        );
+      })
+    ).subscribe(resp => {
+      let list: ProductSuggestionDto[] = [];
+      if (Array.isArray(resp)) {
+        list = resp;
+      } else if (resp && typeof resp === 'object' && 'items' in resp && Array.isArray(resp.items)) {
+        list = resp.items;
+      }
+      this.productSuggestions.set(list);
+      this.isDropdownOpen.set(list.length > 0);
+    });
+  }
+
+  onProductNameInput(index: number, query: string): void {
+    this.activeRowIndex.set(index);
+    this.searchSubject.next({ index, query });
+  }
+
+  onProductNameFocus(index: number, query: string): void {
+    this.activeRowIndex.set(index);
+    if (query && query.trim().length > 0) {
+      this.searchSubject.next({ index, query });
+    }
+  }
+
+  onProductNameBlur(): void {
+    setTimeout(() => {
+      this.isDropdownOpen.set(false);
+    }, 200);
+  }
+
+  selectProductSuggestion(index: number, product: ProductSuggestionDto): void {
+    const currentRows = [...this.rows()];
+    if (currentRows[index]) {
+      currentRows[index] = {
+        ...currentRows[index],
+        productNameRaw: product.name,
+        hsnCode: currentRows[index].hsnCode || product.hsnCode || '',
+        rate: currentRows[index].rate > 0 ? currentRows[index].rate : (product.purchasePrice ?? currentRows[index].rate)
+      };
+      this.rows.set(currentRows);
+    }
+    this.isDropdownOpen.set(false);
+    this.productSuggestions.set([]);
   }
 
   async loadSuppliers(): Promise<void> {

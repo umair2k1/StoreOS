@@ -61,6 +61,17 @@ export class InventoryListComponent implements OnInit, OnDestroy {
   readonly stockStatus = signal<string>('');
   readonly isMarginScheme = signal<string>('all'); // 'all' | 'true' | 'false'
 
+  // Categories lookup
+  readonly categories = signal<string[]>([]);
+  readonly allCategoryOptions = computed(() => {
+    const list = [...this.categories()];
+    const current = this.category();
+    if (current && !list.includes(current)) {
+      list.unshift(current);
+    }
+    return list;
+  });
+
   readonly sortBy = signal<string>('ProductName');
   readonly sortDirection = signal<'asc' | 'desc'>('asc');
   readonly page = signal<number>(1);
@@ -127,10 +138,22 @@ export class InventoryListComponent implements OnInit, OnDestroy {
   ];
 
   ngOnInit(): void {
+    this.loadCategories();
     this.querySub = this.route.queryParams.subscribe((params) => {
       this.syncStateFromParams(params);
       this.fetchInventory();
     });
+  }
+
+  async loadCategories(): Promise<void> {
+    try {
+      const cats = await firstValueFrom(this.inventoryClient.categories());
+      if (cats && cats.length > 0) {
+        this.categories.set(cats);
+      }
+    } catch {
+      // Fallback: categories will be populated from inventory items
+    }
   }
 
   ngOnDestroy(): void {
@@ -178,6 +201,17 @@ export class InventoryListComponent implements OnInit, OnDestroy {
 
       // Apply client-side sorting if needed
       list = this.applySorting(list, this.sortBy(), this.sortDirection());
+
+      // Merge any categories from loaded items into categories lookup
+      const currentCats = new Set(this.categories());
+      for (const item of list) {
+        if (item.category) {
+          currentCats.add(item.category);
+        }
+      }
+      if (currentCats.size > 0) {
+        this.categories.set(Array.from(currentCats).sort());
+      }
 
       this.items.set(list);
       this.totalCount.set(parsed.totalCount || list.length);

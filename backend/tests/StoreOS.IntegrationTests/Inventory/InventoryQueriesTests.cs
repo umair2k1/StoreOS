@@ -305,4 +305,21 @@ public class InventoryQueriesTests : IAsyncLifetime
         valuation.RetailValuation.Should().Be(538000.00m);
         valuation.PotentialGrossValue.Should().Be(108000.00m);
     }
+
+    [Fact]
+    public async Task GetCategories_ReturnsExistingCategories()
+    {
+        var token = IssueToken(_allBranchesUserId, allBranches: true, new[] { _branchAId, _branchBId });
+
+        var req = new HttpRequestMessage(HttpMethod.Get, "/api/inventory/categories");
+        req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        req.Headers.Add(BranchContextMiddleware.HeaderName, _branchAId.ToString());
+
+        var res = await _client.SendAsync(req);
+        res.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var categories = await res.Content.ReadFromJsonAsync<List<string>>();
+        categories.Should().NotBeNull();
+        categories.Should().Contain(new[] { "Accessory", "NewPhone", "UsedPhone" });
+    }
 }

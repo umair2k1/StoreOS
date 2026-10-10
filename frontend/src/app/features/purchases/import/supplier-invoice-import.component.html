@@ -74,9 +74,32 @@
         </thead>
         <tbody>
           <tr *ngFor="let row of rows(); let i = index" class="line-row">
-            <td>
-              <input type="text" class="form-control input-product-name" placeholder="Raw product name"
-                [(ngModel)]="row.productNameRaw" />
+            <td class="col-product-cell">
+              <div class="product-autocomplete-container">
+                <input type="text" class="form-control input-product-name" placeholder="Raw product name"
+                  [(ngModel)]="row.productNameRaw"
+                  (input)="onProductNameInput(i, row.productNameRaw)"
+                  (focus)="onProductNameFocus(i, row.productNameRaw)"
+                  (blur)="onProductNameBlur()"
+                  (keydown.escape)="isDropdownOpen.set(false)"
+                  autocomplete="off" />
+                <div *ngIf="activeRowIndex() === i && isDropdownOpen() && productSuggestions().length > 0"
+                  class="product-suggestions-dropdown" role="listbox">
+                  <div *ngFor="let prod of productSuggestions()"
+                    class="suggestion-item"
+                    role="option"
+                    (mousedown)="selectProductSuggestion(i, prod)">
+                    <div class="suggestion-main">
+                      <span class="suggestion-name">{{ prod.name }}</span>
+                      <span class="suggestion-category-badge">{{ prod.category }}</span>
+                    </div>
+                    <div class="suggestion-details">
+                      <span *ngIf="prod.hsnCode" class="suggestion-hsn">HSN: {{ prod.hsnCode }}</span>
+                      <span *ngIf="prod.purchasePrice !== undefined && prod.purchasePrice !== null" class="suggestion-price">Cost: ₹{{ prod.purchasePrice }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </td>
             <td>
               <input type="text" class="form-control input-hsn" placeholder="HSN" [(ngModel)]="row.hsnCode" />

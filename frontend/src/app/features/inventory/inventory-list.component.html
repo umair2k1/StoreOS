@@ -21,8 +21,13 @@
 
       <div class="filter-field">
         <label for="invCategory">Category</label>
-        <input id="invCategory" type="text" class="form-control" placeholder="Filter by category..."
-          [ngModel]="category()" (ngModelChange)="updateParam('category', $event)" />
+        <select id="invCategory" class="form-control" [ngModel]="category()"
+          (ngModelChange)="updateParam('category', $event)">
+          <option value="">All Categories</option>
+          <option *ngFor="let cat of allCategoryOptions()" [value]="cat">
+            {{ cat }}
+          </option>
+        </select>
       </div>
 
       <div class="filter-field">
